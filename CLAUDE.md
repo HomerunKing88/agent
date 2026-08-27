@@ -6,14 +6,14 @@
   문서와 코드가 어긋나면 문서를 고친다. 코드가 문서보다 앞서 나가지 않는다.
 
 ## 규칙 값
-- 폰트, 각주 y좌표, 최소 pt, 표 정렬, 금지 영역 등 모든 규칙 값은
-  `house-rules.yaml`에서만 읽는다. 코드에 하드코딩하지 않는다.
+- 폰트, 각주 y좌표, 최소 pt, 표 정렬, 금지 영역 등 모든 규칙 값은 `house-rules.yaml`에서만 읽는다. 코드에 하드코딩하지 않는다.
 - `template.js`와 `audit.py`가 같은 값을 각자 들고 있으면 생성기와 검사기가 갈라진다.
 
 ## 담당 파일
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
 - Claude Code 담당: `template.js`, `deck.js`, `orchestrator.py`, `slack_bot.py`
 - 공동: `house-rules.yaml` (변경 시 상대에게 알림)
+- `template.js` 원본은 이 리포다. 스킬 폴더(`~/.claude/skills/.../corporate-strategy-ppt/`)는 배포본이므로 거기서 고치지 않는다.
 
 ## 잡 폴더
 - 실적 수치가 든 잡 폴더는 리포 밖, 커밋하지 않는다. 리포 자체는 동기화 폴더에 두지 않는다.

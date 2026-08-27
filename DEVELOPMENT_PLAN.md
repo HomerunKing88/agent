@@ -245,7 +245,7 @@ C:\dev\deck-qa\                    git 리포. 실적 수치 없음
   audit.py                         정적 검사
   render_check.py                  PowerPoint COM 검사
   lint_deck.js                     raw 호출 검출
-  template.js                      생성 헬퍼 (기존 스킬에서 이관)
+  template.js                      생성 헬퍼 (원본. 스킬 폴더는 배포본)
   orchestrator.py
   slack_bot.py
   fixtures/
