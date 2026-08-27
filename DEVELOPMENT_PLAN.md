@@ -255,7 +255,7 @@ C:\dev\deck-qa\                    git 리포. 실적 수치 없음
   skill/                           .skill 패키징 소스
   .gitignore                       jobs/ 제외
 
-C:\work\jobs\job_20260828_001\     git 밖. 실적 수치 있음
+G:\내 드라이브\deck-qa-jobs\job_20260828_001\   git 밖. 실적 수치 있음 (구글 드라이브)
   source/     source.xlsx  brief.md
   builder/    deck_v1.js  deck_v1.pptx  deck_v1.pdf  out/p*.png  manifest.json
   review/     editor_r1.json  audit_r1.json  issue_register.json  user_decision.json
@@ -572,7 +572,7 @@ Socket Mode. `files:read` 스코프로 파일을 받고, `thread_ts`를 잡 ID�
 
 - 회사 PC에서 폰으로 파일을 옮기는 경로. 사내 반출 규정 확인 필요.
 - 집 PC PowerPoint 설치 여부, HY헤드라인M 설치 여부.
-- 실적 수치가 개인 PC와 개인 슬랙에 남는 것에 대한 사내 규정 확인.
+- 실적 수치가 개인 PC와 개인 슬랙, 개인 구글 드라이브에 남는 것에 대한 사내 규정 확인.
   지금도 클로드에 자료를 올려 장표를 만들고 있으나, 회사가 승인한 서비스에 처리를 맡기는 것과
   개인 소유 기기에 자료가 남는 것은 규정상 다르게 취급될 수 있다.
   정례화 전에 준법감시 확인이 필요하다.
