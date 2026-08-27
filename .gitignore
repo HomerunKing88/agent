@@ -1,0 +1,13 @@
+# 잡 폴더 (실적 수치 포함, 절대 커밋하지 않는다)
+jobs/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Node
+node_modules/
+
+# 산출물 (잡 폴더 밖으로 흘러나온 경우 대비)
+*.pptx
+*.xlsx
