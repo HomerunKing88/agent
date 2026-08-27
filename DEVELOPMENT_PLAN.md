@@ -271,7 +271,7 @@ G:\내 드라이브\deck-qa-jobs\job_20260828_001\   git 밖. 실적 수치 있�
 ### 6.1 house-rules.yaml
 
 기존 스킬의 `design-system.md`와 `qa-checklist.md`에 흩어져 있는 수치를 한 장으로 모은다.
-담을 항목은 최소 다음과 같다. 실제 값은 스킬 파일에서 옮긴다.
+담을 항목은 최소 다음과 같다. 아래는 골격 예시이고, **확정 값은 리포의 `house-rules.yaml`이다.**
 
 ```yaml
 fonts:
@@ -281,9 +281,9 @@ fonts:
 
 sizes:
   body_min_pt: 10
-  table_body_min_pt: 11
+  table_body_min_pt: 8.5       # 스킬 문서 실측: 표 본문 8.5~9.5pt
   footnote_pt: 8
-  chart_label_pt: 9
+  chart_label_pt: 7.5          # 축·평균선 라벨. 값 라벨은 8.5
 
 table:
   default_align: center
@@ -305,8 +305,9 @@ limits:
   diagrams_per_page_max: 3
 
 forbidden:
-  - circle_icon_badge          # 원형 배지 + 문자 글리프
   - marker_on_conclusion_line  # ⇒ 결론 줄 앞 ▸
+  # circle_icon_badge(원형 배지 + 글리프)는 미결.
+  # design-system.md는 지름 0.34in 원형 배지를 표준 규격으로 규정한다. 10절 참조
 ```
 
 ### 6.2 manifest
@@ -576,6 +577,12 @@ Socket Mode. `files:read` 스코프로 파일을 받고, `thread_ts`를 잡 ID�
   지금도 클로드에 자료를 올려 장표를 만들고 있으나, 회사가 승인한 서비스에 처리를 맡기는 것과
   개인 소유 기기에 자료가 남는 것은 규정상 다르게 취급될 수 있다.
   정례화 전에 준법감시 확인이 필요하다.
+- 원형 아이콘 배지(circle_icon_badge)를 금지로 둘지 표준으로 둘지.
+  6.1 초안은 금지로 적었으나 스킬의 design-system.md는 "지름 0.34in 원형 배지(navy 또는 tint)
+  + 내부 글리프 단일 규격으로 통일"을 표준으로 규정한다. 둘 중 하나를 골라야 한다.
+- 페이지 제목 크기. design-system.md는 16pt @ y=0.55, template.js는 17pt @ y=0.52.
+  house-rules.yaml에는 실제 출력값인 17pt를 넣어 두었다.
+- 스탯 카드 라벨 크기. design-system.md 10pt, template.js 9.5pt. YAML은 9.5pt.
 - 상시 가동 기계가 필요해지는 시점. 필요해지면 소형 Windows PC를 검토한다.
   맥미니는 폰트와 COM 문제로 이 용도에 맞지 않는다.
 
