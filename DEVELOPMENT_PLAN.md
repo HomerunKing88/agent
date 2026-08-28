@@ -208,6 +208,8 @@ Claude Code  template.js, deck.js, orchestrator.py, slack_bot.py
 집 PC (Windows)
   Git for Windows  →  Claude Code (네이티브, WSL 아님)  →  Node 18+  →  Python 3.11+
   pip: python-pptx, openpyxl, pyyaml, pywin32, slack_bolt, pydantic
+  npm: pptxgenjs, js-yaml   (js-yaml은 template.js가 house-rules.yaml을 읽는 데 쓴다.
+                             audit.py의 pyyaml과 대칭)
 
 폰
   개인 슬랙 워크스페이스, #deck-review 채널
@@ -306,8 +308,7 @@ limits:
 
 forbidden:
   - marker_on_conclusion_line  # ⇒ 결론 줄 앞 ▸
-  # circle_icon_badge(원형 배지 + 글리프)는 미결.
-  # design-system.md는 지름 0.34in 원형 배지를 표준 규격으로 규정한다. 10절 참조
+  # 원형 배지(지름 0.34in + 글리프)는 금지가 아니라 표준이다. 확정 2026-08-28
 ```
 
 ### 6.2 manifest
@@ -479,6 +480,9 @@ v2 재검토는 R1에서 지적된 항목에 한정한다. 열어 두면 새 지
 완료 조건: 두 문서에 적힌 수치 중 YAML에 안 들어간 것이 없다.
 `template.js`에 하드코딩된 규칙 값이 남아 있지 않다.
 
+완료 2026-08-28. 구판과 신판에 같은 호출을 넣어 pptxgenjs 호출 70건을 대조했고,
+의도한 변경(스탯카드 라벨 9.5 -> 10) 외 차이 0건을 확인했다.
+
 ### 2단계 fixtures
 
 정상 덱 하나에 결함을 하나씩 주입하는 스크립트로 만든다.
@@ -577,12 +581,9 @@ Socket Mode. `files:read` 스코프로 파일을 받고, `thread_ts`를 잡 ID�
   지금도 클로드에 자료를 올려 장표를 만들고 있으나, 회사가 승인한 서비스에 처리를 맡기는 것과
   개인 소유 기기에 자료가 남는 것은 규정상 다르게 취급될 수 있다.
   정례화 전에 준법감시 확인이 필요하다.
-- 원형 아이콘 배지(circle_icon_badge)를 금지로 둘지 표준으로 둘지.
-  6.1 초안은 금지로 적었으나 스킬의 design-system.md는 "지름 0.34in 원형 배지(navy 또는 tint)
-  + 내부 글리프 단일 규격으로 통일"을 표준으로 규정한다. 둘 중 하나를 골라야 한다.
-- 페이지 제목 크기. design-system.md는 16pt @ y=0.55, template.js는 17pt @ y=0.52.
-  house-rules.yaml에는 실제 출력값인 17pt를 넣어 두었다.
-- 스탯 카드 라벨 크기. design-system.md 10pt, template.js 9.5pt. YAML은 9.5pt.
+- 불릿 ▸ 마커 크기. design-system.md는 9pt로 규정하나 template.js는 불릿 본문 크기(기본 10pt)를
+  따라간다. house-rules.yaml의 `bullet_marker_pt: 9`는 아직 코드가 쓰지 않는다.
+  9pt로 통일할지 현행(본문과 동일)을 규칙으로 승격할지 정해야 한다.
 - 상시 가동 기계가 필요해지는 시점. 필요해지면 소형 Windows PC를 검토한다.
   맥미니는 폰트와 COM 문제로 이 용도에 맞지 않는다.
 

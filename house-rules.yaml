@@ -39,7 +39,7 @@ sizes:
   body_min_pt: 10
   banner_pt: 15            # HY헤드라인M이 넓어 16 -> 15로 낮춤 ('26.8)
   banner_inline_paren_pt: 11
-  page_title_pt: 17        # template.js 실측값. design-system.md 공통컴포넌트 절은 16 (미결)
+  page_title_pt: 17        # 확정 2026-08-28. design-system.md의 16은 이 값으로 대체
   chip_pt: 12
   chip_desc_pt: 10
   callout_number_pt: 12
@@ -56,11 +56,12 @@ sizes:
   table_body_min_pt: 8.5
   table_caption_pt: 9
   footnote_pt: 8
-  bullet_marker_pt: 9
+  bullet_marker_pt: 9        # design-system.md 규정. 코드는 불릿 본문 크기(fs)를 따라간다 — 10절 참조
   chart_value_label_pt: 8.5   # 허용 7.5~8.5
   chart_axis_label_pt: 7.5
+  waterfall_value_pt: 9.5
   stat_card_number_pt: 15    # 범위 15~22. template.js 기본값 15
-  stat_card_label_pt: 9.5    # template.js 실측값. design-system.md는 10 (미결)
+  stat_card_label_pt: 10     # 확정 2026-08-28. template.js는 9.5였다 -> 10으로 올림
 
 # ── 팔레트 ──────────────────────────────────────────────────────────
 palette:
@@ -125,22 +126,35 @@ zones:
 # ── 컴포넌트 좌표 ────────────────────────────────────────────────────
 components:
   page_title:  { x: 0.65, y: 0.52, h: 0.34, color: title, valign: middle }
-  banner:      { x: 0.65, y: 1.06, h: 0.79, line_spacing: 1.18, max_chars_per_line: 36 }
-  chip:        { w: 1.77, h: 0.30, width_formula: "글자수 * 0.20 + 0.35" }
+  banner:      { x: 0.65, y: 1.06, h: 0.82, line_spacing: 1.20, max_chars_per_line: 36 }
+  chip:        { w: 1.95, h: 0.30, radius: 0.05, width_formula: "글자수 * 0.20 + 0.35" }
   chip_content_gap: 0.35     # 칩 아래 y+0.35부터 콘텐츠
   bullet_panel_indent: 0.16
-  icon_badge_diameter: 0.34
+  icon_badge: { diameter: 0.34, fills: [navy, tint], uniform: true }   # 표준. 확정 2026-08-28
   kpi_card: { w: 2.26, h: 1.08 }
   cream_box:   { fill: cream, line: creamBd, text_color: "000000", bold: false }
   bullet_panel: { fill: panel, line: panelBd }
   body_line_spacing: 1.22
   bullet_line_spacing: 1.15
+  footnote_line_spacing: 1.12
+  stat_label_line_spacing: 1.05
+  bullet_step: 0.33
+  bullet_marker: "▸"
+  conclusion_prefix: "⇒"
+  stroke_width: 0.75          # 패널·박스·표 테두리 공통
+  rule_thickness: 0.012       # 구분선·baseline
+  divider_thickness: 0.016    # 각주 상단선(opts.line 사용 시)
+  padding: { banner_x: 0.15, cream_x: 0.20, dark_card_x: 0.18, panel_title_x: 0.15 }
   table_caption_prefix: "* "
   footnote_markers: ["※", "*", "**"]
 
 # ── 차트 ────────────────────────────────────────────────────────────
 charts:
-  stack100: { slot: [0.55, 0.86], bar_w: [0.40, 0.52] }
+  stack100:
+    slot: [0.55, 0.86]         # 허용 범위
+    bar_w: [0.40, 0.52]
+    slot_default: 0.57         # template.js 실제 기본값
+    bar_w_default: 0.40
   grouped_bar: { bar_w: [0.20, 0.30], series_max: 2 }
   gridlines: false           # 축은 baseline만 (grayLt)
   own_series_band: tint      # 당사 막대 뒤 배경 밴드
