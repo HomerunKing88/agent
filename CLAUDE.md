@@ -2,8 +2,7 @@
 
 ## 세션 시작
 - 작업 전 `DEVELOPMENT_PLAN.md`를 먼저 읽는다. 설계 배경과 확정 사항이 거기 있다.
-- 계획서의 확정 사항을 바꾸려면 근거를 제시하고 사용자 확인을 받는다.
-  문서와 코드가 어긋나면 문서를 고친다. 코드가 문서보다 앞서 나가지 않는다.
+- 계획서의 확정 사항을 바꾸려면 근거를 제시하고 사용자 확인을 받는다. 문서와 코드가 어긋나면 문서를 고친다.
 
 ## 규칙 값
 - 폰트, 각주 y좌표, 최소 pt, 표 정렬, 금지 영역 등 모든 규칙 값은 `house-rules.yaml`에서만 읽는다. 코드에 하드코딩하지 않는다.
@@ -13,6 +12,7 @@
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
 - Claude Code 담당: `template.js`, `deck.js`, `orchestrator.py`, `slack_bot.py`
 - 공동: `house-rules.yaml` (변경 시 상대에게 알림)
+- 브랜치는 `claude/*`를 쓴다. Codex는 `codex/*`. Codex 쪽 세션 규칙은 `AGENTS.md`에 있다.
 - `template.js` 원본은 이 리포다. 스킬 폴더(`~/.claude/skills/.../corporate-strategy-ppt/`)는 배포본이므로 거기서 고치지 않는다.
 
 ## 잡 폴더

@@ -237,7 +237,8 @@ HY헤드라인M이 없으면 제목 계열의 넘침 검사만 제외한다.
 ```
 C:\dev\deck-qa\                    git 리포. 실적 수치 없음
   DEVELOPMENT_PLAN.md              이 문서
-  CLAUDE.md                        세션 규칙
+  CLAUDE.md                        세션 규칙 (Claude Code)
+  AGENTS.md                        세션 규칙 (Codex CLI)
   house-rules.yaml                 규칙 단일 원천
   schemas/
     manifest.py                    pydantic 모델
