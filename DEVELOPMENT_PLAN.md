@@ -249,6 +249,7 @@ C:\dev\deck-qa\                    git 리포. 실적 수치 없음
   render_check.py                  PowerPoint COM 검사
   lint_deck.js                     raw 호출 검출
   template.js                      생성 헬퍼 (원본. 스킬 폴더는 배포본)
+  deck.js                          장표 골격. 잡마다 builder/deck_v1.js로 복사해 채운다
   orchestrator.py
   slack_bot.py
   fixtures/

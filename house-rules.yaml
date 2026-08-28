@@ -121,7 +121,10 @@ zones:
   footnote_divider: false    # 하단 구분선 없음
   master_bottom_rule_y: 7.83 # 공식 양식 마스터 하단 가로선. 넘지 않는다
   content_max_y: 7.78
-  draft_tag_xy: [8.4, 8.0]
+  # content_max_y는 본문 요소에만 적용한다. 아래는 규칙이 그 아래 두라고 지정한 요소이므로
+  # 검사에서 제외한다. 제외하지 않으면 모든 덱이 FAIL 난다.
+  content_max_y_exempt: [draft_tag]
+  draft_tag_xy: [8.4, 8.0]     # 우하단. h 0.2 이므로 하단은 8.20
 
 # ── 컴포넌트 좌표 ────────────────────────────────────────────────────
 components:

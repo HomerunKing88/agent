@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/HomerunKing88/agent#readme",
   "dependencies": {
-    "js-yaml": "^5.4.1"
+    "js-yaml": "^5.4.1",
+    "pptxgenjs": "^4.0.1"
   }
 }
