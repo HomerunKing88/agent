@@ -9,7 +9,7 @@
 - `template.js`와 `audit.py`가 같은 값을 각자 들고 있으면 생성기와 검사기가 갈라진다.
 
 ## 담당 파일 (에이전트 셋. 계획서 3절)
-- 이 세션은 **BUILDER**다. 담당: `template.js`, `deck.js`, `schemas/`, `prompts/`
+- 이 세션은 **BUILDER**다. 담당: `template.js`, `deck.js`, `schemas/`, `prompts/`, `e2e_check.py`
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
 - PIPE 담당: `orchestrator.py`, `slack_bot.py` — 건드리지 않는다. 2026-08-29에 넘겼다.
 - 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림)
@@ -21,6 +21,7 @@
 - **커밋은 자기 담당 파일만 이름으로 지정한다.** `git add .` / `git commit -a` 금지.
   워킹트리에는 항상 다른 둘의 미커밋 작업이 같이 있다.
 - **브랜치를 함부로 바꾸지 않는다.** 체크아웃이 하나라 `git switch`가 나머지 둘의 HEAD도 옮긴다.
+- **커밋 전에 `python e2e_check.py`를 돌린다.** 잡 한 바퀴로 이음매를 본다 (계획서 3.1).
 
 ## 작업 순서 (충돌 방지. 세 에이전트 공통)
 공동 파일·교차 계약에 걸린 작업은 아래 순서를 지킨다. 담당 파일(자기 것)끼리는 어떤 순서로 해도 충돌하지 않는다.

@@ -7,7 +7,7 @@
 
 ## 담당 파일 (에이전트 셋. 계획서 3절)
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/`
-- BUILDER(Claude Code) 담당: `template.js`, `deck.js`, `schemas/`, `prompts/` — 건드리지 않는다.
+- BUILDER(Claude Code) 담당: `template.js`, `deck.js`, `schemas/`, `prompts/`, `e2e_check.py` — 건드리지 않는다.
 - PIPE 담당: `orchestrator.py`, `slack_bot.py` — 건드리지 않는다. 2026-08-29 신설.
 - 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림. 한 번에 한 쪽만 고친다)
 - 브랜치는 `codex/*`를 쓴다. BUILDER는 `claude/*`, PIPE는 `pipe/*`.
@@ -15,6 +15,7 @@
 ## 체크아웃을 셋이 공유한다 (계획서 3.1)
 - **커밋은 자기 담당 파일만 이름으로 지정한다.** `git add .` / `git commit -a` 금지.
 - **브랜치를 함부로 바꾸지 않는다.** `git switch`가 나머지 둘의 HEAD도 같이 옮긴다.
+- **커밋 전에 `python e2e_check.py`를 돌린다.** 잡 한 바퀴로 이음매를 본다 (계획서 3.1).
 
 ## 작업 순서 (충돌 방지. 세 에이전트 공통)
 공동 파일·교차 계약에 걸린 작업은 아래 순서를 지킨다. 담당 파일(자기 것)끼리는 어떤 순서로 해도 충돌하지 않는다.
@@ -389,6 +390,39 @@ SOURCE에 합친 설계면 계획서 8절 게이트 표를 고쳐야 하고,
 `schemas/`에 `issue.py` `decision.py` `metadata.py`를 더 만들었다 (계획서 5절 목록).
 audit 이슈 형식(`rule`/`slide`/`shape`/`evidence`)은 `schemas/issue.py`의
 `AuditIssue`가 정본으로 잡아 뒀다. 필드를 늘리면 알려 달라.
+
+## e2e_check.py 신설 (2026-08-29, BUILDER)
+
+`python e2e_check.py` — 잡 한 바퀴를 실제로 돌리는 회귀 검사. 18개 항목.
+실적 수치를 쓰지 않는다. 원천을 더미(0과 10)로 만들고 임시 폴더에서만 돈다.
+
+**커밋 전에 돌려 달라.** `fixtures/`가 못 보는 자리를 본다.
+`fixtures/`는 pptx 한 장을 audit.py에 물리는 검사이고,
+이건 그 위의 생성기 ↔ 검사기 ↔ 오케스트레이터 이음매다.
+오늘 나온 통합 버그 넷은 전부 이 경로에서만 보였다.
+
+```
+[1] 정상 잡        build→review→route→gates 전 구간, manifest·register·metadata 형식,
+                  claim 좌표, 버전 세 개, audit PASS, 게이트 전부 통과
+[2] EDITOR MAJOR   ISSUE 게이트가 막는다 (HOUSE가 아니라)
+[3] 사용자 기각      REJ 후 게이트가 열린다
+[4] manifest 변조   override 감사 필드를 뭉개면 audit이 ERROR를 낸다
+[5] 보고서          QA_REPORT.md / CHANGELOG.md
+```
+
+실패하면 어느 항목인지 찍고 멈춘다. `--keep`을 주면 잡 폴더를 남긴다.
+
+**통합 확인 (2026-08-29).** 세 에이전트 결과물이 지금 맞물린다.
+- `audit.py`가 `schemas/manifest.py`를 부른다. 손으로 하던 형식 검사를 뺀 것이 맞다.
+  변조된 override(author 없음 + `at="어제"`)가 ERROR로 잡히는 것을 확인했다.
+- valign 폴백이 `"middle"`로 고쳐졌다.
+- 게이트가 `BLOCKING: ISSUE`로 정확히 뜬다. UNMAPPED 버킷도 생겼다.
+- `run_metadata.json`에 6.4 필드가 찼다.
+- 픽스처 EXPECTED MATCH. 결함 14(override 기록)도 늘었다.
+
+아직 안 물린 것: `schemas/issue.py` `decision.py` `metadata.py`.
+`e2e_check.py`가 직접 부르고 있어 회귀는 잡히지만, 파이프라인 안에서는 아직 안 쓴다.
+적용 여부는 PIPE 판단이다 (`BUILDER_TO_PIPE.md` 4-2).
 
 ## 하지 말 것 (계획서 11절)
 - 오케스트레이션 프레임워크를 먼저 깔고 시작하기

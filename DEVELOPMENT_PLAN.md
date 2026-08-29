@@ -224,7 +224,7 @@ Codex(audit.py)와 Claude(template.js)가 병렬로 만들면 서로 다른 연�
 에이전트 셋이 같은 파일을 동시에 고치면 충돌한다. 담당 파일을 나눈다.
 
 ```
-BUILDER (Claude Code)  template.js, deck.js, schemas/, prompts/
+BUILDER (Claude Code)  template.js, deck.js, schemas/, prompts/, e2e_check.py
 Codex                  audit.py, render_check.py, fixtures/
 PIPE                   orchestrator.py, slack_bot.py
 공동                    house-rules.yaml, requirements.txt (변경 시 나머지 둘에게 알림)
@@ -241,6 +241,10 @@ worktree를 나누지 않는다. 셋이 `/Users/shin/Desktop/agent` 한 폴더�
   워킹트리에는 항상 다른 둘의 미커밋 작업이 같이 있다.
 - **브랜치를 함부로 바꾸지 않는다.** 체크아웃이 하나라 `git switch`가 나머지 둘의 HEAD도 같이 옮긴다.
   새 브랜치가 필요하면 사용자에게 알리고 만든다.
+- **커밋 전에 `python e2e_check.py`를 돌린다.** 잡 한 바퀴를 실제로 돌려 이음매를 본다.
+  `fixtures/`는 pptx 한 장을 audit.py에 물리는 검사이고, 이건 그 위의 생성기↔검사기↔오케스트레이터다.
+  지금까지 나온 통합 버그 넷(manifest valign 기본값, 칩 캔버스 이탈, 게이트 오배선,
+  숫자 토큰 오탐)은 **전부 이 경로에서만 보였다.** 실적 수치를 쓰지 않고 임시 폴더에서만 돈다.
 
 ### 3.2 PIPE 세션 규칙
 
