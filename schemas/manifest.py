@@ -108,6 +108,9 @@ class Claim(Strict):
 class Manifest(Strict):
     schema_version: int
     house_rule_version: str
+    # 어느 스킬로 만든 장표인가 (계획서 2.17). 검사기는 이 값으로 styles[style]을 읽는다.
+    # 없거나 어휘 밖이면 틀린 기준으로 판정하게 되므로 오류다 (2.16-7).
+    style: str
     template_version: str
     token_whitelist: list[dict] = []
     claims: list[Claim]
@@ -121,6 +124,9 @@ def check_vocabulary(manifest: Manifest, rules: dict) -> list[str]:
     if manifest.schema_version != mf["schema_version"]:
         errors.append(
             f"schema_version {manifest.schema_version} != house-rules {mf['schema_version']}")
+    if manifest.style not in rules.get("styles", {}):
+        errors.append(
+            f"style {manifest.style!r}는 house-rules의 styles에 없다: {sorted(rules.get('styles', {}))}")
     if manifest.house_rule_version != rules["version"]:
         errors.append(
             f"house_rule_version {manifest.house_rule_version!r} != house-rules {rules['version']!r}")
