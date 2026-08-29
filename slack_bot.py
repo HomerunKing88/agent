@@ -24,6 +24,37 @@ import sys
 import time
 from pathlib import Path
 
+
+def _missing_setup() -> list[str]:
+    """준비 안 된 항목을 한 줄씩 돌려준다. 집 PC 첫 실행이 이 화면을 본다.
+
+    아무 준비 없이 `python3 slack_bot.py`를 돌리면 slack_bolt가 없으면
+    ModuleNotFoundError, 토큰이 없으면 KeyError가 임포트 시점에 튀어나온다.
+    스택 트레이스만 남고 무엇이 없는지는 안 보이므로, 직접 실행일 때만
+    무엇이 없고 어떻게 채우는지 알려 주고 마친다 (SETUP_WINDOWS.md 10단계).
+
+    SLACK_BOT_TOKEN·SLACK_APP_TOKEN은 필수고, SLACK_CHANNEL·DECK_JOBS_ROOT는
+    기본값이 있어 여기서 요구하지 않는다.
+    """
+    problems = []
+    try:
+        import slack_bolt  # noqa: F401
+    except ModuleNotFoundError:
+        problems.append("slack_bolt 미설치 — `python3 -m pip install -r requirements.txt`"
+                        " 후 다시 실행 (slack-bolt 포함)")
+    for name in ("SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"):
+        if not os.environ.get(name):
+            problems.append(f"환경변수 {name} 없음 — Slack 앱 대시보드에서 토큰을 "
+                            "복사해 환경변수로 설정한 뒤 다시 실행")
+    return problems
+
+
+if __name__ == "__main__":
+    problems = _missing_setup()
+    if problems:
+        print("\n".join(problems), file=sys.stderr)
+        raise SystemExit(1)
+
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
