@@ -100,6 +100,32 @@ notation:
   positive: +
   thousands_sep: ','
   decimal_sep: .
+# ── STRUCT 게이트 (계획서 2.18) ───────────────────────────────────────
+# 스킬의 preflight.py가 검사 20개를 한다. 그중 구조·규격만 STRUCT로 본다.
+# 13~19는 shin 하우스 규칙이고 audit.py가 styles[style]로 이미 판정한다.
+# 두 벌로 두면 갈라진다 (2.14). 버리는 것이 아니라 소유를 나누는 것이다.
+#
+# 분류를 번호가 아니라 "스타일이 소유한 문구"로 적는 이유:
+#   preflight.py는 검사 번호를 출력하지 않는다. 문구밖에 단서가 없다.
+#   그리고 목록에 없는 것을 전부 구조(=차단)로 보면, preflight.py에 검사가
+#   새로 생겼을 때 아무도 분류하지 않아도 조용히 빠지지 않는다.
+#   문구가 바뀌어 안 맞게 되면 corporate 장표에서 요란하게 틀린다 — 안 보이는
+#   실패가 아니다. 조용한 PASS보다 시끄러운 FAIL이 낫다 (2.16-7).
+preflight:
+  source: skill/shin-ppt1/scripts/preflight.py
+  # 이 문구로 시작하거나 이 문구를 담은 [오류]는 스타일 판정이다.
+  # STRUCT 게이트는 세지 않는다. audit.py가 정본이다.
+  # 오른쪽은 preflight.py 머리 CHECKS의 번호다 (사람이 보라고 적어 둔다)
+  style_owned:
+    - "표 본문 글씨"          # 13 shin 11.5pt 하한. corporate 표는 9pt다
+    - "허용되지 않은 글꼴"     # 15 shin 2종. corporate는 fonts 절이 따로 있다
+    - "중앙정렬이 아님"        # 16 표 1행·1열 중앙정렬
+    - "하우스 팔레트"          # 17 corporate 색이 shin에 섞이는 것
+    - "한 덱에서 테마를 섞었다" # 18 shin 테마 혼용
+    - "본문이 각주 영역을 침범" # 19 각주 y좌표는 스타일마다 다르다
+  # 14(각주 외 10pt)·12(지면 밖)·20(빈 상자)은 preflight가 [경고]로 낸다.
+  # 경고는 게이트를 막지 않으므로 분류가 필요 없다
+
 numeric_tokens:
   pattern: FY\d{2,4}E?|[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?%?
   global_text_whitelist:
