@@ -88,7 +88,8 @@ def make_job(root: Path) -> Path:
 COVERAGE_DECK = r"""
 const pptxgen = require("pptxgenjs");
 const tpl = require(process.env.TEMPLATE_JS);
-const R = tpl.R, MX = tpl.MX, CW = tpl.CW, C = tpl.C;
+// 스타일 규칙은 생성기가 노출하는 자기 스타일 절에서 읽는다 (계획서 2.17)
+const R = tpl.SR, MX = tpl.MX, CW = tpl.CW, C = tpl.C;
 const pres = tpl.newPres(pptxgen);
 
 const s1 = pres.addSlide();

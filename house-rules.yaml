@@ -14,22 +14,19 @@
 # 앵커로 다리를 놓아 뒀는데, 읽는 쪽(template.js·template_shin.js·deck.js·audit.py)이
 # 전부 styles로 옮겨 다리가 필요 없어졌다.
 
-version: '2026.08'
+# 규칙 판본. orchestrator가 정규식으로 이 줄을 읽는다 — 큰따옴표를 유지한다
+version: "2026.08"
 unenforced:
 - key: palette_usage.brand_swatch
   why: 브랜드 색 정의다. 검사 대상이 아니라 참고값이다
 - key: palette_usage.red_scope
   why: 검사 가능하다. 결론 줄(⇒ 접두) 판별이 필요해 red_max_per_line 다음 순서다
-- key: styles.shin-ppt1.palette_usage.red_scope
-  why: 빈 목록이다. shin은 빨강을 쓰지 않으므로 범위를 정할 것이 없다. red_max_per_line 0이 실질적인 규칙이고 그건 검사된다
 - key: charts.grouped_bar.series_max
   why: template.js에 groupedBar 헬퍼가 아직 없다. 헬퍼를 만들 때 생성기 가드로 넣는다
 - key: limits.parallel_items_max
   why: 무엇을 "병렬 항목"으로 셀지 정의가 없다. 정의부터 정해야 검사가 된다
 - key: limits.diagrams_per_page_max
   why: 무엇을 "다이어그램"으로 셀지 정의가 없다. 위와 같은 이유다
-- key: default_style
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
 - key: styles.shin-ppt1.themes.dense.accent
   why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
 - key: styles.shin-ppt1.themes.dense.accentLt
@@ -78,6 +75,12 @@ unenforced:
   why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
 - key: styles.shin-ppt1.themes.paper.wash
   why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
+- key: styles.corporate-strategy-ppt.charts.grouped_bar.series_max
+  why: template.js에 groupedBar 헬퍼가 없다. 헬퍼를 만들 때 생성기 가드로 넣는다
+- key: styles.corporate-strategy-ppt.limits.diagrams_per_page_max
+  why: 무엇을 "다이어그램"으로 셀지 정의가 없다. 위와 같은 이유다
+- key: styles.corporate-strategy-ppt.limits.parallel_items_max
+  why: 무엇을 "병렬 항목"으로 셀지 정의가 없다. 정의부터 정해야 검사가 된다
 units:
   emu_per_inch: 914400
   pt_per_inch: 72
