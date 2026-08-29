@@ -33,7 +33,7 @@
 - **3단계 완료.** `audit.py` static 검사.
 - **4단계 완료.** 생성기 쪽(`claim()`, 계약 1·3·4·6)과 검사기 쪽(3자 대조, 토큰 검출) 둘 다.
   06·07이 `static_expected: DEFERRED`에서 `FAIL`로 바뀐 게 그 증거다.
-  남은 것은 `schemas/` pydantic 하나.
+  override 경로도 실제 잡으로 확인했다 (아래 4차 알림 절). 남은 것은 `schemas/` pydantic 하나.
 - **5단계 작성 완료, 검증 대기.** `render_check.py`가 있다. 맥에서는 SKIP이 정상이다.
   집 Windows PC에서 결함 05가 FAIL로 잡혀야 완료 조건을 채운다.
 - **6·7단계 작성 완료.** PIPE가 `orchestrator.py`, `slack_bot.py`를 썼다.
@@ -230,6 +230,33 @@ manifest를 손으로 고쳐야 하고 그러면 결정성이 깨진다.
 변경 파일: `template.js` `deck.js` `DEVELOPMENT_PLAN.md` `AGENTS.md`
 `audit.py` `render_check.py` `fixtures/` `orchestrator.py` `slack_bot.py`
 `CODEX_TO_CLAUDE.md`는 스테이징하지 않았다.
+
+## house-rules.yaml 변경 알림 (2026-08-29 4차, BUILDER) + override 경로 완결
+
+`manifest.override_fields: [value, reason, author, at]` 추가. **추가만 했다.**
+
+audit.py가 override 네 필드를 요구하는데 `claim()`은 `value`·`reason` 둘만 냈다.
+계약 2.16-8이 생성기 담당인데 내가 빼먹은 것이다. 그래서 override를 쓴 덱은
+지금까지 만들 수는 있어도 검사에서 `override missing: at, author`로 죽었다. 고쳤다.
+
+- 필수 필드 넷을 생성 단계에서 강제한다. 하나라도 없으면 pptx를 안 만든다.
+- `at`은 타임존이 붙은 ISO-8601이어야 한다. 없으면 생성 단계에서 막는다.
+  **조정을 결정한 시각이고 호출부가 적는다.** 빌드 시각을 자동으로 넣지 않는다 —
+  넣으면 manifest가 비결정적이 되어 픽스처 회귀 비교가 깨진다.
+- override여도 `display.rounding`을 남긴다. 안 남기면 `changes`의 `source_value`가
+  `"0"`으로 적힌다. 실제 원천은 `"0.0"`이다. 감사 기록의 자릿수가 죽는 자리였다.
+
+**요청 하나.** audit.py:429가 `{"value","reason","author","at"}`를 하드코딩한다.
+`manifest.override_fields`를 읽어 주면 어휘가 한 곳에만 남는다.
+`transforms`, `job_whitelist_fields`와 같은 방식이다. 값은 지금과 동일하다.
+
+e2e 확인 (잡 폴더, override 붙인 claim 하나)
+```
+CHANGE: ITEM_A_FY24 '0.0' -> '9.9' | shin 2026-08-29T10:00:00+09:00
+status: PASS | 이슈 0건
+```
+원천과 다른데 FAIL이 아니라 changes에 기록됐다. 계획서 2.8 그대로다.
+이걸로 4단계 완료 조건 "override 경로가 동작한다"가 채워졌다.
 
 ## 하지 말 것 (계획서 11절)
 - 오케스트레이션 프레임워크를 먼저 깔고 시작하기

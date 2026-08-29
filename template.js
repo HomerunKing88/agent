@@ -286,6 +286,9 @@ const tableStyles = {
 
 const N = R.notation;
 
+// override.at 검증용. 타임존 없는 시각은 받지 않는다 — 누가 언제 조정했는지가 감사의 핵심이다
+const ISO8601_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
 let _claims = [];
 let _tokenWhitelist = [];
 let _slideNo = 0;
@@ -347,7 +350,9 @@ function _transform(id, o) {
  *
  * opts: id(필수) type(numeric|text) src sheet ref unit rounding signed slide
  *       transform(identity|sum|ratio|delta|cagr|unverified) + 그 type의 필수 인자
- *       override: { value, reason }   원천과 다른 값을 의도적으로 찍을 때 (계획서 2.8)
+ *       override: { value, reason, author, at }  원천과 다른 값을 의도적으로 찍을 때 (계획서 2.8)
+ *         at은 ISO-8601 + 타임존. 조정을 결정한 시각이며 호출부가 적는다.
+ *         빌드 시각을 자동으로 넣으면 manifest가 비결정적이 되어 회귀 비교가 깨진다.
  */
 function claim(value, opts = {}) {
   const id = opts.id;
@@ -367,10 +372,17 @@ function claim(value, opts = {}) {
 
   let text, rounding = null;
   if (opts.override) {
-    // override는 불일치가 나도 FAIL이 아니라 CHANGELOG에 사유와 함께 기록된다
-    if (opts.override.value == null || !opts.override.reason)
-      throw new Error(`claim[${id}]: override에는 value와 reason이 둘 다 필요하다 (계획서 2.8)`);
+    // override는 불일치가 나도 FAIL이 아니라 CHANGELOG에 사유와 함께 기록된다 (계획서 2.8).
+    // 그래서 "누가 언제" 없이는 받지 않는다. 그게 없으면 숨김 수정과 구분이 안 된다 (2.16-8)
+    const miss = MF.override_fields.filter(k => opts.override[k] == null || opts.override[k] === "");
+    if (miss.length)
+      throw new Error(`claim[${id}]: override에 ${miss.join(", ")}가 없다. 필수: ${MF.override_fields.join(", ")} (계획서 2.16-8)`);
+    if (!ISO8601_TZ.test(String(opts.override.at)))
+      throw new Error(`claim[${id}]: override.at은 타임존이 붙은 ISO-8601이어야 한다: ${opts.override.at}`);
     text = String(opts.override.value);
+    // 표시 자릿수는 남긴다. 없으면 audit이 원천 값을 "0"으로 적어
+    // CHANGELOG가 "0 -> 9.9"가 된다. 실제 원천은 "0.0"이다
+    if (opts.rounding != null) rounding = opts.rounding;
   } else if (kind === "numeric") {
     if (typeof value !== "number" || !Number.isFinite(value))
       throw new Error(`claim[${id}]: numeric인데 값이 수가 아니다: ${value}`);
@@ -402,7 +414,10 @@ function claim(value, opts = {}) {
     },
     transform: tf,
   };
-  if (opts.override) entry.override = { value: String(opts.override.value), reason: opts.override.reason };
+  if (opts.override) {
+    entry.override = {};
+    MF.override_fields.forEach(k => { entry.override[k] = String(opts.override[k]); });
+  }
 
   _claims.push(entry);
   return text;

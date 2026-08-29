@@ -204,7 +204,8 @@ Codex(audit.py)와 Claude(template.js)가 병렬로 만들면 서로 다른 연�
 버전 세 개를 방출한다. 형식은 6.2에 적었다.
 4 완료 — `units` 절 신설(`emu_per_inch` `pt_per_inch` `emu_per_pt` `epsilon_in`
 `bounds_round_in` `bounds_tolerance_emu`). `deck.js`의 `1e-9`는 `units.epsilon_in`으로 옮겼다.
-2·5·7·8은 검사기·오케스트레이터 쪽이라 미착수다.
+8 완료 — `override_fields` 넷을 생성 단계에서 강제한다. 6.2 참조.
+2는 이행 순서라 해당 없고, 5·7은 검사기·오케스트레이터 쪽이다(둘 다 반영됨).
 
 ---
 
@@ -402,9 +403,21 @@ override가 붙은 경우:
 
 ```json
 {
-  "override": { "value": "8,500", "reason": "이사회 승인 조정 후 수치" }
+  "override": {
+    "value": "8,500",
+    "reason": "이사회 승인 조정 후 수치",
+    "author": "shin",
+    "at": "2026-08-29T10:00:00+09:00"
+  }
 }
 ```
+
+구현 2026-08-29 (2.16-8). 네 필드가 다 있어야 한다.
+`value`+`reason`만으로는 "출처가 진짜 구버전"인지 "숨김 수정"인지 가릴 수 없다.
+필수 필드는 `house-rules.yaml`의 `manifest.override_fields`에 있고 생성기와 검사기가 같이 읽는다.
+`at`은 **조정을 결정한 시각**이며 호출부가 적는다. 타임존이 없으면 생성 단계에서 막힌다.
+빌드 시각을 자동으로 넣지 않는 이유는 manifest가 비결정적이 되어 회귀 비교가 깨지기 때문이다.
+override가 붙은 항목은 원천과 달라도 FAIL이 아니라 `changes`에 기록된다.
 
 방출 헬퍼는 `template.js`에 넣는다.
 
