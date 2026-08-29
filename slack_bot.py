@@ -139,8 +139,10 @@ def run_orchestrator(job: Path, version: int = 1) -> tuple[str, str]:
             return "BLOCKED", f"{step} 실패: {error.stderr.strip() or error}"
 
     route = json.loads((job / "review" / "route_result.json").read_text(encoding="utf-8"))
-    if route.get("buckets", {}).get("USER_DECISION"):
-        return "DECISION", f"잡 `{job.name}`: 검사 완료. 결정 대기 {len(route['buckets']['USER_DECISION'])}건입니다."
+    pending = route.get("buckets", {}).get("USER_DECISION", [])
+    decided = (job / "review" / "user_decision.json").exists()
+    if pending and not decided:
+        return "DECISION", f"잡 `{job.name}`: 검사 완료. 결정 대기 {len(pending)}건입니다."
 
     gates = json.loads((job / "review" / "gates.json").read_text(encoding="utf-8"))
     if gates.get("blocked"):

@@ -185,6 +185,11 @@ def cmd_build(root: Path, version: int = 1) -> None:
     meta["deck_version"] = version
     meta["built_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     meta_update(root, **meta)
+    meta_problems = schema_check("metadata", read_json(root / "run_metadata.json"))
+    if meta_problems:
+        print("schema: run_metadata.json 스키마 위반:")
+        for problem in meta_problems:
+            print("        " + problem)
 
 
 def cmd_review(root: Path, version: int = 1) -> None:
@@ -240,6 +245,18 @@ def cmd_review(root: Path, version: int = 1) -> None:
     write_json(p["register"], register)
     meta_update(root, stage="REVIEWED", audit_round=version)
     print(f"issue : 총 {len(issues)}건 → {p['register'].name}")
+    schema_problems = schema_check("issue", register)
+    if schema_problems:
+        # issue_register가 계약을 어겼다. 게이트가 신뢰할 수 없으니 스키마 위반
+        # 이슈를 하나 넣고 게이트가 이 경로를 막게 한다 (pipeline.SCHEMA_VIOLATION)
+        register["issues"] = issues + [{
+            "rule": "pipeline.schema_violation", "slide": 0, "shape": "-",
+            "evidence": "issue_register 스키마 위반: " + "; ".join(schema_problems),
+        }]
+        write_json(p["register"], register)
+        print("schema: issue_register 스키마 위반이 있어 게이트를 막는다:")
+        for problem in schema_problems:
+            print("        " + problem)
     if editor_log:
         print(f"editor: 통과 {len(editor_issues)}건, 버림 {len(editor_log)}건 → {p['editor'].with_name('editor_log' + str(version) + '.json')}")
 
@@ -282,6 +299,28 @@ def validate_editor(p: dict, version: int) -> tuple[list[dict], list[dict]]:
     return list(editor_issues), list(dropped)
 
 
+def schema_check(kind: str, payload: dict) -> list[str]:
+    """BUILDER 소유 schemas/{kind}.py로 파이프라인 산출물을 검증한다.
+
+    리포의 나머지 스키마(issue·decision·metadata)는 dbc 해석기와 같은 계약으로
+    만들어진 것이라, orchestrator가 만든 파일을 이 모듈로 통과시키면 형식이
+    떨어졌을 때 즉시 드러난다. 검증 실패는 pipeline.SCHEMA_VIOLATION으로
+    게이트에 막히게 한다 (아래 cmd_gates/cmd_report).
+    """
+    try:
+        import importlib
+        import yaml as _yaml
+        module = importlib.import_module(f"schemas.{kind}")
+        rules = _yaml.safe_load(Path(__file__).resolve().parent.joinpath("house-rules.yaml")
+                                .read_text(encoding="utf-8"))
+    except ImportError as error:
+        return [f"schemas/{kind} 검증기 로드 불가: {error}"]
+    try:
+        return module.validate(payload, rules)
+    except Exception as error:  # pydantic이 낸 형식 검증 오류가 아니라 예외
+        return [f"schemas/{kind} 판정 예외: {type(error).__name__}: {error}"]
+
+
 # ── 라우터 (계획서 2.7) ─────────────────────────────────────────────
 def issue_action(issue: dict) -> str:
     """ACTION이 없는 검사기 이슈의 안전 기본값은 REVIEW_ONLY다.
@@ -321,6 +360,11 @@ def cmd_render(root: Path, version: int = 1) -> None:
     register = read_json(p["register"])
     register["render_status"] = render_status
     register["render_error"] = render_error
+    if render_status == "ERROR" and not render_issues:
+        # 이슈가 없는 ERROR는 게이트에서 ALL PASS처럼 보이므로 블로킹용 이슈를 만든다.
+        # render_check.py는 ERROR일 때 error만 남기고 issues를 비운다 (2.16.7).
+        render_issues = [{"rule": "render.error", "slide": 0, "shape": "-",
+                          "evidence": render_error or "렌더 검사 수행 불가 (2.16.7)"}]
     register["render_issues"] = render_issues
     stale = [i for i in register.get("issues", []) if not str(i.get("rule", "")).startswith("render.")]
     register["issues"] = stale + list(render_issues)
@@ -361,6 +405,11 @@ EXACT_GATE = {
     "claim.cross_page_consistency": "XREF",   # 페이지 간 지표 일치
     "claim.unregistered_numeric_token": "TOKEN",  # 미등록 숫자 토큰
     "qa.text_max_ymax_pt": "LAYOUT",          # 각주 y 좌표 (정적 근사)
+    # 검사 자체의 실패(2.16.7: 조용한 PASS 금지)는 게이트를 막는 이슈로 승격한다.
+    # 사용자 기각(REJ)로 우회될 수 없어야 하므로 ISSUE 게이트에 매핑하되,
+    # route/decision 경로를 타지 않는다(아래 cmd_gates에서 id 기준 REJ를 읽는다).
+    "audit.error": "ISSUE",    # audit.py 수행 불가
+    "render.error": "ISSUE",   # render_check.py 수행 불가
 }
 PREFIX_GATE = {
     "calc.": "CALC", "token.": "TOKEN",
@@ -368,6 +417,7 @@ PREFIX_GATE = {
     "forbidden.": "HOUSE", "fonts.": "HOUSE", "sizes.": "HOUSE",
     "table.": "HOUSE", "zones.": "HOUSE", "notation.": "HOUSE",
     "lint.": "LINT", "editor.": "ISSUE",
+    "pipeline.": "ISSUE",  # 파이프라인 산출물의 스키마 위반(생성기·검사기 버그)
 }
 GATES = ("SOURCE", "CALC", "XREF", "TOKEN", "LAYOUT", "HOUSE", "LINT", "ISSUE")
 
@@ -388,7 +438,15 @@ def cmd_gates(root: Path) -> None:
     # 사용자가 기각(REJ) 처리한 항목은 ISSUE 게이트를 통과시킨다 (8절:
     # "CRITICAL 0, MAJOR 0 또는 사용자 기각 처리 완료").
     decision = read_json(root / "review" / "user_decision.json")
-    rejected = {i.get("id") for i in decision.get("items", []) if i.get("action") == "REJ"}
+    decision_schema = schema_check("decision", decision) if decision else []
+    if decision_schema:
+        # 결정 형식이 어긋나면 게이트가 잘못 열린다. user_decision.json을 무시하고
+        # 스키마 위반 이슈로 막는다. 기각이 안 잡히니 차단된 채로 남는다.
+        violations["ISSUE"].append("pipeline.schema_violation")
+        print("schema: user_decision.json 스키마 위반이 있어 기각을 무시하고 막는다:")
+        for problem in decision_schema:
+            print("        " + problem)
+    rejected = {i.get("id") for i in decision.get("items", []) if i.get("action") == "REJ"} if not decision_schema else set()
     for issue in register.get("issues", []):
         if issue.get("severity") == "MINOR":
             continue  # 8절: MINOR는 비차단, 잔여 건수만 기록
@@ -398,6 +456,10 @@ def cmd_gates(root: Path) -> None:
         violations.setdefault(gate_of(issue.get("rule", "")), []).append(issue_id)
 
     blocked = [g for g in GATES if violations[g]]
+    if violations["UNMAPPED"]:
+        # gate_of에 없는 새 검사 규칙은 앞으로 판정이 막힌다. 조용히 HOUSE로
+        # 빠지거나(HOUSE 차단 표시) 모두 통과로 새치기 못 한다 (2.16.7).
+        blocked.append("UNMAPPED")
     gates = {
         "job": root.name,
         "blocked": blocked,
