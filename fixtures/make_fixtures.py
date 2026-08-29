@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import json
 import hashlib
+import re
+import shutil
 import subprocess
+import tempfile
+import zipfile
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -51,6 +55,40 @@ def generate_shin(defect: str | None = None) -> None:
         + ([defect] if defect else []),
         cwd=HERE.parent, check=True,
     )
+
+
+def mutate_pptx(source: Path, target: Path, transform) -> None:
+    """Copy a generated deck while applying a deterministic XML mutation."""
+    with zipfile.ZipFile(source) as zin, tempfile.NamedTemporaryFile(
+        suffix=".pptx", dir=HERE, delete=False
+    ) as tmp:
+        temp_path = Path(tmp.name)
+    try:
+        with zipfile.ZipFile(source) as zin, zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED) as zout:
+            for item in zin.infolist():
+                data = zin.read(item.filename)
+                if item.filename == "ppt/slides/slide1.xml":
+                    data = transform(data.decode("utf-8")).encode("utf-8")
+                zout.writestr(item, data)
+        shutil.move(temp_path, target)
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
+def make_structural_fixtures() -> None:
+    golden = HERE / "shin_golden.pptx"
+    mutate_pptx(golden, HERE / "S04_duplicate_shape_id.pptx", lambda xml: re.sub(
+        r'(<p:cNvPr id=")\d+("[^>]*>)', r'\g<1>2\g<2>', xml, count=2
+    ))
+
+    table_source = HERE / "shin_S01_table_too_small.pptx"
+    def widen_first_column(xml: str) -> str:
+        match = re.search(r'(<a:gridCol w=")([0-9]+)(")', xml)
+        if not match:
+            raise ValueError("S05: table grid column not found")
+        widened = int(match.group(2)) + 20000
+        return xml[:match.start(2)] + str(widened) + xml[match.end(2):]
+    mutate_pptx(table_source, HERE / "S05_table_col_width.pptx", widen_first_column)
 
 
 def make_claim_inputs(defect_id: str) -> None:
@@ -140,6 +178,7 @@ def main() -> None:
     generate_shin()
     for defect in SHIN_DEFECTS:
         generate_shin(defect)
+    make_structural_fixtures()
     for defect_id, expected in EXPECTED.items():
         generate(HERE / f"{defect_id}_{expected['name']}.pptx", defect_id)
         make_claim_inputs(defect_id)
