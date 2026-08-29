@@ -8,6 +8,7 @@ run_metadata.json)로만 판단한다. 이 프로세스는 상태를 들고 있�
   python orchestrator.py <잡_폴더> build      # builder/deck_v1.js → pptx + manifest
   python orchestrator.py <잡_폴더> review     # audit.py + EDITOR 결과 → issue_register.json
   python orchestrator.py <잡_폴더> render     # render_check.py (GATE 2, 집 Windows에서 유효)
+  python orchestrator.py <잡_폴더> preflight  # 스킬 preflight.py → review/preflight_rN.json (STRUCT, 1차)
   python orchestrator.py <잡_폴더> route      # issue_register.json → 라우터 분류
   python orchestrator.py <잡_폴더> gates      # 검사 결과 → 게이트 표 (계획서 8절)
   python orchestrator.py <잡_폴더> report     # final/QA_REPORT.md + CHANGELOG.md
@@ -60,6 +61,7 @@ def job_paths(root: Path, version: int = 1) -> dict[str, Path]:
         "review": root / "review",
         "audit": root / "review" / f"audit_r{version}.json",
         "editor": root / "review" / f"editor_r{version}.json",
+        "preflight": root / "review" / f"preflight_r{version}.json",
         "register": root / "review" / "issue_register.json",
         "decision": root / "review" / "user_decision.json",
         "final": root / "final",
@@ -399,6 +401,63 @@ def cmd_render(root: Path, version: int = 1) -> None:
     print(f"render: {render_status}  렌더 이슈 {len(render_issues)}건 → {render_file.name}")
 
 
+def cmd_preflight(root: Path, version: int = 1) -> None:
+    """STRUCT 게이트 1차: 스킬 preflight.py를 부르고 결과만 review/preflight_rN.json에 남긴다.
+
+    skill/shin-ppt1/scripts/preflight.py를 **스킬 원본 경로로** 부른다. 리포로
+    복사하지 않는다 — 복사해서 고치면 스킬 원본과 갈라진다 (계획서 2.15).
+    게이트 합류는 2차다. 못 돌린 경우(pptx 없음·파이썬 오류)도 항상 유효한
+    JSON을 쓴다 — status=ERROR로 하고 사유를 error에 담는다 (audit.py와
+    같은 방식). exit code가 아니라 결과 파일로 판정한다 (2.16.5).
+    """
+    p = job_paths(root, version)
+    exe = Path(__file__).resolve().parent / "skill" / "shin-ppt1" / "scripts" / "preflight.py"
+    target = p["pptx"]
+    payload = {
+        "job": root.name,
+        "round": version,
+        "file": target.name,
+        "status": "ERROR",
+        "error": None,
+        "output": "",
+    }
+
+    if not exe.is_file():
+        payload["error"] = f"FileNotFoundError: {exe}  (스킬 preflight 원본)"
+        write_json(p["preflight"], payload)
+        print(f"preflight: ERROR  {payload['error']}")
+        return
+    if not target.is_file():
+        payload["error"] = f"FileNotFoundError: {target}  (먼저 build)"
+        write_json(p["preflight"], payload)
+        print(f"preflight: ERROR  {payload['error']}")
+        return
+
+    try:
+        proc = subprocess.run([sys.executable, str(exe), str(target)],
+                              capture_output=True, text=True, check=False)
+    except OSError as error:
+        payload["error"] = f"{type(error).__name__}: {error}"
+        write_json(p["preflight"], payload)
+        print(f"preflight: ERROR  {payload['error']}")
+        return
+
+    payload["output"] = (proc.stdout or "") + (proc.stderr or "")
+    if proc.returncode == 0:
+        payload["status"] = "PASS"
+    elif "Traceback" in (proc.stderr or ""):
+        # preflight 자체의 파이썬 오류다. 덱 판정이 아니라 도구 실패 (2.16.7).
+        payload["status"] = "ERROR"
+        payload["error"] = (proc.stderr or "").strip()
+    elif proc.returncode == 1:
+        payload["status"] = "FAIL"
+    else:
+        payload["status"] = "ERROR"
+        payload["error"] = f"preflight가 종료 코드 {proc.returncode}로 나가 원인을 못 밝혔다"
+    write_json(p["preflight"], payload)
+    print(f"preflight: {payload['status']}  → {p['preflight'].relative_to(root)}")
+
+
 def cmd_route(root: Path) -> None:
     register = read_json(root / "review" / "issue_register.json")
     if not register:
@@ -590,7 +649,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("job_root", type=Path)
     parser.add_argument("command", nargs="?", default="status",
-                        choices=("status", "build", "review", "render", "route", "gates", "report"))
+                        choices=("status", "build", "review", "render", "preflight", "route", "gates", "report"))
     parser.add_argument("--version", type=int, default=1,
                         help="검사할 deck 버전 (1=builder, 2=revision)")
     args = parser.parse_args(argv)
@@ -606,6 +665,8 @@ def main(argv=None) -> int:
         cmd_review(args.job_root, args.version)
     elif args.command == "render":
         cmd_render(args.job_root, args.version)
+    elif args.command == "preflight":
+        cmd_preflight(args.job_root, args.version)
     elif args.command == "route":
         cmd_route(args.job_root)
     elif args.command == "gates":
