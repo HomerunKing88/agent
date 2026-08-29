@@ -18,7 +18,7 @@ EXPECTED = {
     "03": {"name": "table_header_left_align", "rule": "table.header_align", "stage": 3, "static_expected": "FAIL"},
     "04": {"name": "footnote_position", "rule": "zones.footnote_bottom_y", "stage": 3, "static_expected": "FAIL"},
     "05": {"name": "text_overflow", "rule": "qa.text_max_ymax_pt", "stage": 5, "static_expected": "FAIL"},
-    "06": {"name": "source_value_mismatch", "rule": "claim.source_manifest_pptx", "stage": 4, "static_expected": "FAIL"},
+    "06": {"name": "source_value_mismatch", "rule": "calc.source_manifest", "stage": 4, "static_expected": "FAIL"},
     "07": {"name": "cross_page_metric_mismatch", "rule": "audit.error", "stage": 4, "expected": "ERROR", "static_expected": "ERROR"},
     "08": {"name": "title_top_right_not_clear", "rule": "zones.title_right_clear", "stage": 3, "static_expected": "FAIL"},
     "09": {"name": "unregistered_numeric_token", "rule": "claim.unregistered_numeric_token", "stage": 4, "static_expected": "FAIL"},
@@ -27,6 +27,7 @@ EXPECTED = {
     "12": {"name": "negative_red", "rule": "forbidden.negative_red", "stage": 3, "static_expected": "FAIL"},
     "13": {"name": "body_text_too_small", "rule": "sizes.body_min_pt", "stage": 3, "static_expected": "FAIL"},
     "14": {"name": "override_logged", "rule": "claim.override", "stage": 4, "expected": "PASS", "static_expected": "PASS"},
+    "15": {"name": "red_runs_per_line", "rule": "palette_usage.red_max_per_line", "stage": 3, "static_expected": "FAIL"},
 }
 
 

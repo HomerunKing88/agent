@@ -6,7 +6,7 @@
 const pptxgen = require("pptxgenjs");
 const tpl = require("../template.js");
 
-const DEFECTS = new Set(["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14"]);
+const DEFECTS = new Set(["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15"]);
 
 function addPage(pres, defectId, metric = "1,000") {
   const slide = pres.addSlide();
@@ -87,6 +87,18 @@ function addPage(pres, defectId, metric = "1,000") {
       objectName: "fixture/body_too_small",
       fontFace: tpl.F, fontSize: R.sizes.body_min_pt - 1,
       color: tpl.C.body, margin: 0,
+    });
+  }
+  if (defectId === "15") {
+    slide.addText([
+      { text: "빨강 강조 가", options: { color: R.palette.red } },
+      { text: " / ", options: { color: tpl.C.body } },
+      { text: "빨강 강조 나", options: { color: R.palette.red } },
+    ], {
+      x: 7.6, y: 3.65, w: 2.4, h: 0.30,
+      objectName: "fixture/red_runs_per_line",
+      fontFace: tpl.F, fontSize: R.sizes.body_min_pt,
+      margin: 0,
     });
   }
 

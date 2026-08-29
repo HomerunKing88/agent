@@ -56,7 +56,7 @@
       "file": "06_source_value_mismatch.pptx",
       "expected": "FAIL",
       "name": "source_value_mismatch",
-      "rule": "claim.source_manifest_pptx",
+      "rule": "calc.source_manifest",
       "stage": 4,
       "static_expected": "FAIL",
       "manifest": "06_manifest.json"
@@ -135,6 +135,15 @@
       "stage": 4,
       "static_expected": "PASS",
       "manifest": "14_manifest.json"
+    },
+    {
+      "id": "15",
+      "file": "15_red_runs_per_line.pptx",
+      "expected": "FAIL",
+      "name": "red_runs_per_line",
+      "rule": "palette_usage.red_max_per_line",
+      "stage": 3,
+      "static_expected": "FAIL"
     }
   ]
 }

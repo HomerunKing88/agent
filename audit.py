@@ -121,6 +121,30 @@ def check_negative_red(prs, rules):
     return issues
 
 
+def check_red_runs_per_line(prs, rules):
+    section = "palette_" + "usage"
+    maximum = int(rules[section]["red_max_per_line"])
+    red = str(rules["palette"]["red"]).upper()
+    issues = []
+    for page, slide in enumerate(prs.slides, 1):
+        for shape in slide.shapes:
+            frames = []
+            if getattr(shape, "has_text_frame", False):
+                frames.append(shape.text_frame)
+            if getattr(shape, "has_table", False):
+                frames.extend(cell.text_frame for row in shape.table.rows for cell in row.cells)
+            for frame in frames:
+                for line, paragraph in enumerate(frame.paragraphs, 1):
+                    count = sum(1 for run in paragraph.runs
+                                if run.text.strip() and run_color(run) == red)
+                    if count > maximum:
+                        issues.append(Issue(
+                            section + ".red_max_per_line", page, shape.name,
+                            f"{line}번째 문단 빨강 런={count} > {maximum}",
+                        ))
+    return issues
+
+
 def minimum_font_size(shape_name, rules, is_table=False):
     sizes = rules["sizes"]
     if is_table:
@@ -414,7 +438,7 @@ def check_claims(prs, rules, manifest_path, source_root=None):
                 "at": str(override["at"]),
             })
         elif expected != display:
-            issues.append(Issue("claim.source_manifest_pptx", int(claim.get("slide", 1)), shape_id,
+            issues.append(Issue("calc.source_manifest", int(claim.get("slide", 1)), shape_id,
                                 f"source={expected!r}, manifest={display!r}"))
     for workbook in workbooks.values():
         workbook.close()
@@ -495,7 +519,7 @@ def check_shape_placement(shape, placement, rules, page, shape_id, issues):
 
 def audit(path, rules, manifest_path=None, source_root=None):
     prs = Presentation(str(path))
-    checks = (check_fonts, check_notation, check_negative_red, check_font_sizes,
+    checks = (check_fonts, check_notation, check_negative_red, check_red_runs_per_line, check_font_sizes,
               check_headers, check_footnotes,
               check_overflow, check_title_right, check_table_geometry,
               check_canvas_and_content)

@@ -18,8 +18,6 @@ version: "2026.08"
 unenforced:
   - key: palette_usage.brand_swatch
     why: 브랜드 색 정의다. 검사 대상이 아니라 참고값이다
-  - key: palette_usage.red_max_per_line
-    why: 검사에 넣기로 했다. 한 문단의 빨강 런 개수 세기라 결정적이다. audit.py 반영 대기
   - key: palette_usage.red_scope
     why: 검사 가능하다. 결론 줄(⇒ 접두) 판별이 필요해 red_max_per_line 다음 순서다
   - key: charts.grouped_bar.series_max
