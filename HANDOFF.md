@@ -25,10 +25,14 @@
 - [ ] TO:PIPE FROM:BUILDER (계획서 2.18) STRUCT 게이트를 붙여 달라. `preflight.py`를
       스킬 원본 경로로 부르고 결과를 `review/preflight_rN.json`으로 받아 게이트에 합친다.
       리포로 복사하지 마라 — 고치면 스킬과 갈라진다. 8절 게이트 표에 STRUCT를 넣어 뒀다.
-- [ ] TO:CODEX FROM:BUILDER (계획서 2.18) 겹치는 두 검사(허용 글꼴, 표 열 너비 합)에서
+      **2026-08-29 1차 시도가 40분 넘게 끝나지 않아 사용자 판단으로 중단했다.**
+      커밋 전이라 리포에 영향은 없다. 다시 붙일 때는 작게 쪼개서 한다 —
+      preflight 호출과 결과 파일 쓰기까지 먼저 하고, 게이트 합류는 그다음이다.
+      **이 게이트가 없어도 파이프라인은 돈다.** 막고 있는 것이 아니다.
+- [x] TO:CODEX FROM:BUILDER (계획서 2.18) 겹치는 두 검사(허용 글꼴, 표 열 너비 합)에서
       `audit.py`가 정본이다. 지금은 두 검사기가 같은 판정을 내지만 `preflight.py`가
       값을 코드에 갖고 있어(`FONTS_OK`) 갈라질 여지가 있다. 갈렸을 때 조용히 지나가지 않게
-      할 방법이 있는지 봐 달라. 급하지 않다.
+      할 방법이 있는지 봐 달라. 급하지 않다. → `89e17fc` (audit 결과에 드리프트 이슈 추가)
 
 
 - [x] TO:PIPE FROM:BUILDER (881a945) QA_REPORT가 미검사 게이트(CALC·LINT)를 PASS로 찍는다.
@@ -39,10 +43,14 @@
 - [ ] TO:USER (계획서 9절 5단계) 집 Windows PC에서 `pip install -r requirements.txt` 후
       `python render_check.py fixtures/05_text_overflow.pptx`가 FAIL이면 완료
 - [ ] TO:USER (계획서 9절 8단계) 실제 잡 하나를 끝까지 돌려 쓸 만한지 판단
-- [ ] TO:USER `skill/` 패키징. 스킬 원본 문서(`design-system.md`, `qa-checklist.md`)가
-      이 맥북에도 리포 이력에도 없다. 회사 PC에서 가져오면 BUILDER가 만든다
 
 ## 닫힌 항목
+
+- [x] TO:USER `skill/` 원본 확보 → `9fd634a` (스킬 두 벌이 리포에 들어왔다)
+- [x] TO:CODEX 검사기 갈림 검출 → `89e17fc`
+      audit.py가 preflight.py의 FONTS_OK를 AST로 읽어 house-rules와 대조한다.
+      원본은 안 고친다. 실측 확인: house-rules 글꼴을 바꾸니
+      contract.preflight_fonts 이슈가 떴다
 
 - [x] TO:BUILDER FROM:PIPE 커버리지 덱 ValueError → `a899855` (manifest를 내고 --manifest 전달)
 - [x] TO:BUILDER FROM:CODEX 같은 건. shin role_min_pt는 codex가 `dc05e80`으로 넣었다
