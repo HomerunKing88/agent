@@ -147,6 +147,35 @@ def slack_run(job: Path) -> tuple[str, str]:
     return importlib.import_module("slack_bot").run_orchestrator(job, 1)
 
 
+# 어떤 검사 규칙도 도달하지 못하는 게이트. QA_REPORT에는 PASS로 찍힌다.
+# "검사했고 통과"와 "검사한 적 없음"이 구분되지 않는 자리다 (2.16-7).
+# 사용자가 받는 문서라 조용히 늘어나면 안 된다. 아래 목록과 실제가 어긋나면 FAIL.
+GATES_NOT_WIRED = {
+    "CALC": "audit이 계산 불일치를 claim.source_manifest_pptx로 낸다. SOURCE에 합쳐져 있다",
+    "LINT": "lint_deck.js가 계획서 9절 보류 항목이다. 아예 존재하지 않는다",
+}
+
+
+def unwired_gates() -> tuple[list[str], list[str]]:
+    """규칙이 도달하지 못하는 게이트와, 목록이 낡은 게이트를 돌려준다.
+
+    `unenforced_drift()`와 같은 모양이다. 한쪽만 보면 목록이 낡아도 모른다.
+      dark   도달 규칙이 0인데 목록에 없다   → 게이트가 조용히 죽었다
+      lit    목록에 있는데 도달 규칙이 생겼다 → 목록을 지워야 한다
+    """
+    orchestrator = importlib.import_module("orchestrator")
+    emitted = set()
+    for name in ("audit.py", "render_check.py"):
+        emitted |= set(re.findall(r'Issue\("([a-z][a-z_.]+)"', (REPO / name).read_text(encoding="utf-8")))
+    # orchestrator가 스스로 붙이는 규칙 (EDITOR 지적, 스키마 위반)
+    emitted |= {"editor.MESSAGE", "pipeline.schema_violation"}
+
+    reachable = {orchestrator.gate_of(rule) for rule in emitted}
+    dark = [g for g in orchestrator.GATES if g not in reachable and g not in GATES_NOT_WIRED]
+    lit = [g for g in GATES_NOT_WIRED if g in reachable]
+    return sorted(dark), sorted(lit)
+
+
 CODE_FILES = ("template.js", "deck.js", "audit.py", "render_check.py",
               "orchestrator.py", "slack_bot.py")
 
@@ -303,7 +332,15 @@ def run(job: Path, rules: dict) -> None:
     check("검사 없는 새 규칙 없음", not dead, ", ".join(dead))
     check("unenforced 목록이 최신", not stale, ", ".join(stale))
 
-    print("\n[9] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
+    print("\n[9] 게이트가 실제로 검사되나 — 도달 못 하는 게이트를 센다")
+    dark, lit = unwired_gates()
+    check("규칙이 도달 못 하는 새 게이트 없음", not dark, ", ".join(dark))
+    check("GATES_NOT_WIRED 목록이 최신", not lit, ", ".join(lit))
+    if GATES_NOT_WIRED:
+        print(f"       (QA_REPORT가 PASS로 찍는 미검사 게이트 {len(GATES_NOT_WIRED)}개: "
+              f"{', '.join(GATES_NOT_WIRED)} — BUILDER_TO_PIPE.md 8절)")
+
+    print("\n[10] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
     plumbing = len((REPO / "orchestrator.py").read_text(encoding="utf-8").splitlines())
     checker = len((REPO / "audit.py").read_text(encoding="utf-8").splitlines())
     check(f"orchestrator({plumbing}) <= audit({checker})", plumbing <= checker,

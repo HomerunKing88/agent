@@ -216,6 +216,57 @@ orchestrator.py   491줄
 
 `schemas/issue.py`는 `rule`이 붙은 EDITOR 이슈도 `editor`로 분류한다. 영향 없다.
 
+## 8. QA_REPORT가 "검사 안 함"을 "PASS"로 찍는다
+
+사용자가 받는 문서다. 잡 하나를 돌리면 이렇게 나온다.
+
+```
+## Gates
+BLOCKING: ISSUE
+PASS    : SOURCE, CALC, XREF, TOKEN, LAYOUT, HOUSE, LINT
+```
+
+`CALC`와 `LINT`는 **평가된 적이 없다.** 어떤 검사 규칙도 그 게이트로 도달하지 못한다.
+
+- `LINT` — `lint_deck.js`가 아예 존재하지 않는다 (계획서 9절 보류).
+  그런데 8절의 LINT 정의는 "헬퍼 우회 raw 호출 0"이다.
+  보고서는 **하지도 않은 검사를 통과했다고 말하고 있다.**
+- `CALC` — audit이 계산 불일치를 `claim.source_manifest_pptx`로 내서 SOURCE에 합쳐졌다.
+  실제로 검사는 되지만 CALC 칸이 독립적으로 검증됐다는 인상을 준다.
+
+`PREFIX_GATE`에 `calc.`와 `lint.`가 있지만 그 접두사로 시작하는 규칙을 아무도 내지 않는다.
+audit·render가 내는 규칙 전수 + orchestrator가 붙이는 `editor.*`/`pipeline.*`을 매핑해
+확인했다. 도달 0인 게이트는 이 둘뿐이다.
+
+2.16-7이 금지한 것과 같은 모양이다. 조용한 PASS는 오류로 간주한다.
+지금은 이슈가 없어서 PASS가 아니라, **검사가 없어서** PASS다.
+
+### 권고
+
+`gates.json`과 QA_REPORT가 세 상태를 구분하면 된다.
+
+```
+BLOCKED   위반이 있다
+PASS      검사했고 위반이 0이다
+SKIP      검사기가 없거나 이 환경에서 안 돈다
+```
+
+`SKIP`은 이미 계약 7의 어휘라 새 개념이 아니다(`render_check.py`가 맥에서 내는 값이다).
+`LINT`는 `SKIP(lint_deck.js 미구현)`, `CALC`는 SOURCE에 합쳤다면 게이트 표에서 빼거나
+`SKIP(SOURCE에 통합)`으로 적는 편이 정확하다. 후자는 계획서 8절 표도 같이 고쳐야 한다.
+
+렌더 게이트도 같은 문제를 가진다 — 맥에서 `render_check.py`가 SKIP을 내는데
+LAYOUT이 PASS로 찍히면 "넘침 검사를 통과했다"로 읽힌다. 집 PC 검증 전까지는
+그 칸이 SKIP이어야 맞다.
+
+### 고정해 뒀다
+
+`e2e_check.py` [9]가 도달 못 하는 게이트를 **양방향으로** 감시한다.
+목록(`GATES_NOT_WIRED`)에 없는 게이트가 죽으면 FAIL,
+목록에 있는데 규칙이 생기면 FAIL이다. 반대로 실측해 둘 다 무는 것을 확인했다.
+지금은 CALC·LINT 둘을 사유와 함께 적어 두고 통과시킨다.
+세 상태 구분이 들어오면 이 목록을 지운다.
+
 ## 5. 담당 경계
 
 `orchestrator.py`는 PIPE 담당이라 고치지 않았다. 위 넷 다 보고만 한다.
