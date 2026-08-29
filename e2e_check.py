@@ -112,7 +112,9 @@ tpl.waterfall(s2, MX + 5.4, CW - 5.4, 4.2, 1.6, 50, 10, 20, ["실제", "델타",
 tpl.creamBox(s2, 6.55, 0.55, "시사점 한 문장.");
 tpl.footer(s2, ["※ 커버리지 각주"]);
 
-pres.writeFile({ fileName: process.argv[2] }).then(() => {
+// 저장은 반드시 writeDeck을 탄다. 직접 writeFile을 부르면 도형 ID 재부여를
+// 건너뛴다 — 이 커버리지 덱이 실제로 그러고 있었다 (2026-08-30, 관문이 잡았다).
+tpl.writeDeck(pres, process.argv[2]).then(() => {
   // 검사기는 manifest의 style로 어느 기준으로 볼지 정한다 (계획서 2.17).
   // 이 덱은 claim이 없지만 manifest는 있어야 한다. 없으면 audit이 스타일을 모른다.
   tpl.writeManifest(process.argv[2].replace(/\.pptx$/, "") + "_manifest.json");

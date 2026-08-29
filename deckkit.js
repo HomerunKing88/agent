@@ -67,12 +67,31 @@ function _text(s, content, base, opts) {
 
 // addSlide를 가로채 slide 번호를 센다 (계획서 2.4). 손으로 적으면 manifest와 어긋난다.
 // 판형 정의는 스타일마다 다르므로 호출부가 한다.
+// writeDeck만 아는 진짜 writeFile. 밖에서 못 꺼낸다.
+const REAL_WRITE = Symbol("deckkit.realWriteFile");
+
 function newPres(pptxgen, rules) {
   if (rules) init(rules);
   const pres = new pptxgen();
   resetManifest();
   const addSlide = pres.addSlide.bind(pres);
   pres.addSlide = function (...args) { _slideNo += 1; return addSlide(...args); };
+
+  // 저장 관문을 코드로 막는다.
+  //
+  // pres.writeFile()을 직접 부르면 도형 ID 재부여를 건너뛴다. pptxgenjs가
+  // 표 ID를 intTableNum * slide._slideNum + 1로 매겨서 표가 들어간 장표는
+  // 거의 항상 ID가 중복된다 — 픽스처 20개가 전부 그랬다.
+  //
+  // 여기 주석으로 "직접 부르지 마라"라고 적어 둔 적이 있는데, 실제 잡 스크립트
+  // 두 개가 그대로 직접 불렀다 (2026-08-29). 주석은 관문이 아니다.
+  // 부르면 던진다.
+  pres[REAL_WRITE] = pres.writeFile.bind(pres);
+  pres.writeFile = function () {
+    throw new Error(
+      "pres.writeFile()을 직접 부르면 도형 ID 재부여를 건너뛴다. " +
+      "kit.writeDeck(pres, fileName)을 써라 (deckkit.js).");
+  };
   return pres;
 }
 
@@ -319,7 +338,10 @@ function whitelistToken(opts = {}) {
 // 저장 뒤에 슬라이드마다 ID를 1부터 다시 매긴다. 이름(objectName)은 건드리지 않는다 —
 // manifest ↔ XML 대조 키가 이름이기 때문이다 (2.16-1).
 async function writeDeck(pres, fileName) {
-  await pres.writeFile({ fileName });
+  // newPres가 pres.writeFile을 막아 뒀다. 진짜는 REAL_WRITE에 있다.
+  // newPres를 안 거치고 온 pres도 받아 준다 — 그때는 원래 것을 그대로 쓴다.
+  const write = pres[REAL_WRITE] || pres.writeFile.bind(pres);
+  await write({ fileName });
   const renumbered = renumberShapeIds(fileName);
   return { file: fileName, renumbered };
 }
