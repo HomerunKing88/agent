@@ -196,8 +196,15 @@ def unenforced_drift(rules: dict) -> tuple[list[str], list[str]]:
     code += "\n".join(path.read_text(encoding="utf-8") for path in (REPO / "schemas").glob("*.py"))
     listed = {item["key"] for item in rules.get("unenforced", [])}
 
+    # YAML 앵커로 한 노드가 여러 경로에 걸린다 (house-rules의 styles가 그렇다).
+    # 같은 객체를 두 번 세면 없는 규칙이 죽은 것처럼 보인다. 정체로 걸러낸다.
+    seen_nodes: set[int] = set()
+
     def walk(node, path=()):
         if isinstance(node, dict):
+            if id(node) in seen_nodes:
+                return
+            seen_nodes.add(id(node))
             for key, value in node.items():
                 yield from walk(value, path + (key,))
         else:
