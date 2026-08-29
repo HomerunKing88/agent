@@ -9,7 +9,7 @@
 - `template.js`와 `audit.py`가 같은 값을 각자 들고 있으면 생성기와 검사기가 갈라진다.
 
 ## 담당 파일 (에이전트 셋. 계획서 3절)
-- 이 세션은 **BUILDER**다. 담당: `template.js`, `deck.js`, `schemas/`
+- 이 세션은 **BUILDER**다. 담당: `template.js`, `deck.js`, `schemas/`, `prompts/`
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
 - PIPE 담당: `orchestrator.py`, `slack_bot.py` — 건드리지 않는다. 2026-08-29에 넘겼다.
 - 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림)

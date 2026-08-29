@@ -155,6 +155,21 @@ manifest:
     cagr:       [start, end, periods]
     unverified: [note]                  # 확정 2026-08-29. 어휘 밖 값은 여섯 번째 type으로 둔다
 
+# ── 이슈 어휘 (계획서 2.7, 2.10, 6.3) ────────────────────────────────
+# EDITOR 프롬프트·schemas/editor.py·orchestrator 라우터가 같은 목록을 본다.
+# 세 곳이 각자 들고 있으면 EDITOR가 어휘 밖 값을 내도 아무도 못 잡는다.
+issues:
+  severity: [CRITICAL, MAJOR, MINOR]
+  action:   [AUTO_FIX, USER_DECISION, REVIEW_ONLY]
+  type:     [MESSAGE, LOGIC, DENSITY, STRUCTURE, UNSOURCED, SOURCE, CALC, LAYOUT, HOUSE_RULE]
+  # EDITOR가 낼 수 있는 type. 나머지는 audit.py가 결정적으로 판정하는 영역이다 (2.10)
+  editor_types: [MESSAGE, LOGIC, DENSITY, STRUCTURE, UNSOURCED]
+  # 지적 개수 상한 (9절 8단계). 상한이 없으면 사소한 지적이 수십 개 나온다
+  editor_caps: { CRITICAL: 3, MAJOR: 5 }
+  # 숫자 없는 외부 주장은 한 카테고리로 묶고 등급을 고정한다 (2.6)
+  unsourced_severity: MINOR
+  id_prefix: { editor: "E-", audit: "A-" }
+
 # ── 표 ──────────────────────────────────────────────────────────────
 table:
   default_align: center          # 전 셀 중앙정렬이 기본

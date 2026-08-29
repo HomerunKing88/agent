@@ -224,7 +224,7 @@ Codex(audit.py)와 Claude(template.js)가 병렬로 만들면 서로 다른 연�
 에이전트 셋이 같은 파일을 동시에 고치면 충돌한다. 담당 파일을 나눈다.
 
 ```
-BUILDER (Claude Code)  template.js, deck.js, schemas/
+BUILDER (Claude Code)  template.js, deck.js, schemas/, prompts/
 Codex                  audit.py, render_check.py, fixtures/
 PIPE                   orchestrator.py, slack_bot.py
 공동                    house-rules.yaml, requirements.txt (변경 시 나머지 둘에게 알림)
@@ -717,6 +717,19 @@ Socket Mode. `files:read` 스코프로 파일을 받고, `thread_ts`를 잡 ID�
 상한은 CRITICAL 3건, MAJOR 5건. 상한이 없으면 사소한 지적이 수십 개 나온다.
 
 완료 조건: 실제 잡 하나를 끝까지 돌려 보고 사용자가 쓸 만하다고 판단한다.
+
+작성 2026-08-29. `prompts/EDITOR.md`가 프롬프트, `schemas/editor.py`가 응답 검증이다.
+**완료 조건은 사용자 판단이라 아직 안 채워졌다.** 실제 잡을 돌려 봐야 한다.
+
+어휘는 `house-rules.yaml`의 `issues` 절에 뒀다. 프롬프트·검증기·라우터가 같은 목록을 본다.
+EDITOR가 낼 수 있는 `type`을 다섯 개로 좁힌 것이 핵심이다(`editor_types`).
+`SOURCE` `CALC` `LAYOUT` `HOUSE_RULE`은 audit.py가 결정적으로 판정하는 영역이라(2.10)
+EDITOR가 같은 것을 지적하면 중복이거나 틀린다. 어휘로 막았다.
+
+검증은 전부 아니면 전무가 아니다. 6.3이 "그 이슈만 버린다"고 했으므로
+`validate()`가 (통과, 버림+사유)를 나눠 돌려준다. 재시도 1회와 원문 로그는
+orchestrator 몫이다. 개수 상한을 넘긴 응답은 조용히 자르지 않고 반려로 표시한다 —
+잘라내면 사용자가 못 본 지적이 생긴다.
 
 ### 보류
 

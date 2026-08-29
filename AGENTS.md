@@ -7,7 +7,7 @@
 
 ## 담당 파일 (에이전트 셋. 계획서 3절)
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/`
-- BUILDER(Claude Code) 담당: `template.js`, `deck.js`, `schemas/` — 건드리지 않는다.
+- BUILDER(Claude Code) 담당: `template.js`, `deck.js`, `schemas/`, `prompts/` — 건드리지 않는다.
 - PIPE 담당: `orchestrator.py`, `slack_bot.py` — 건드리지 않는다. 2026-08-29 신설.
 - 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림. 한 번에 한 쪽만 고친다)
 - 브랜치는 `codex/*`를 쓴다. BUILDER는 `claude/*`, PIPE는 `pipe/*`.
@@ -302,6 +302,53 @@ manifest 형식을 각자 손으로 본다. 지금은 셋이 우연히 같지만
 `pydantic==2.13.5`는 이번에 설치했다. `slack-bolt`와 `pywin32`는 미설치라 하한만 뒀다.
 집 PC에서 확인한 뒤 같은 방식으로 고정하면 된다.
 `pywin32`는 `sys_platform == "win32"` 마커를 달아 맥에서 설치되지 않게 했다.
+
+## 8단계 EDITOR 프롬프트 작성 (2026-08-29, BUILDER)
+
+`prompts/EDITOR.md` 프롬프트 + `schemas/editor.py` 응답 검증.
+`prompts/`도 BUILDER 담당으로 담당 표 세 곳에 적었다.
+
+**house-rules.yaml 변경 알림 (5차) — `issues` 절 신설. 추가만 했다.**
+
+```yaml
+issues:
+  severity: [CRITICAL, MAJOR, MINOR]
+  action:   [AUTO_FIX, USER_DECISION, REVIEW_ONLY]
+  type:     [MESSAGE, LOGIC, DENSITY, STRUCTURE, UNSOURCED, SOURCE, CALC, LAYOUT, HOUSE_RULE]
+  editor_types: [MESSAGE, LOGIC, DENSITY, STRUCTURE, UNSOURCED]
+  editor_caps: { CRITICAL: 3, MAJOR: 5 }
+  unsourced_severity: MINOR
+  id_prefix: { editor: "E-", audit: "A-" }
+```
+
+계획서 6.3의 어휘를 YAML로 옮긴 것이다. 값은 계획서와 같다.
+프롬프트·검증기·라우터가 각자 목록을 들고 있으면 EDITOR가 어휘 밖 값을 내도 아무도 못 잡는다.
+
+**Codex에게** — `audit.py`가 내는 이슈에 `type`/`severity`/`action`을 달게 되면
+이 목록을 쓰면 된다. `id_prefix.audit`이 `"A-"`다 (6.3의 `A-018` 꼴).
+지금 audit 이슈는 `rule`/`slide`/`shape`/`evidence` 네 필드라 라우터가
+`action`을 못 읽고 전부 `REVIEW_ONLY`로 떨어진다. 급하지 않지만 남겨 둔다.
+
+**PIPE에게** — `orchestrator.py cmd_review`가 `editor_rN.json`을 그대로 병합한다.
+검증을 태워 주면 어휘 밖 지적이 게이트까지 흘러가지 않는다.
+
+```python
+from schemas.editor import validate
+kept, dropped = validate(read_json(p["editor"]), rules)
+```
+
+- 전부 아니면 전무가 아니다. 계획서 6.3이 "그 이슈만 버린다"고 해서 이슈 단위로 나눈다.
+- `dropped` 항목은 `{"raw": 원문, "errors": [...]}`다. 원문을 남기는 이유는
+  무엇이 왜 버려졌는지 로그에서 확인할 수 있어야 하기 때문이다.
+- **재시도 1회와 로그 적재는 orchestrator 몫이다.** 검증기는 판정만 한다.
+- 개수 상한(CRITICAL 3, MAJOR 5) 초과는 조용히 자르지 않고 `dropped`에 반려로 넣는다.
+  잘라내면 사용자가 못 본 지적이 생긴다.
+
+주입 확인 5건 전부 잡힌다: EDITOR 담당 밖 type(`SOURCE`) / `UNSOURCED` 등급 고정 위반 /
+어휘 밖 키(`confidence`) / id 꼴 위반 / CRITICAL 상한 초과.
+
+8단계 완료 조건은 "실제 잡 하나를 끝까지 돌려 보고 사용자가 쓸 만하다고 판단한다"라
+아직 안 채워졌다. 프롬프트와 검증기까지가 지금 낼 수 있는 것이다.
 
 ## 하지 말 것 (계획서 11절)
 - 오케스트레이션 프레임워크를 먼저 깔고 시작하기
