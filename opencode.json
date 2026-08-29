@@ -1,0 +1,33 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "list": "allow",
+    "edit": {
+      "orchestrator.py": "allow",
+      "slack_bot.py": "allow",
+      "HANDOFF.md": "allow",
+      "*": "ask"
+    },
+    "bash": {
+      "python3 e2e_check.py": "allow",
+      "python3 audit.py *": "allow",
+      "python3 orchestrator.py *": "allow",
+      "python3 schemas/*": "allow",
+      "git status*": "allow",
+      "git log*": "allow",
+      "git diff*": "allow",
+      "git show*": "allow",
+      "git add *": "ask",
+      "git commit *": "ask",
+      "git push*": "deny",
+      "git switch*": "deny",
+      "git checkout*": "deny",
+      "git reset*": "deny",
+      "rm *": "deny",
+      "*": "ask"
+    }
+  }
+}

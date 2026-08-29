@@ -14,7 +14,11 @@
 - `template.js`와 `audit.py`가 같은 값을 각자 들고 있으면 생성기와 검사기가 갈라진다.
 
 ## 담당 파일 (에이전트 셋. 계획서 3절)
-- 이 세션은 **BUILDER**다. 담당: `template.js`, `deck.js`, `schemas/`, `prompts/`, `e2e_check.py`
+- 이 세션은 **BUILDER**이자 **감독**이다 (계획서 3.0).
+  담당: `template.js`, `deck.js`, `schemas/`, `prompts/`, `e2e_check.py`, `relay.sh`, `ask.sh`, `opencode.json`
+- 사용자는 폰에서 나에게만 지시한다. CODEX·PIPE에게는 `./ask.sh <대상> "지시"`로 시킨다.
+  **판정은 내가 하지 않는다. 스크립트가 한다** — "괜찮아 보인다"로 통과시키지 않는다.
+  브랜치·푸시·삭제·`house-rules.yaml`·확정 사항 변경, 실적 수치가 든 잡은 폰으로 올린다 (3.0).
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
 - PIPE 담당: `orchestrator.py`, `slack_bot.py` — 건드리지 않는다. 2026-08-29에 넘겼다.
 - 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림)

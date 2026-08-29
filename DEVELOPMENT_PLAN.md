@@ -224,7 +224,8 @@ Codex(audit.py)와 Claude(template.js)가 병렬로 만들면 서로 다른 연�
 에이전트 셋이 같은 파일을 동시에 고치면 충돌한다. 담당 파일을 나눈다.
 
 ```
-BUILDER (Claude Code)  template.js, deck.js, schemas/, prompts/, e2e_check.py
+BUILDER (Claude Code)  template.js, deck.js, schemas/, prompts/, e2e_check.py,
+                       relay.sh, ask.sh, opencode.json
 Codex                  audit.py, render_check.py, fixtures/
 PIPE                   orchestrator.py, slack_bot.py
 공동                    house-rules.yaml, requirements.txt (변경 시 나머지 둘에게 알림)
@@ -232,6 +233,60 @@ PIPE                   orchestrator.py, slack_bot.py
 ```
 
 브랜치 접두사로 누구의 작업인지 구분한다. BUILDER `claude/*`, Codex `codex/*`, PIPE `pipe/*`.
+
+### 3.0 BUILDER가 감독한다 (확정 2026-08-29)
+
+사용자는 폰에서 **BUILDER에게만** 지시한다. BUILDER가 CODEX·PIPE에게 일을 시키고 결과를 확인한다.
+사용자가 세 세션을 번갈아 열어 결과를 옮기던 일이 사라진다.
+
+```
+폰 ──Remote Control──► 맥북 BUILDER ──┬─ ./ask.sh CODEX "..."  → codex exec
+                                      └─ ./ask.sh PIPE  "..."  → opencode run
+```
+
+**BUILDER는 판정하지 않는다. 전달한다.**
+3절 표의 "Claude BUILDER — 자기 결과물 승인 불가"는 그대로 살아 있다.
+BUILDER가 지시하고 BUILDER가 검수하면 그 제한이 무너지므로, 통과 판정은 사람도 BUILDER도 아닌
+**스크립트가 한다**.
+
+| 판정 | 누가 |
+|---|---|
+| 하우스 규칙·숫자·좌표 | `audit.py` (2.10 그대로) |
+| 이음매·회귀 | `e2e_check.py` |
+| 형식 | `schemas/` |
+| 게이트 종합 | `orchestrator.py` |
+| 무엇을 만들지·페이지 구성 | **사용자** (2.10 그대로) |
+
+BUILDER가 하는 일은 지시를 옮기고, 스크립트 결과를 읽어 다음 지시를 정하고,
+아래 목록에 해당하면 폰으로 올리는 것이다. "괜찮아 보인다"로 통과시키지 않는다.
+
+**폰으로 올려야 하는 것 (BUILDER가 무인으로 결정하지 않는다)**
+
+- 브랜치 전환·생성, `git push`, 이력 되감기
+- 파일 삭제, `house-rules.yaml` 변경, 계획서 확정 사항 변경
+- 담당 파일 경계 변경, 에이전트 추가·제거
+- 실적 수치가 든 잡 폴더를 다루는 모든 작업
+- 에이전트끼리 판단이 갈려 한쪽을 골라야 할 때 (2.11 그대로 — 토론시키지 않고 사용자에게 올린다)
+
+**무인 승인 수위.** 어느 에이전트에게도 전면 승인을 주지 않는다.
+`codex`는 `--sandbox workspace-write --approve-for-me`로 리포 밖을 못 나가고,
+`opencode`는 리포의 `opencode.json` `permission`이 담당 파일 경계를 강제한다
+(`orchestrator.py`·`slack_bot.py` 외 편집은 ask, `push`·`switch`·`rm`은 deny).
+`opencode run --auto`는 쓰지 않는다. 그걸 켜면 permission이 무의미해진다.
+문서로만 있던 담당 경계를 기계가 강제하게 만든 것이다.
+
+### 3.3 감독 통로
+
+```
+./relay.sh              큐 상태만 본다
+./relay.sh --go         큐에 쌓인 것을 순차로 처리시킨다 (배치)
+./ask.sh CODEX "..."    지정 에이전트에 지시 하나 (감독)
+./ask.sh PIPE --dry "..."  보낼 명령만 확인
+```
+
+`ask.sh`는 지시 앞에 담당 경계와 "커밋 전에 e2e를 돌려라"를 붙인다.
+지시만 던지면 세션 규칙 파일을 안 읽고 남의 파일을 건드린다.
+지시 뒤에는 `e2e_check.py`를 자동으로 돌리고 실패하면 멈춘다.
 
 ### 3.1 셋이 체크아웃 하나를 공유한다 (확정 2026-08-29)
 
