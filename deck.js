@@ -27,7 +27,9 @@ const path = require("path");
 const pptxgen = require("pptxgenjs");
 const tpl = require("./template.js");
 
-const R = tpl.R;
+// 스타일 규칙은 생성기가 노출하는 자기 스타일 절에서 읽는다 (계획서 2.17).
+// notation처럼 스타일 무관한 절은 tpl.R(최상위)에 그대로 있다. 2.17이 그렇게 자른 것이다.
+const R = tpl.SR;
 const MX = tpl.MX, CW = tpl.CW;
 
 // ── 레이아웃 예산 ────────────────────────────────────────────────────
@@ -169,7 +171,7 @@ function buildPage(pres, data) {
   tpl.banner(s, d.bannerL1, d.bannerL2);
 
   // ① 좌측: 표 — 단위 표기는 house-rules의 notation.unit_label (대괄호. 괄호 표기 금지)
-  tpl.sectionChip(s, COL_L_X, CHIP_Y, "① 실적 추이", R.notation.unit_label);
+  tpl.sectionChip(s, COL_L_X, CHIP_Y, "① 실적 추이", tpl.R.notation.unit_label);
 
   const colW = [1.60, 0.85, 0.85, 0.85, 0.85];
   assertColW(colW, COL_L_W, "실적 추이 표");

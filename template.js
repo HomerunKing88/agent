@@ -23,14 +23,20 @@ const crypto = require("crypto");
 const RULES_PATH = process.env.HOUSE_RULES || path.join(__dirname, "house-rules.yaml");
 const R = yaml.load(fs.readFileSync(RULES_PATH, "utf8"));
 
-const C = R.palette;
-const F = R.fonts.body;
-const FH = R.fonts.heading;
-const SZ = R.sizes;
-const CM = R.components;
-const Z = R.zones;
+// 이 생성기가 어느 스킬의 문법인지. 규칙은 그 스타일 절에서만 읽는다 (계획서 2.17).
+// 최상위 절은 옛 코드를 위한 다리이고, 읽는 쪽이 다 옮기면 지운다.
+const STYLE = "corporate-strategy-ppt";
+const SR = R.styles && R.styles[STYLE];
+if (!SR) throw new Error(`house-rules.yaml에 styles.${STYLE}가 없다 (계획서 2.17)`);
 
-const W = R.layout.width, H = R.layout.height, MX = R.layout.margin_x;
+const C = SR.palette;
+const F = SR.fonts.body;
+const FH = SR.fonts.heading;
+const SZ = SR.sizes;
+const CM = SR.components;
+const Z = SR.zones;
+
+const W = SR.layout.width, H = SR.layout.height, MX = SR.layout.margin_x;
 const CW = W - 2 * MX;
 const FOOT_BASE = Z.footnote_bottom_y;
 
@@ -57,9 +63,7 @@ const kit = require("./deckkit.js").init(R);
 const { nameOf, claimName, claim, claimText, table, cell, whitelistToken,
         manifest, resetManifest, sourceRoot, currentSlide } = kit;
 
-// 이 생성기가 어느 스킬의 문법인지 manifest에 새긴다 (계획서 2.17).
-// 검사기는 이 값으로 styles[STYLE]을 읽는다. 없으면 틀린 기준으로 판정하게 된다
-const STYLE = "corporate-strategy-ppt";
+// 검사기는 manifest의 style로 styles[STYLE]을 읽는다 (2.17)
 const writeManifest = (file) => kit.writeManifest(file, { style: STYLE, templateVersion: TEMPLATE_VERSION });
 
 // 헬퍼가 도형을 그릴 때 쓰는 통로. 이름 없는 도형을 만들 수 없게 막는다
@@ -70,8 +74,8 @@ function text(s, name, content, opts) { return kit.text(s, name, content, opts);
 
 function newPres(pptxgen) {
   const pres = kit.newPres(pptxgen, R);
-  pres.defineLayout({ name: R.layout.name, width: W, height: H });
-  pres.layout = R.layout.name;
+  pres.defineLayout({ name: SR.layout.name, width: W, height: H });
+  pres.layout = SR.layout.name;
   return pres;
 }
 
@@ -189,7 +193,7 @@ function colChart(s, px, pw, base, maxH, vmax, labels, vals, opts = {}) {
   vals.forEach((v, i) => {
     const cx = x0 + i * slot + (slot - bw) / 2;
     if (i === 0 && opts.highlightFirst !== false)
-      _shape(s, "rect", nameOf("col_chart", "band"), { x: cx - 0.08, y: base - maxH - 0.28, w: bw + 0.16, h: maxH + 0.6, fill: { color: C[R.charts.own_series_band] } });
+      _shape(s, "rect", nameOf("col_chart", "band"), { x: cx - 0.08, y: base - maxH - 0.28, w: bw + 0.16, h: maxH + 0.6, fill: { color: C[SR.charts.own_series_band] } });
     const h = v / vmax * maxH;
     _shape(s, "rect", nameOf("col_chart", "bar"), { x: cx, y: base - h, w: bw, h, fill: { color: i === 0 ? C.navy : (opts.barColor || C.grayLt) } });
     const vOpts = { x: cx - 0.12, y: base - h - 0.2, w: bw + 0.24, h: 0.18, fontFace: F, fontSize: SZ.chart_value_label_pt, bold: i === 0, color: i === 0 ? C.navy : C.body, align: "center", margin: 0 };
@@ -200,7 +204,7 @@ function colChart(s, px, pw, base, maxH, vmax, labels, vals, opts = {}) {
   });
   _shape(s, "rect", nameOf("col_chart", "axis"), { x: px + 0.15, y: base, w: pw - 0.3, h: RULE, fill: { color: C.grayLt } });
   if (opts.avg != null) {
-    const a = R.charts.avg_line;
+    const a = SR.charts.avg_line;
     const ay = base - opts.avg / vmax * maxH;
     _shape(s, "line", nameOf("col_chart", "avg_line"), { x: px + 0.2, y: ay, w: pw - 0.4, h: 0, line: { color: C[a.color], width: a.width_pt, dashType: a.dash } });
     const aOpts = { x: px + pw - 1.35, y: ay - 0.19, w: 1.2, h: 0.16, fontFace: F, fontSize: a.label_pt, bold: a.label_bold, color: C[a.color], align: "right", margin: 0 };
@@ -210,11 +214,11 @@ function colChart(s, px, pw, base, maxH, vmax, labels, vals, opts = {}) {
 }
 
 // 100% 세로 스택. segs: 각 항목 [v1, v2, ...] (합 100), segColors/segLblColors 병렬
-function stacked100(s, px, base, maxH, labels, segs, segColors, segLblColors, slot = R.charts.stack100.slot_default, bw = R.charts.stack100.bar_w_default, x0off = 0.24) {
+function stacked100(s, px, base, maxH, labels, segs, segColors, segLblColors, slot = SR.charts.stack100.slot_default, bw = SR.charts.stack100.bar_w_default, x0off = 0.24) {
   const x0 = px + x0off;
   segs.forEach((vals, i) => {
     const cx = x0 + i * slot + (slot - bw) / 2;
-    if (i === 0) _shape(s, "rect", nameOf("stack100", "band"), { x: cx - 0.07, y: base - maxH - 0.09, w: bw + 0.14, h: maxH + 0.42, fill: { color: C[R.charts.own_series_band] } });
+    if (i === 0) _shape(s, "rect", nameOf("stack100", "band"), { x: cx - 0.07, y: base - maxH - 0.09, w: bw + 0.14, h: maxH + 0.42, fill: { color: C[SR.charts.own_series_band] } });
     const tops = [];
     let cum = 0;
     vals.forEach(v => { cum += v; tops.push(cum); });
@@ -229,7 +233,7 @@ function stacked100(s, px, base, maxH, labels, segs, segColors, segLblColors, sl
 
 // 워터폴: 실제(navy) → 델타(앰버, 공중) → 가상(grayLt), 점선 연결 + 0/25/50 눈금
 function waterfall(s, px, pw, base, hScale, vmax, v0, v1, catLabels, lblDelta) {
-  const wf = R.charts.waterfall;
+  const wf = SR.charts.waterfall;
   [[base - hScale, vmax / 1 + "%"], [base - hScale / 2, vmax / 2 + "%"], [base, "0%"]].forEach(([gy, lbl]) => {
     _shape(s, "rect", nameOf("waterfall", "tick"), { x: px + 0.55, y: gy, w: pw - 0.75, h: RULE, fill: { color: gy === base ? C.grayLt : C[wf.tick_color] } });
     _text(s, lbl, nameOf("waterfall", "tick_label"), { x: px + 0.1, y: gy - 0.09, w: 0.4, h: 0.18, fontFace: F, fontSize: SZ.chart_axis_label_pt, color: C.gray, align: "right", valign: "middle", margin: 0 });
@@ -254,7 +258,7 @@ function waterfall(s, px, pw, base, hScale, vmax, v0, v1, catLabels, lblDelta) {
 // 표 셀 스타일 프리셋 (colW 합계 == w 를 호출부에서 반드시 보장)
 // 정렬 기본값은 전부 center. 좌측정렬(tdL)은 셀 안에서 줄바꿈되는 긴 서술문 열에만 쓰고,
 // 그 열도 헤더는 hd(center)를 쓴다. rowH는 table.row_height_min / row_height_2line_min 이상.
-const T = R.table;
+const T = SR.table;
 const tableStyles = {
   hd:  { fontFace: F, fontSize: SZ.table_header_pt, bold: true, color: C.white, fill: { color: C.navy }, align: T.header_align, valign: "middle" },
   td:  { fontFace: F, fontSize: SZ.table_body_pt, color: C.body, align: T.default_align, valign: "middle" },
@@ -270,5 +274,5 @@ module.exports = {
   newPres, header, banner, banner2, sectionChip, panel, panel2, creamBox,
   bullets, footer, darkCard, statCard, iconBadge, colChart, stacked100, waterfall, tableStyles,
   claim, claimText, table, cell, text, shape, whitelistToken, manifest, writeManifest, resetManifest, sourceRoot, currentSlide,
-  TEMPLATE_VERSION, STYLE, nameOf, claimName, U
+  TEMPLATE_VERSION, STYLE, SR, nameOf, claimName, U
 };
