@@ -85,7 +85,7 @@ def make_job(root: Path) -> Path:
 # 모든 그리기 헬퍼를 한 번씩 부르는 덱. deck.js와 fixtures/golden_deck.js가
 # 쓰지 않는 헬퍼(statCard, iconBadge, darkCard, stacked100, waterfall, panel)는
 # 이것이 없으면 한 번도 그려지지 않는다. 좌표 버그가 있어도 아무도 모른다.
-COVERAGE_DECK = """
+COVERAGE_DECK = r"""
 const pptxgen = require("pptxgenjs");
 const tpl = require(process.env.TEMPLATE_JS);
 const R = tpl.R, MX = tpl.MX, CW = tpl.CW, C = tpl.C;

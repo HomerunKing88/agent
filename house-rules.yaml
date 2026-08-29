@@ -434,6 +434,19 @@ styles:
       legend_pt: 10.5
       value_pt: 10
       foot_pt: 9
+    # 세로 좌표와 리듬. 원본 스킬은 코드에 두었다 (계획서 2.14로 옮김).
+    # 여백을 눈대중으로 맞추지 않으려고 값으로 고정한 것들이다.
+    zones:
+      footnote_bottom_y: 8.14   # 각주 바닥 기준선
+      band_top: 2.00            # 콘텐츠 시작 (요약박스 아래 첫 소제목)
+      sub_gap: 0.44             # 소제목 y → 그 아래 콘텐츠 y
+      block_gap: 0.34           # 블록 하단 → 다음 소제목 y (허용 0.30~0.46)
+      col_tolerance: 0.40       # 2단 좌·우 마지막 요소 하단 차이 허용치
+      slack_max: 0.50           # 이보다 더 비면 행 높이·도식 높이로 흡수한다
+    # 2단 구성. 좌 0.65~5.67 / 우 6.02~11.04
+    columns:
+      width: 5.02
+      right_x: 6.02
     # 테마 4종. useTheme()이 팔레트를 갈아끼운다 (themes.md)
     default_theme: report
     themes:

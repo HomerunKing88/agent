@@ -49,10 +49,10 @@ const _text  = (s, content, base, opts) => kit.text(s, base, content, opts);
 // 글꼴은 두 벌뿐이다. 셋째 글꼴을 들이지 않는다
 const F  = SR.fonts.body;      // 제목·요약박스를 뺀 전부
 const FH = SR.fonts.heading;   // 페이지 제목과 상단 요약박스
-const FOOT_BASE = 8.14;        // 각주 바닥 기준선 (아직 YAML에 없다 — zones 절 신설 필요)
+const FOOT_BASE = SR.zones.footnote_bottom_y;   // 각주 바닥 기준선
 
 const W = SR.layout.width, H = SR.layout.height, MX = SR.layout.margin_x, CW = W - 2 * MX;
-const COLW = 5.02, RX = 6.02;   // 2단: 좌 0.65~5.67 / 우 6.02~11.04
+const COLW = SR.columns.width, RX = SR.columns.right_x;   // 2단: 좌 0.65~5.67 / 우 6.02~11.04
 
 /* ── 모서리 처리 — 카드류 도형에만 적용한다 ──
    'square' 각진 모서리(기본. 리서치 리포트 인상)
@@ -96,11 +96,11 @@ const TS = {
 };
 
 /* ── 세로 리듬 — 여백은 눈대중이 아니라 이 값으로 맞춘다 ── */
-const BAND_TOP  = 2.00;   // 콘텐츠 시작(요약박스 아래 첫 소제목)
-const SUB_GAP   = 0.44;   // 소제목 y → 그 아래 콘텐츠 y
-const BLOCK_GAP = 0.34;   // 블록 하단 → 다음 소제목 y (0.30~0.46)
-const COL_TOL   = 0.40;   // 2단 좌·우 마지막 요소 하단 차이 허용치
-const SLACK_MAX = 0.50;   // 이보다 더 비면 행 높이·도식 높이로 흡수한다
+const BAND_TOP  = SR.zones.band_top;   // 콘텐츠 시작(요약박스 아래 첫 소제목)
+const SUB_GAP   = SR.zones.sub_gap;    // 소제목 y → 그 아래 콘텐츠 y
+const BLOCK_GAP = SR.zones.block_gap;  // 블록 하단 → 다음 소제목 y
+const COL_TOL   = SR.zones.col_tolerance;  // 2단 좌·우 마지막 요소 하단 차이 허용치
+const SLACK_MAX = SR.zones.slack_max;      // 이보다 더 비면 행·도식 높이로 흡수한다
 
 // 각주 줄수에 따른 콘텐츠 하한
 function bandBottom(footLines) { return FOOT_BASE - 0.15 * footLines - 0.20; }
