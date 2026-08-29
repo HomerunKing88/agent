@@ -9,13 +9,17 @@
 #   ./ask.sh PIPE  "cmd_report에 SKIP 사유를 한 줄씩 적어라"
 #   ./ask.sh CODEX --dry "..."      # 보낼 명령만 보여준다
 #
+# **띄워 둔 herdr 창에 넣는다.** `codex exec` / `opencode run`으로 헤드리스를 새로 띄우지 않는다.
+# 헤드리스는 화면에 안 보여서 무엇을 하고 있는지 감독할 수 없다. 감독이 이 파일의 목적이다.
+# 사람이 창을 보고 있으면 승인 프롬프트도 눈에 보이고 직접 답할 수 있다.
+#
+# 대상은 herdr pane id다. `herdr agent list`로 확인한다. 이름이 아니라 pane id여야 한다.
+#   CODEX  codex 창    PIPE  opencode 창
+#
 # 승인 수위
-#   CODEX  --approve-for-me
-#          승인을 자동 심사로 흘리고 workspace-write 샌드박스에서 돈다 (리포 밖으로 못 나간다).
-#          --sandbox와는 배타적이다. 같이 주면 codex가 거부한다.
-#   PIPE   opencode.json의 permission이 담당 파일 경계를 강제한다.
-#          orchestrator.py / slack_bot.py 외 편집은 ask, push·switch·rm은 deny.
-#          --auto는 쓰지 않는다. 그걸 켜면 permission이 무의미해진다.
+#   창에서 도는 세션은 각 CLI가 이미 켜 둔 설정을 따른다.
+#   PIPE는 리포의 opencode.json permission이 담당 파일 경계를 강제한다
+#   (orchestrator.py / slack_bot.py 외 편집은 ask, push·switch·rm은 deny).
 #
 # 어느 쪽도 브랜치 전환·푸시·삭제를 무인으로 못 한다. 그건 폰으로 올라온다.
 set -uo pipefail
@@ -43,29 +47,41 @@ HANDOFF.md에 인계 줄을 남겨라.
 지시:
 '
 
-# 사용자는 맥북 앞에 없다 (계획서 3.0). 에이전트가 승인 프롬프트에서 멈추면
-# 아무도 답할 수 없고, 폰에서는 그냥 조용한 것과 구분되지 않는다.
-# 상한 시간에서 끊고 "사용자 입력 필요"로 돌려준다. macOS에는 timeout(1)이 없어 alarm을 쓴다.
-LIMIT="${ASK_TIMEOUT:-900}"   # 초. ASK_TIMEOUT으로 바꾼다
-with_limit() { perl -e 'alarm shift @ARGV; exec @ARGV' "$LIMIT" "$@"; }
-
-run_codex() {
-  with_limit codex exec --approve-for-me "$1"
+# herdr 창에서 도는 에이전트를 pane id로 찾는다. 창을 새로 띄우지 않고 있는 창에 넣는다.
+pane_of() {
+  herdr agent list 2>/dev/null | python3 -c "
+import json,sys
+want = sys.argv[1]
+for a in json.load(sys.stdin)['result']['agents']:
+    if a.get('agent') == want:
+        print(a['pane_id']); break
+" "$1"
 }
-run_pipe() {
-  with_limit opencode run "$1"
+
+status_of() {
+  herdr agent get "$1" 2>/dev/null | python3 -c "
+import json,sys
+print(json.load(sys.stdin)['result']['agent']['agent_status'])
+"
 }
 
 case "$WHO" in
-  CODEX) CMD="codex exec --approve-for-me" ;;
-  PIPE)  CMD="opencode run" ;;
+  CODEX) AGENT="codex" ;;
+  PIPE)  AGENT="opencode" ;;
   BUILDER)
     echo "BUILDER는 나다. 남에게 시키지 말고 직접 해라." >&2; exit 2 ;;
   *) echo "모르는 대상: $WHO  (CODEX | PIPE)" >&2; exit 2 ;;
 esac
 
+PANE="$(pane_of "$AGENT")"
+if [ -z "$PANE" ]; then
+  echo "$AGENT 창이 herdr에 없다. 창을 띄우고 다시 시도한다." >&2
+  echo "  herdr agent list 로 확인한다." >&2
+  exit 3
+fi
+
 if [ "$DRY" -eq 1 ]; then
-  echo "$CMD <프롬프트>"
+  echo "herdr agent prompt $PANE <프롬프트>   ($AGENT 창)"
   echo "--- 프롬프트 ---"
   printf '%s%s\n' "$PREAMBLE" "$TASK"
   exit 0
@@ -74,29 +90,13 @@ fi
 echo "== $WHO 에게 지시 =="
 echo "$TASK"
 echo
-case "$WHO" in
-  CODEX) run_codex "$PREAMBLE$TASK" ;;
-  PIPE)  run_pipe  "$PREAMBLE$TASK" ;;
-esac
-status=$?
-
-if [ "$status" -ge 128 ]; then
-  echo
-  echo "== $WHO 가 ${LIMIT}초 안에 안 끝났다 =="
-  echo "   승인 프롬프트에 걸렸을 가능성이 크다. 사용자 입력이 필요하다 (계획서 3.0)."
-  echo "   워킹트리를 확인하고 폰으로 올린다."
-  git status --short
-  exit 124
-fi
-
+echo "창: $PANE ($AGENT)"
+herdr agent prompt "$PANE" "$PREAMBLE$TASK" >/dev/null 2>&1 || {
+  echo "창에 넣지 못했다. herdr agent list 로 상태를 본다." >&2; exit 3; }
+echo "넣었다. 창에서 도는 중이다 — 화면으로 확인할 수 있다."
+echo "  상태 보기: herdr agent get $PANE"
+echo "  끝날 때까지 대기: herdr agent wait $PANE --until idle"
 echo
-echo "== 지시 뒤 회귀 =="
-if python3 e2e_check.py >/dev/null 2>&1; then
-  echo "  E2E PASS"
-else
-  echo "  E2E FAIL — 아래를 보고 판단한다"
-  python3 e2e_check.py 2>&1 | tail -20
-  exit 1
-fi
-git status --short
-exit $status
+echo "지시 뒤 회귀는 에이전트가 끝난 뒤에 돌린다:"
+echo "  python3 e2e_check.py && git status --short"
+exit 0
