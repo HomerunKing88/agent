@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import math
@@ -76,6 +77,35 @@ def style_rules(rules, manifest_path=None):
 
     effective = merge(rules, styles[style])
     return effective
+
+
+def check_preflight_alignment(rules):
+    """Detect drift in the overlapping checks owned by the skill preflight."""
+    source_path = Path(__file__).with_name("skill") / "shin-ppt1" / "scripts" / "preflight.py"
+    if not source_path.is_file():
+        return []
+    tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    constants = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id in {"FONTS_OK"}:
+                    constants[target.id] = ast.literal_eval(node.value)
+    issues = []
+    expected_fonts = {rules["fonts"]["body"], rules["fonts"]["heading"]}
+    if constants.get("FONTS_OK") is not None and set(constants["FONTS_OK"]) != expected_fonts:
+        issues.append(Issue(
+            "contract.preflight_fonts", 0, "-",
+            f"preflight={sorted(constants['FONTS_OK'])}, house-rules={sorted(expected_fonts)}",
+        ))
+    tolerance = rules["qa"].get("colw_tolerance_emu")
+    match = re.search(r"abs\(total\s*-\s*cx\)\s*>\s*(\d+)", source_path.read_text(encoding="utf-8"))
+    if tolerance is not None and match and float(tolerance) != float(match.group(1)):
+        issues.append(Issue(
+            "contract.preflight_colw_tolerance", 0, "-",
+            f"preflight={match.group(1)}EMU, house-rules={tolerance}EMU",
+        ))
+    return issues
 
 
 def text_shapes(slide):
@@ -573,7 +603,8 @@ def audit(path, rules, manifest_path=None, source_root=None):
               check_headers, check_footnotes,
               check_overflow, check_title_right, check_table_geometry,
               check_canvas_and_content)
-    issues = [issue for check in checks for issue in check(prs, rules)]
+    issues = check_preflight_alignment(rules)
+    issues.extend(issue for check in checks for issue in check(prs, rules))
     changes = []
     if manifest_path:
         claim_issues, changes = check_claims(prs, rules, manifest_path, source_root)
