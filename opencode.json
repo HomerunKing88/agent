@@ -37,7 +37,13 @@
       "ls *": "allow",
       "git branch*": "allow",
       "git rev-parse*": "allow",
-      "node --check *": "allow"
+      "node --check *": "allow",
+      "git rev-list*": "allow",
+      "python3 -c *": "allow",
+      "node -e *": "allow",
+      "find *": "allow",
+      "printf *": "allow",
+      "echo *": "allow"
     }
   }
 }
