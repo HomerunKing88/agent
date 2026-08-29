@@ -137,8 +137,10 @@ function save(pres, fileName) {
     LAYOUT_ISSUES.forEach(m => console.error("  - " + m));
     process.exit(1);
   }
-  return pres.writeFile({ fileName: fileName }).then(() => {
-    console.log("생성 완료: " + fileName);
+  // deckkit이 저장 뒤 도형 ID를 다시 매긴다 (계획서 2.1).
+  // pptxgenjs가 표에만 다른 공식을 써서 ID가 겹친다 — 규격 위반이다
+  return kit.writeDeck(pres, fileName).then(r => {
+    console.log("생성 완료: " + fileName + (r.renumbered ? `  (도형 ID 재부여 ${r.renumbered}장)` : ""));
   });
 }
 
@@ -617,7 +619,7 @@ module.exports = {
   // ── 계약 (deckkit. 계획서 2.16) ──────────────────────────────────
   claim, claimText, cell, whitelistToken, manifest, writeManifest,
   resetManifest, sourceRoot, currentSlide, nameOf, claimName,
-  table: kitTable,
+  table: kitTable, writeDeck: kit.writeDeck,
   // 이 생성기가 어느 스킬의 문법인지. manifest에 박힌다 (2.17)
   STYLE, TEMPLATE_VERSION, R, SR, TS,
 };

@@ -273,6 +273,6 @@ module.exports = {
   R, F, FH, C, W, H, MX, CW, FOOT_BASE,
   newPres, header, banner, banner2, sectionChip, panel, panel2, creamBox,
   bullets, footer, darkCard, statCard, iconBadge, colChart, stacked100, waterfall, tableStyles,
-  claim, claimText, table, cell, text, shape, whitelistToken, manifest, writeManifest, resetManifest, sourceRoot, currentSlide,
+  claim, claimText, table, cell, text, shape, whitelistToken, manifest, writeDeck: kit.writeDeck, writeManifest, resetManifest, sourceRoot, currentSlide,
   TEMPLATE_VERSION, STYLE, SR, nameOf, claimName, U
 };

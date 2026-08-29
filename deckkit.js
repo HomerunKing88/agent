@@ -306,6 +306,55 @@ function whitelistToken(opts = {}) {
   return entry;
 }
 
+// ── 저장 (계획서 2.1) ────────────────────────────────────────────────
+// pptxgenjs가 표에만 다른 공식으로 도형 ID를 매긴다.
+//   표     id = intTableNum * slide._slideNum + 1   (1번 표, 1번 슬라이드 → 2)
+//   그 외  id = idx + 2                             (0번 항목 → 2)
+// 그래서 표가 있는 슬라이드는 항상 ID가 겹친다. 라이브러리 쪽 문제라 생성 시점에 못 막는다.
+//
+// 파워포인트가 열기는 하지만 규격 위반이고, 스킬의 preflight.py가 오류로 잡는다.
+// 2026-08-30에 STRUCT 게이트 첫 실행에서 발견했다 — 만든 덱 셋이 전부 겹쳐 있었다.
+// audit.py는 하우스 규칙만 보므로 이걸 못 본다 (계획서 2.18).
+//
+// 저장 뒤에 슬라이드마다 ID를 1부터 다시 매긴다. 이름(objectName)은 건드리지 않는다 —
+// manifest ↔ XML 대조 키가 이름이기 때문이다 (2.16-1).
+async function writeDeck(pres, fileName) {
+  await pres.writeFile({ fileName });
+  const renumbered = renumberShapeIds(fileName);
+  return { file: fileName, renumbered };
+}
+
+// zip 라이브러리를 새로 들이지 않는다. 파이썬은 이미 전제 환경이고(계획서 4절)
+// 표준 라이브러리로 끝난다. preflight.py도 같은 방식이다.
+function renumberShapeIds(file) {
+  const script = `
+import re, shutil, sys, zipfile
+src = sys.argv[1]
+tmp = src + ".renum"
+touched = 0
+with zipfile.ZipFile(src) as zin, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+    for it in zin.infolist():
+        data = zin.read(it.filename)
+        if re.fullmatch(r"ppt/slides/slide\\d+\\.xml", it.filename):
+            xml = data.decode("utf-8")
+            # 미디어가 있으면 도형 ID가 rId와 묶여 있다. 건드리지 않는다
+            if not re.search(r"<a:blip|<p:pic\\b", xml):
+                n = [0]
+                def sub(m):
+                    n[0] += 1
+                    return m.group(1) + str(n[0]) + m.group(3)
+                out = re.sub(r'(<p:cNvPr id=")(\\d+)(")', sub, xml)
+                if out != xml:
+                    data = out.encode("utf-8"); touched += 1
+        zout.writestr(it, data)
+shutil.move(tmp, src)
+print(touched)
+`;
+  const r = require("child_process").spawnSync("python3", ["-c", script, file], { encoding: "utf8" });
+  if (r.status !== 0) throw new Error("도형 ID 재부여 실패: " + (r.stderr || "").trim());
+  return parseInt(r.stdout.trim(), 10) || 0;
+}
+
 // 타임스탬프를 넣지 않는다. 같은 입력이면 같은 파일이어야 픽스처 회귀 비교가 된다.
 // 실행 정보는 run_metadata.json이 따로 담는다 (계획서 6.4)
 // meta로 스타일과 생성기 버전을 받는다. 계약(이 파일)은 스타일을 모르고,
@@ -339,6 +388,6 @@ module.exports = {
   // 도형 이름 (2.16-1)
   nameOf, claimName, shape, text,
   // claim / manifest (2.4~2.8, 6.2)
-  claim, claimText, table, cell, whitelistToken,
+  claim, claimText, table, cell, whitelistToken, writeDeck, renumberShapeIds,
   manifest, writeManifest, resetManifest, sourceRoot, currentSlide,
 };

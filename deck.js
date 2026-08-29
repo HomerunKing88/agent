@@ -238,7 +238,8 @@ function build(outPath) {
     throw new Error(`장표에 찍히지 않은 claim: ${unplaced.join(", ")}`);
   // manifest는 pptx와 같은 폴더에 둔다 (잡 폴더 builder/)
   const mf = tpl.writeManifest(path.join(path.dirname(path.resolve(outPath)), "manifest.json"));
-  return pres.writeFile({ fileName: outPath }).then(f => ({ pptx: f, manifest: mf }));
+  // deckkit이 저장 뒤 도형 ID를 다시 매긴다. pptxgenjs가 표에만 다른 공식을 써서 겹친다
+  return tpl.writeDeck(pres, outPath).then(r => ({ pptx: r.file, manifest: mf, renumbered: r.renumbered }));
 }
 
 if (require.main === module) {
