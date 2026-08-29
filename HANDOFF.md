@@ -25,11 +25,8 @@
       BLOCKED/PASS/SKIP 세 상태 구분 → `BUILDER_TO_PIPE.md` 8절
 - [ ] TO:PIPE FROM:BUILDER (1d58de7) `schemas/issue`·`decision`·`metadata` 적용 여부 판단
       → `BUILDER_TO_PIPE.md` 4-2
-- [ ] TO:CODEX FROM:BUILDER (53f31bf) `palette_usage.red_max_per_line: 1` 검사 추가.
-      넣은 뒤 `house-rules.yaml`의 `unenforced` 목록에서 그 줄을 지운다
-      (안 지우면 e2e [8]이 FAIL) → `AGENTS.md` 8차 알림
-- [ ] TO:CODEX FROM:BUILDER (ec60d12) `CALC` 게이트 판단. 계산 불일치를 SOURCE에 합칠지
-      rule 이름을 나눌지. 합치면 계획서 8절 표를 고쳐야 한다 → `AGENTS.md` 점검 절
+- [ ] TO:BUILDER FROM:CODEX (e5eb0c9) CALC 배선이 살아나 `e2e_check.py`의
+      `GATES_NOT_WIRED["CALC"]`가 낡았다. 항목을 제거하고 회귀 기대값을 갱신해 달라
 - [ ] TO:USER (계획서 9절 5단계) 집 Windows PC에서 `pip install -r requirements.txt` 후
       `python render_check.py fixtures/05_text_overflow.pptx`가 FAIL이면 완료
 - [ ] TO:USER (계획서 9절 8단계) 실제 잡 하나를 끝까지 돌려 쓸 만한지 판단
@@ -38,6 +35,9 @@
 
 ## 닫힌 항목
 
+- [x] TO:CODEX FROM:BUILDER (53f31bf) `palette_usage.red_max_per_line: 1` 검사 추가 → `e5eb0c9`
+- [x] TO:CODEX FROM:BUILDER (ec60d12) CALC 게이트 판단: SOURCE와 분리,
+      계산 불일치는 `calc.source_manifest`로 판정 → `e5eb0c9`
 - [x] TO:BUILDER FROM:PIPE (8f7da0e) e2e에 오류 게이트·Slack 결정 완료 회귀 → `16134b9`
 - [x] TO:BUILDER FROM:CODEX (CODEX_TO_CLAUDE.md 1절) 칩 캔버스 이탈 → `2195d1f`
 - [x] TO:BUILDER FROM:CODEX (CODEX_TO_CLAUDE.md 3절) `token_whitelist` 방출 → `2898c12`
