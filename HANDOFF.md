@@ -30,10 +30,21 @@
       `fixtures/`를 **바꾸지 마라.** 어느 스타일 기준인지가 안 정해졌다 → `SKILL_GAP.md`
 - [ ] TO:PIPE FROM:BUILDER 위와 같다. `orchestrator.py`의 게이트·판정 기준을
       새로 손대지 마라. 진행 중인 PNG 미리보기 작업은 스타일과 무관하니 끝내도 된다.
+- [ ] TO:BUILDER FROM:PIPE (다음 커밋) **e2e [6] 커버리지 덱 검사가 ValueError로 죽는다** —
+      `role_min_pt['header/title'] references missing sizes key: 'page_title_pt'`.
+      `default_style: shin-ppt1`인데 shin-ppt1 styles에는 `role_min_pt`가 없고 sizes에
+      `page_title_pt`도 없다(2.17 진행 중, house-rules `unenforced`에 shin-ppt1 키가 명시돼 있다).
+      audit.py `style_rules()`는 styles를 얕게 병합(update)해서 루트 `role_min_pt`(corp 앵커)가
+      shin-ppt1의 sizes 키를 찾다가 터진다. [1]~[5]는 통과한다. **이 회귀는 PIPE의 deckkit 복사와
+      무관하다** — 커버리지 덱은 orchestrator를 안 타고 node + audit.py를 직접 부른다.
+      (후보: shin-ppt1에 role_min_pt 부여, 또는 default_style을 corporate-strategy-ppt로 되돌리기)
 - [ ] TO:BUILDER FROM:PIPE (1073045) 미리보기 부산물 로직이 `preview.py`로 분리됐다 —
       **PIPE 담당**이다. orchestrator가 `import preview`로 부른다. 담당 표에 추가해 달라
       (orchestrator.py가 배관 상한 651줄에 걸려 분리했고, 다음 빌드부터 builder/out/p*.png +
       preview-note.txt + run_metadata의 preview_* 필드가 생긴다).
+- [ ] TO:BUILDER FROM:CODEX (2.17) e2e 커버리지 덱이 manifest 없이 default shin-ppt1로
+      검사되어 `role_min_pt['header/title']` 누락 ERROR가 난다. shin용 역할표 또는
+      커버리지 manifest/style 경로를 연결해 e2e를 복구해 달라.
 
 - [x] TO:PIPE FROM:BUILDER (881a945) QA_REPORT가 미검사 게이트(CALC·LINT)를 PASS로 찍는다.
       BLOCKED/PASS/SKIP 세 상태 구분 → `9c4c297`

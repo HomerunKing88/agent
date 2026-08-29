@@ -38,6 +38,11 @@ import preview
 # ── 계획서 5절 잡 폴더 구조 ─────────────────────────────────────────
 DIRS = ("source", "builder", "review", "revision", "final")
 
+# cmd_build가 잡 폴더로 복사하는 리포 생성기 파일 (헬퍼·계약). deck_v1.js는 잡이
+# 채운 것이 정본이라 목록에 없다. template.js가 계약 deckkit.js를 require하므로
+# 둘을 함께 복사한다 — 스타일별 생성기(2.17)가 더 늘면 이 목록이 늘어난다.
+BUILD_SHARED = ("template.js", "deckkit.js")
+
 
 def job_paths(root: Path, version: int = 1) -> dict[str, Path]:
     """잡 폴더의 확정 경로. 계획서 5절의 구조 그대로다."""
@@ -166,13 +171,15 @@ def cmd_build(root: Path, version: int = 1) -> None:
     if not p["deck_js"].exists():
         print(f"누락  : {p['deck_js']}  (잡 폴더로 deck.js를 복사해 수치를 채운다)", file=sys.stderr)
         sys.exit(1)
-    # deck.js는 생성 헬퍼를 ./template.js로 참조한다. 잡 폴더가 리포 밖이므로 잡상에 복사해
-    # 루트에서 운용하되, 복제된 헬퍼가 리포 node_modules(pptxgenjs, js-yaml)를 보게 한다 (계획서 5절).
-    tpl_src = repo / "template.js"
-    if not tpl_src.exists():
-        print(f"누락  : {tpl_src}  (생성 헬퍼 템플릿)", file=sys.stderr)
-        sys.exit(1)
-    shutil.copy2(tpl_src, p["builder"] / "template.js")
+    # deck.js는 생성 헬퍼를 ./template.js로 참조하고(계획서 5절) 그 안에서
+    # 계약 ./deckkit.js를 require한다. 잡 폴더가 리포 밖이므로 잡으로 복사해
+    # 운용하되, 복제된 헬퍼가 리포 node_modules(pptxgenjs, js-yaml)를 보게 한다.
+    for name in BUILD_SHARED:
+        src = repo / name
+        if not src.exists():
+            print(f"누락  : {src}  (생성기 파일)", file=sys.stderr)
+            sys.exit(1)
+        shutil.copy2(src, p["builder"] / name)
     env = dict(os.environ)
     env["NODE_PATH"] = str(repo / "node_modules")
     # 규칙 단일 원천 (2.16-6). 잡 폴더에 규칙 사본을 만들지 않고 리포의 YAML을 가리킨다
