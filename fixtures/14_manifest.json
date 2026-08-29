@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "house_rule_version": "2026.08",
+  "template_version": "fixture-1",
+  "token_whitelist": [
+    {
+      "slide": 1,
+      "token": "-100",
+      "reason": "음수 표기 정적 검사 기준값"
+    }
+  ],
+  "claims": [
+    {
+      "slide": 1,
+      "shape_id": "CLAIM_REVENUE",
+      "kind": "numeric",
+      "placements": [
+        {
+          "slide": 1,
+          "type": "shape",
+          "name": "CLAIM_REVENUE",
+          "text": "1,100",
+          "bounds": {
+            "x": 6.05,
+            "y": 3.2,
+            "w": 1.4,
+            "h": 0.35
+          },
+          "font": {
+            "face": "맑은 고딕",
+            "size": 10,
+            "bold": false
+          },
+          "align": "left",
+          "valign": "top"
+        }
+      ],
+      "display": {
+        "text": "1,100",
+        "unit": "억원",
+        "rounding": 0
+      },
+      "source": {
+        "file": "14_source.xlsx",
+        "file_hash": "sha256:852f5e1c04bd5d0f27a3465c636cb870f6701119f4b7cc506d23f0352dc45767",
+        "sheet": "실적",
+        "ref": "B2"
+      },
+      "transform": {
+        "type": "identity"
+      },
+      "override": {
+        "value": "1,100",
+        "reason": "이사회 승인 조정 후 수치",
+        "author": "fixture-user",
+        "at": "2026-08-29T12:00:00+09:00"
+      }
+    }
+  ]
+}

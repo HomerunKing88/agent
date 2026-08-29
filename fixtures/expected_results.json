@@ -1,0 +1,140 @@
+{
+  "schema_version": 1,
+  "golden": {
+    "file": "00_golden.pptx",
+    "expected": "PASS",
+    "manifest": "00_manifest.json"
+  },
+  "fixtures": [
+    {
+      "id": "01",
+      "file": "01_third_font.pptx",
+      "expected": "FAIL",
+      "name": "third_font",
+      "rule": "forbidden.third_font",
+      "stage": 3,
+      "static_expected": "FAIL"
+    },
+    {
+      "id": "02",
+      "file": "02_negative_triangle.pptx",
+      "expected": "FAIL",
+      "name": "negative_triangle",
+      "rule": "notation.negative_forbidden",
+      "stage": 3,
+      "static_expected": "FAIL"
+    },
+    {
+      "id": "03",
+      "file": "03_table_header_left_align.pptx",
+      "expected": "FAIL",
+      "name": "table_header_left_align",
+      "rule": "table.header_align",
+      "stage": 3,
+      "static_expected": "FAIL"
+    },
+    {
+      "id": "04",
+      "file": "04_footnote_position.pptx",
+      "expected": "FAIL",
+      "name": "footnote_position",
+      "rule": "zones.footnote_bottom_y",
+      "stage": 3,
+      "static_expected": "FAIL"
+    },
+    {
+      "id": "05",
+      "file": "05_text_overflow.pptx",
+      "expected": "FAIL",
+      "name": "text_overflow",
+      "rule": "qa.text_max_ymax_pt",
+      "stage": 5,
+      "static_expected": "FAIL"
+    },
+    {
+      "id": "06",
+      "file": "06_source_value_mismatch.pptx",
+      "expected": "FAIL",
+      "name": "source_value_mismatch",
+      "rule": "claim.source_manifest_pptx",
+      "stage": 4,
+      "static_expected": "FAIL",
+      "manifest": "06_manifest.json"
+    },
+    {
+      "id": "07",
+      "file": "07_cross_page_metric_mismatch.pptx",
+      "expected": "ERROR",
+      "name": "cross_page_metric_mismatch",
+      "rule": "audit.error",
+      "stage": 4,
+      "static_expected": "ERROR",
+      "manifest": "07_manifest.json"
+    },
+    {
+      "id": "08",
+      "file": "08_title_top_right_not_clear.pptx",
+      "expected": "FAIL",
+      "name": "title_top_right_not_clear",
+      "rule": "zones.title_right_clear",
+      "stage": 3,
+      "static_expected": "FAIL"
+    },
+    {
+      "id": "09",
+      "file": "09_unregistered_numeric_token.pptx",
+      "expected": "FAIL",
+      "name": "unregistered_numeric_token",
+      "rule": "claim.unregistered_numeric_token",
+      "stage": 4,
+      "static_expected": "FAIL",
+      "manifest": "09_manifest.json"
+    },
+    {
+      "id": "10",
+      "file": "10_table_row_too_short.pptx",
+      "expected": "FAIL",
+      "name": "table_row_too_short",
+      "rule": "table.row_height_min",
+      "stage": 3,
+      "static_expected": "FAIL"
+    },
+    {
+      "id": "11",
+      "file": "11_content_bottom_overflow.pptx",
+      "expected": "FAIL",
+      "name": "content_bottom_overflow",
+      "rule": "zones.content_max_y",
+      "stage": 3,
+      "static_expected": "FAIL"
+    },
+    {
+      "id": "12",
+      "file": "12_negative_red.pptx",
+      "expected": "FAIL",
+      "name": "negative_red",
+      "rule": "forbidden.negative_red",
+      "stage": 3,
+      "static_expected": "FAIL"
+    },
+    {
+      "id": "13",
+      "file": "13_body_text_too_small.pptx",
+      "expected": "FAIL",
+      "name": "body_text_too_small",
+      "rule": "sizes.body_min_pt",
+      "stage": 3,
+      "static_expected": "FAIL"
+    },
+    {
+      "id": "14",
+      "file": "14_override_logged.pptx",
+      "expected": "PASS",
+      "name": "override_logged",
+      "rule": "claim.override",
+      "stage": 4,
+      "static_expected": "PASS",
+      "manifest": "14_manifest.json"
+    }
+  ]
+}
