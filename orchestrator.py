@@ -289,10 +289,17 @@ def gate_of(rule: str) -> str:
 def cmd_gates(root: Path) -> None:
     register = read_json(root / "review" / "issue_register.json")
     violations = {gate: [] for gate in GATES}
+    # 사용자가 기각(REJ) 처리한 항목은 ISSUE 게이트를 통과시킨다 (8절:
+    # "CRITICAL 0, MAJOR 0 또는 사용자 기각 처리 완료").
+    decision = read_json(root / "review" / "user_decision.json")
+    rejected = {i.get("id") for i in decision.get("items", []) if i.get("action") == "REJ"}
     for issue in register.get("issues", []):
         if issue.get("severity") == "MINOR":
             continue  # 8절: MINOR는 비차단, 잔여 건수만 기록
-        violations[gate_of(issue.get("rule", ""))].append(issue.get("id") or issue.get("rule"))
+        issue_id = issue.get("id") or issue.get("rule")
+        if issue_id in rejected:
+            continue
+        violations[gate_of(issue.get("rule", ""))].append(issue_id)
 
     blocked = [g for g in GATES if violations[g]]
     gates = {
@@ -358,6 +365,8 @@ def main(argv=None) -> int:
     parser.add_argument("job_root", type=Path)
     parser.add_argument("command", nargs="?", default="status",
                         choices=("status", "build", "review", "render", "route", "gates", "report"))
+    parser.add_argument("--version", type=int, default=1,
+                        help="검사할 deck 버전 (1=builder, 2=revision)")
     args = parser.parse_args(argv)
 
     for name in DIRS:
@@ -366,11 +375,11 @@ def main(argv=None) -> int:
     if args.command == "status":
         banner(args.job_root)
     elif args.command == "build":
-        cmd_build(args.job_root)
+        cmd_build(args.job_root, args.version)
     elif args.command == "review":
-        cmd_review(args.job_root)
+        cmd_review(args.job_root, args.version)
     elif args.command == "render":
-        cmd_render(args.job_root)
+        cmd_render(args.job_root, args.version)
     elif args.command == "route":
         cmd_route(args.job_root)
     elif args.command == "gates":

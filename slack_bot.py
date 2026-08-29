@@ -106,23 +106,53 @@ def on_message(client, event, say):
         if not (job / "source" / SOURCE_FILE).exists():
             await_say(say, thread, "먼저 source.xlsx를 올려 주세요.")
             return
-        result = run_orchestrator(job)
-        await_say(say, thread, result)
-        post_decision_buttons(client, thread)
+        version = 2 if (job / "revision" / "deck_v2.js").exists() else 1
+        result, message = run_orchestrator(job, version)
+        await_say(say, thread, message)
+        if result == "DECISION":
+            post_decision_buttons(client, thread)
 
 
 def await_say(say, thread, text: str) -> None:
     say(text, thread_ts=thread)
 
 
-def run_orchestrator(job: Path) -> str:
-    """orchestrator.py를 콜드 스타트로 호출한다. 상태는 디스크에 있다."""
+def run_orchestrator(job: Path, version: int = 1) -> tuple[str, str]:
+    """orchestrator.py를 콜드 스타트로 호출한다. 상태는 디스크에 있다.
+
+    "시작"은 검사 전체를 진행한다(계획서 7단계 완료 조건: 업로드부터
+    FINAL까지 자동). 검사는 build → review → render → route → gates 순으로
+    돌고, USER_DECISION이 남아 있으면 결정 버튼을 준다. 깨끗하면 report로
+    바로 FINAL·QA_REPORT를 만든다. revision(deck_v2)이 있으면 version 2로
+    재검사한다 (계획서 7단계: BUILDER 수정 → deck_v2 → 재검사).
+
+    반환: (종류, 메시지), 종류는 "DONE"(FINAL 생성) | "DECISION"(버튼 표시)
+          | "BLOCKED"(사람 수정 필요, 결정 버튼만으론 못 넘음).
+    """
+    chain = ["build", "review", "render", "route", "gates"]
+    for step in chain:
+        try:
+            subprocess.run([sys.executable, str(ORCHESTRATOR), str(job), step,
+                            "--version", str(version)],
+                           check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as error:
+            return "BLOCKED", f"{step} 실패: {error.stderr.strip() or error}"
+
+    route = json.loads((job / "review" / "route_result.json").read_text(encoding="utf-8"))
+    if route.get("buckets", {}).get("USER_DECISION"):
+        return "DECISION", f"잡 `{job.name}`: 검사 완료. 결정 대기 {len(route['buckets']['USER_DECISION'])}건입니다."
+
+    gates = json.loads((job / "review" / "gates.json").read_text(encoding="utf-8"))
+    if gates.get("blocked"):
+        return "BLOCKED", (f"잡 `{job.name}`: 게이트 차단 "
+                           f"({', '.join(gates['blocked'])}). BUILDER 수정이 필요합니다.")
+
     try:
-        subprocess.run([sys.executable, str(ORCHESTRATOR), str(job)],
+        subprocess.run([sys.executable, str(ORCHESTRATOR), str(job), "report"],
                        check=True, capture_output=True, text=True)
-        return f"잡 `{job.name}`: 검사 완료. 아래에서 선택해 주세요."
     except subprocess.CalledProcessError as error:
-        return f"실패: {error.stderr.strip() or error}"
+        return "BLOCKED", f"report 실패: {error.stderr.strip() or error}"
+    return "DONE", f"잡 `{job.name}`: FINAL + QA_REPORT 완료."
 
 
 def post_decision_buttons(client, thread_ts: str):
@@ -176,6 +206,10 @@ def on_decision(ack, body, say):
     mention = f"<@{user}>" if user.startswith(("U", "W")) else "사용자"
     say(f"{mention} 결정 기록: {len(pending)}건 모두 {action} → `{job.name}/review/user_decision.json`",
         thread_ts=thread_ts)
+    # 결정이 끝났으니 게이트를 다시 판정하고 FINAL·QA_REPORT를 확정한다.
+    version = 2 if (job / "revision" / "deck_v2.js").exists() else 1
+    _, final_message = run_orchestrator(job, version)
+    say(final_message, thread_ts=thread_ts)
 
 
 # ── 놓친 파일 회수 (계획서 6단계) ───────────────────────────────────
