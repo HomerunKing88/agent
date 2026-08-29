@@ -19,6 +19,9 @@ def main() -> int:
     if platform.system() != "Windows":
         print("SKIP: native Windows + Microsoft PowerPoint가 필요합니다.")
         return 3
+    if sys.version_info < (3, 11):
+        print("ERROR: Python 3.11+ required", file=sys.stderr)
+        return 1
 
     rules = render_check.load_rules(REPO / "house-rules.yaml")
     golden = render_check.run(FIXTURES / "00_golden.pptx", rules)
@@ -30,8 +33,14 @@ def main() -> int:
     if golden["status"] != "PASS":
         print(f"ERROR: golden expected PASS, got {golden['status']}", file=sys.stderr)
         return 1
+    if golden["skips"]:
+        print(f"ERROR: golden has unverified shapes: {golden['skips']}", file=sys.stderr)
+        return 1
     if overflow["status"] != "FAIL":
         print(f"ERROR: overflow fixture expected FAIL, got {overflow['status']}", file=sys.stderr)
+        return 1
+    if overflow["skips"]:
+        print(f"ERROR: overflow has unverified shapes: {overflow['skips']}", file=sys.stderr)
         return 1
     rules_found = {issue["rule"] for issue in overflow["issues"]}
     expected = {"render.text_overflow", "render.unexpected_wrap"}
