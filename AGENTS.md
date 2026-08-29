@@ -16,6 +16,20 @@
 - **커밋은 자기 담당 파일만 이름으로 지정한다.** `git add .` / `git commit -a` 금지.
 - **브랜치를 함부로 바꾸지 않는다.** `git switch`가 나머지 둘의 HEAD도 같이 옮긴다.
 
+## 작업 순서 (충돌 방지. 세 에이전트 공통)
+공동 파일·교차 계약에 걸린 작업은 아래 순서를 지킨다. 담당 파일(자기 것)끼리는 어떤 순서로 해도 충돌하지 않는다.
+
+1. **공동 파일은 한 번에 한 쪽만**: `house-rules.yaml`, `requirements.txt`, `AGENTS.md`, `CLAUDE.md`,
+   `DEVELOPMENT_PLAN.md`. 고치는 쪽이 커밋까지 끝낸 뒤 다음 쪽이 시작한다.
+2. **규칙 값(house-rules.yaml)이 먼저**: 값이 없는 상태로 검사기·생성기가 값(또는 `issues` 어휘 같은 구조)을
+   코드에 박으면 두 갈래 검사가 갈라진다. YAML 쪽 수정 → 커밋 → 뒤에 읽는 쪽.
+3. **호출 계약은 소유자만 바꾼다**:
+   - `orchestrator.py` → `audit.py` CLI(`--json`, `--manifest`, `--source-root`)는 Codex 소유.
+   - `orchestrator.py` → `schemas/editor.py` `validate()`는 BUILDER 소유.
+   - 이들을 읽는 PIPE는 호출 계약을 지키고, 계약이 깨지면 소유자에게 먼저 알린다.
+4. **교차 작업은 알림 후**: 자기 담당 파일이 어때서 다른 쪽 담당을 건드려야 하면
+   문서에 전달사항을 남기고 커밋한다. 파일 자체를 고치지 않는다.
+
 ## 규칙 값
 - 폰트, 각주 y좌표, 최소 pt, 표 정렬, 금지 영역 등 모든 규칙 값은 `house-rules.yaml`에서만 읽는다.
   `audit.py`에 하드코딩하지 않는다. pyyaml로 읽는다 (`template.js`는 js-yaml로 같은 파일을 읽는다).
