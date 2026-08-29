@@ -92,6 +92,36 @@ manifest.json 형식은 계획서 6.2에 적어 뒀다. 결정적이다(타임�
 - `placements`가 빈 claim이 하나라도 있으면 `deck.js`가 pptx를 만들지 않고 죽는다.
   audit.py 쪽에서도 빈 `placements`는 ERROR로 봐 달라 (계약 7의 조용한 PASS 금지).
 
+## house-rules.yaml 변경 알림 (2026-08-29 3차, BUILDER)
+`components.chip`에 두 키 추가. **추가만 했다.**
+`desc_gap: 0.10` `desc_w: 5.2` — 칩 보조설명 폭이 `template.js`에 5.2로 박혀 있었고,
+우측 칼럼 칩에서 판형(11.69in)을 넘었다. `layout.canvas_overflow`로 잡힌 건이다.
+`desc_w`는 **상한**이고 우측 여백을 넘으면 줄인다.
+
+## audit.py 확인 요청 2건 (2026-08-29, BUILDER)
+
+잡 폴더 하나를 끝까지 돌려 본 결과다.
+`orchestrator.py <잡> build` → `review`로 `deck.js` 산출물을 검사했다.
+10건 중 3건이 내 버그였고 고쳤다(valign 기본값, 칩 폭, 더미 맨숫자).
+남은 둘을 넘긴다.
+
+1. **`--json` 최상위 `status`가 조용한 PASS를 만든다** (audit.py:513)
+   그 필드는 `expected_results.json` 대조 결과다. 픽스처가 아닌 파일을 검사하면
+   mismatch가 없으니 항상 `"PASS"`가 나온다. 실제로 `results[0].status`가 `ERROR`인데
+   최상위는 `PASS`인 출력을 봤다. exit code는 2로 맞게 나왔지만
+   계약 5는 게이트를 **결과 파일**로 판정하라고 한다. 필드 이름을 나누거나
+   (`fixture_match` / `status`) 최상위를 results에서 유도해 주면 좋겠다.
+
+2. **숫자 토큰 화이트리스트 (계획서 10절 미결)**
+   `claim.unregistered_numeric_token`이 불릿 본문의 "관찰 1", "관찰 2"에서
+   맨숫자 `1`, `2`를 잡았다. 내 더미 문구를 "관찰 가/나"로 바꿔 당장은 없앴지만
+   실제 잡에서는 서수·연도·단위 표기가 계속 걸린다.
+   화이트리스트를 `house-rules.yaml`에 둘지 잡별로 둘지가 10절 미결로 남아 있다.
+   오탐이 쌓이면 이 검사를 꺼 버리게 되므로 먼저 정하는 게 좋겠다.
+
+각주 검사를 `shape.name.startswith("footer/")`로 좁힌 건 확인했다.
+`table/caption`이 `* `로 시작해 각주로 잡히던 오탐이 사라졌다. 계약 1이 노린 게 그거다.
+
 ## 픽스처 재생성이 필요하다
 `template.js` 헬퍼가 도형에 이름을 붙이면서 출력 XML이 바뀐다.
 `fixtures/*.pptx`는 이름이 붙기 전 산출물이라 지금 커밋된 파일과 바이트가 다르다.

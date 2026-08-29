@@ -116,7 +116,13 @@ function sectionChip(s, x, y, label, desc, chipW = CM.chip.w) {
   const ch = CM.chip.h;
   _shape(s, "roundRect", nameOf("chip", "bg"), { x, y, w: chipW, h: ch, fill: { color: C.navy }, rectRadius: CM.chip.radius });
   _text(s, label, nameOf("chip", "label"), { x, y, w: chipW, h: ch, fontFace: FH, fontSize: SZ.chip_pt, color: C.white, align: "center", valign: "middle", margin: 0 });
-  if (desc) _text(s, desc, nameOf("chip", "desc"), { x: x + chipW + 0.10, y: y + 0.04, w: 5.2, h: 0.22, fontFace: F, fontSize: SZ.chip_desc_pt, color: C.gray, margin: 0, valign: "middle" });
+  if (desc) {
+    const dx = x + chipW + CM.chip.desc_gap;
+    // desc_w는 상한이다. 우측 칼럼 칩에서 고정폭을 그대로 쓰면 판형을 넘는다
+    const dw = Math.min(CM.chip.desc_w, W - MX - dx);
+    if (dw <= 0) throw new Error(`sectionChip: 보조설명 자리가 없다 (x=${dx.toFixed(2)}, 우측 한계=${(W - MX).toFixed(2)})`);
+    _text(s, desc, nameOf("chip", "desc"), { x: dx, y: y + 0.04, w: dw, h: 0.22, fontFace: F, fontSize: SZ.chip_desc_pt, color: C.gray, margin: 0, valign: "middle" });
+  }
 }
 
 // 줄글 블록 뒤에 까는 옅은 회색 패널. 불릿은 이 안쪽으로 들여쓴다
@@ -424,7 +430,9 @@ function claimText(s, id, opts = {}) {
     slide: _slideNo, type: "shape", name, text: shown,
     bounds: { x: _rd(to.x), y: _rd(to.y), w: _rd(to.w), h: _rd(to.h) },
     font: { face: to.fontFace || F, size: to.fontSize != null ? to.fontSize : null, bold: !!to.bold },
-    align: to.align || "left", valign: to.valign || "top",
+    // 미지정 시의 기본값은 pptxgenjs의 것을 그대로 적는다. 다르게 적으면
+    // 실제 XML과 어긋나 audit이 도형마다 오탐을 낸다 (align=left, valign=middle)
+    align: to.align || "left", valign: to.valign || "middle",
   });
   return shown;
 }

@@ -112,6 +112,16 @@ notation:
   thousands_sep: ","
   decimal_sep: "."
 
+# ── 숫자 토큰 등록 검사 (계획서 2.6) ──────────────────────────────────
+# 장표의 숫자는 claim placement이거나 아래 공통 문맥 예외, 또는 manifest의 잡별 예외여야 한다.
+# 잡별 예외 형식: {slide: 1, token: "-100", reason: "예외 사유"}. 사유 없는 예외는 ERROR다.
+numeric_tokens:
+  pattern: '[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?%?'
+  global_text_whitelist:
+    - { name: fiscal_year_label, pattern: '^FY\d{2,4}E?$' }
+    - { name: calendar_year_label, pattern: '^(?:19|20)\d{2}E?$' }
+  job_whitelist_fields: [slide, token, reason]
+
 # ── manifest (계획서 2.4~2.8, 6.2) ───────────────────────────────────
 # transform 어휘는 닫아 둔다 (계획서 2.5). 키가 type, 값이 그 type의 필수 인자다.
 # template.js claim()이 이 목록으로 호출을 막고, audit.py가 같은 목록으로 재계산한다.
@@ -172,7 +182,8 @@ zones:
 components:
   page_title:  { x: 0.65, y: 0.52, h: 0.34, color: title, valign: middle }
   banner:      { x: 0.65, y: 1.06, h: 0.82, line_spacing: 1.20, max_chars_per_line: 36 }
-  chip:        { w: 1.95, h: 0.30, radius: 0.05, width_formula: "글자수 * 0.20 + 0.35" }
+  chip:        { w: 1.95, h: 0.30, radius: 0.05, width_formula: "글자수 * 0.20 + 0.35",
+                 desc_gap: 0.10, desc_w: 5.2 }   # desc_w는 상한. 우측 여백을 넘으면 줄인다
   chip_content_gap: 0.35     # 칩 아래 y+0.35부터 콘텐츠
   bullet_panel_indent: 0.16
   icon_badge: { diameter: 0.34, fills: [navy, tint], uniform: true }   # 표준. 확정 2026-08-28
