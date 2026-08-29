@@ -30,8 +30,6 @@ unenforced:
   #   생성기·검사기가 이 스타일을 읽기 시작하면 아래 줄들을 지운다.
   - key: default_style
     why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-  - key: styles.shin-ppt1.default_theme
-    why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
   - key: styles.shin-ppt1.themes.dense.accent
     why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
   - key: styles.shin-ppt1.themes.dense.accentLt
@@ -157,26 +155,53 @@ role_min_pt: &corp_role_min_pt
   "header/title":        page_title_pt
   "header/draft_tag":    draft_tag_pt
   "banner/text":         banner_pt
+  "banner/bg":            body_min_pt
+  "bullet_panel/bg":      body_min_pt
   "chip/label":          chip_pt
   "chip/desc":           chip_desc_pt
+  "chip/bg":             body_min_pt
   "panel/title":         card_title_pt
+  "panel/bg":             body_min_pt
+  "panel/rule":           body_min_pt
   "bullets/marker":      bullet_marker_pt
   "bullets/line":        body_min_pt
   "cream_box/text":      cream_box_pt
+  "cream_box/bg":        body_min_pt
   "dark_card/text":      dark_card_body_pt
+  "dark_card/bg":        body_min_pt
   "stat_card/number":    stat_card_number_pt
   "stat_card/label":     stat_card_label_pt
   "icon_badge/glyph":    icon_badge_glyph_pt
+  "icon_badge/bg":       body_min_pt
   "col_chart/value":     chart_value_label_pt
+  "col_chart/avg_line":  chart_axis_label_pt
+  "col_chart/axis":      chart_axis_label_pt
+  "col_chart/band":      body_min_pt
+  "col_chart/bar":       body_min_pt
   "col_chart/cat":       chart_value_label_pt
   "col_chart/avg_label": chart_axis_label_pt   # charts.avg_line.label_pt와 같은 7.5
   "stack100/seg_label":  chart_value_label_pt
+  "stack100/band":       body_min_pt
+  "stack100/seg":        body_min_pt
   "stack100/cat":        chart_value_label_pt
   "waterfall/tick_label": chart_axis_label_pt
   "waterfall/value":     waterfall_value_pt
   "waterfall/cat":       chart_value_label_pt
+  "waterfall/actual":    body_min_pt
+  "waterfall/connector": body_min_pt
+  "waterfall/delta":     waterfall_value_pt
+  "waterfall/hypothetical": waterfall_value_pt
+  "waterfall/tick":      chart_axis_label_pt
   "footer/notes":        footnote_pt
+  "stat_card/bg":        body_min_pt
   "table/caption":       table_caption_pt
+  "table/perf":          table_body_min_pt
+  "fixture/table":       table_body_min_pt
+  "fixture/unregistered_token": body_min_pt
+  "fixture/content_overflow": body_min_pt
+  "fixture/negative_red": body_min_pt
+  "fixture/body_too_small": body_min_pt
+  "fixture/red_runs_per_line": body_min_pt
   _claim_shape:          chart_axis_label_pt   # 이름에 "/"가 없는 값 도형
   _default:              body_min_pt
 
@@ -429,6 +454,9 @@ styles:
       grid_head_pt: 12
       grid_cell_pt: 11.5
       table_min_pt: 11.5      # 표 본문 하한. 이 아래로 내리지 않는다
+      table_body_min_pt: 11.5
+      table_header_pt: 12
+      table_body_pt: 12.5
       sub_desc_pt: 11
       axis_pt: 11
       legend_pt: 10.5
@@ -438,6 +466,11 @@ styles:
     role_min_pt:
       "header/text": title_pt
       "summary/text": summary_pt
+      "box/shape": card_body_pt
+      "ruleThick/shape": card_body_pt
+      "ruleThin/shape": card_body_pt
+      "sub/shape": card_body_pt
+      "bullets/shape": card_body_pt
       "msgBox/text": card_body_pt
       "sub/text": sub_desc_pt
       "bullets/text": bullet_pt

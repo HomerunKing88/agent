@@ -183,7 +183,9 @@ def minimum_font_size(shape_name, rules, is_table=False):
     table = rules["role_min_pt"]
     key = table.get(base)
     if key is None:
-        key = table["_claim_shape"] if "/" not in base else table["_default"]
+        if "/" in base:
+            raise ValueError(f"role_min_pt[{base!r}] is not defined for this style")
+        key = table["_claim_shape"]
     if key not in sizes:
         raise ValueError(f"role_min_pt[{base!r}] references missing sizes key: {key!r}")
     return float(sizes[key])
