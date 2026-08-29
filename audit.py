@@ -577,7 +577,21 @@ def main(argv=None):
     args = parser.parse_args(argv)
     paths = sorted(args.target.glob("*.pptx")) if args.target.is_dir() else [args.target]
     if not paths:
-        print(f"no pptx files found: {args.target}", file=sys.stderr)
+        error = f"no pptx files found: {args.target}"
+        if args.json:
+            print(json.dumps({
+                "status": "ERROR",
+                "results": [{
+                    "file": str(args.target),
+                    "status": "ERROR",
+                    "issues": [],
+                    "changes": [],
+                    "error": error,
+                }],
+                "expected_mismatches": [],
+            }, ensure_ascii=False, indent=2))
+        else:
+            print(error, file=sys.stderr)
         return 2
     rules = load_rules(args.rules)
     expected_path = args.target / "expected_results.json" if args.target.is_dir() else None
