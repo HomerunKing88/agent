@@ -88,6 +88,7 @@ def make_claim_inputs(defect_id: str) -> None:
         }
     manifest = {
         "schema_version": 1,
+        "style": "corporate-strategy-ppt",
         "house_rule_version": "2026.08",
         "template_version": "fixture-1",
         "token_whitelist": [

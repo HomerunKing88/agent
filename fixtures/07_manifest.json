@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "style": "corporate-strategy-ppt",
   "house_rule_version": "2026.08",
   "template_version": "fixture-1",
   "token_whitelist": [
@@ -66,7 +67,7 @@
       },
       "source": {
         "file": "07_source.xlsx",
-        "file_hash": "sha256:843f63c02c0e681e47984fbe411416cfca4c2acc2e496d75fc2783f05aae101e",
+        "file_hash": "sha256:6ac806af1b1f86b233df09c2bbaf743126f035faa983f10920cd94a1873009c3",
         "sheet": "실적",
         "ref": "B2"
       },
