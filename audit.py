@@ -52,9 +52,7 @@ def style_rules(rules, manifest_path=None):
         if not style:
             raise ValueError("manifest style is required")
     else:
-        style = rules.get("default_style")
-        if not style:
-            raise ValueError("style is unknown: manifest missing and default_style is not configured")
+        raise ValueError("style is unknown: manifest is required")
     styles = rules.get("styles", {})
     if style not in styles:
         raise ValueError(f"unknown style {style!r}; expected one of {sorted(styles)}")
