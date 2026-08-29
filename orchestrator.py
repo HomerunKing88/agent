@@ -197,11 +197,15 @@ def cmd_review(root: Path, version: int = 1) -> None:
     # 단일 대상의 --json 출력은 {"status", "results":[{file, status, issues, error}],
     #                          "expected_mismatches"} 꼴이다. 이슈는 results 안에 있다.
     with p["audit"].open("w", encoding="utf-8") as out:
-        subprocess.run(
-            [sys.executable, str(Path(__file__).with_name("audit.py")), "--json",
-             "--source-root", str(p["source"]), str(p["pptx"])],
-            stdout=out, check=False,
-        )
+        audit_cmd = [sys.executable, str(Path(__file__).with_name("audit.py")), "--json",
+                     "--source-root", str(p["source"])]
+        # manifest는 builder/·revision/의 manifest.json을 명시적으로 넘긴다.
+        # audit.py 기본값은 pptx와 같은 폴더만 보지만(2.16.5) 잡의 claim 대조는
+        # deck.js가 내보낸 manifest를 읽어야 하므로 경로를 확정한다.
+        if p["manifest"].exists():
+            audit_cmd += ["--manifest", str(p["manifest"])]
+        audit_cmd.append(str(p["pptx"]))
+        subprocess.run(audit_cmd, stdout=out, check=False)
 
     # EDITOR 결과(editor_r1.json)가 있으면 검증해 통과분만 합친다.
     # 계획서 6.3: pydantic 검증, 실패/어휘위반은 원문을 로그에 남기고 그 이슈만
@@ -349,29 +353,38 @@ def cmd_route(root: Path) -> None:
 
 
 # ── 게이트 (계획서 8절) ─────────────────────────────────────────────
-# 규칙 문자열 → 게이트 맵. 감사기가 이미 FAIL 처리한 항목이면 해당 게이트를 막는다
-RULE_TO_GATE = {
-    "claim.source_manifest_pptx": "SOURCE",
-    "claim.cross_page_consistency": "XREF",
+# 규칙 문자열 → 게이트 맵. 감사기가 이미 FAIL 처리한 항목이면 해당 게이트를 막는다.
+# 정확 규칙 이름부터 검사하고, 남는 것은 접두사로 분류한다. 접두사로 잡지 못하면
+# HOUSE로 센다기보다 로그로 남겨 새 규칙 누락을 겉으로 드러낸다 (고정값 샐 때).
+EXACT_GATE = {
+    "claim.source_manifest_pptx": "SOURCE",   # 원천 대조
+    "claim.cross_page_consistency": "XREF",   # 페이지 간 지표 일치
+    "claim.unregistered_numeric_token": "TOKEN",  # 미등록 숫자 토큰
+    "qa.text_max_ymax_pt": "LAYOUT",          # 각주 y 좌표 (정적 근사)
+}
+PREFIX_GATE = {
     "calc.": "CALC", "token.": "TOKEN",
-    "qa.text_max_ymax_pt": "LAYOUT", "layout.": "LAYOUT",
+    "layout.": "LAYOUT", "render.": "LAYOUT",
     "forbidden.": "HOUSE", "fonts.": "HOUSE", "sizes.": "HOUSE",
     "table.": "HOUSE", "zones.": "HOUSE", "notation.": "HOUSE",
-    "render.": "LAYOUT", "lint.": "LINT", "editor.": "ISSUE",
+    "lint.": "LINT", "editor.": "ISSUE",
 }
 GATES = ("SOURCE", "CALC", "XREF", "TOKEN", "LAYOUT", "HOUSE", "LINT", "ISSUE")
 
 
 def gate_of(rule: str) -> str:
-    for prefix, gate in RULE_TO_GATE.items():
+    if rule in EXACT_GATE:
+        return EXACT_GATE[rule]
+    for prefix, gate in PREFIX_GATE.items():
         if rule.startswith(prefix):
             return gate
-    return "HOUSE"
+    # 매핑에 없는 새 검사 규칙은 조용히 HOUSE로 새지 않게 표시한다.
+    return "UNMAPPED"
 
 
 def cmd_gates(root: Path) -> None:
     register = read_json(root / "review" / "issue_register.json")
-    violations = {gate: [] for gate in GATES}
+    violations = {**{gate: [] for gate in GATES}, "UNMAPPED": []}
     # 사용자가 기각(REJ) 처리한 항목은 ISSUE 게이트를 통과시킨다 (8절:
     # "CRITICAL 0, MAJOR 0 또는 사용자 기각 처리 완료").
     decision = read_json(root / "review" / "user_decision.json")
@@ -382,7 +395,7 @@ def cmd_gates(root: Path) -> None:
         issue_id = issue.get("id") or issue.get("rule")
         if issue_id in rejected:
             continue
-        violations[gate_of(issue.get("rule", ""))].append(issue_id)
+        violations.setdefault(gate_of(issue.get("rule", "")), []).append(issue_id)
 
     blocked = [g for g in GATES if violations[g]]
     gates = {
@@ -395,6 +408,9 @@ def cmd_gates(root: Path) -> None:
     print("GATE      " + "  ".join(gates["blocked"] or ["ALL PASS"]))
     if blocked:
         print("차단      : " + ", ".join(blocked))
+    if violations["UNMAPPED"]:
+        print("미매핑    : " + ", ".join(violations["UNMAPPED"]) +
+              "  ← gate_of에 정확히 매핑할 새 검사 규칙")
 
 
 # ── 보고서 (계획서 8절: 사용자가 받는 것은 게이트 표 + 채택·기각 내역) ──
