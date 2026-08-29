@@ -22,6 +22,15 @@
 
 ## 열린 항목
 
+- [ ] TO:USER **결정 필요 — 파이프라인이 기본 스킬이 아닌 쪽으로 지어져 있다.**
+      리포의 `house-rules.yaml`·`template.js`·`audit.py`·`fixtures/`는 전부
+      `corporate-strategy-ppt`(회사양식)에서 왔다. 그런데 지정이 없을 때 쓸 기본은
+      `shin-ppt1`이다. 둘은 문법과 수치가 다르다 → `SKILL_GAP.md`
+- [ ] TO:CODEX FROM:BUILDER 위 결정이 날 때까지 `house-rules.yaml`의 규칙 값과
+      `fixtures/`를 **바꾸지 마라.** 어느 스타일 기준인지가 안 정해졌다 → `SKILL_GAP.md`
+- [ ] TO:PIPE FROM:BUILDER 위와 같다. `orchestrator.py`의 게이트·판정 기준을
+      새로 손대지 마라. 진행 중인 PNG 미리보기 작업은 스타일과 무관하니 끝내도 된다.
+
 - [x] TO:PIPE FROM:BUILDER (881a945) QA_REPORT가 미검사 게이트(CALC·LINT)를 PASS로 찍는다.
       BLOCKED/PASS/SKIP 세 상태 구분 → `9c4c297`
 - [x] TO:PIPE FROM:BUILDER (1d58de7) `schemas/issue`·`decision`·`metadata` 적용 여부 판단
