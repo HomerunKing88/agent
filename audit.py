@@ -126,17 +126,13 @@ def minimum_font_size(shape_name, rules, is_table=False):
     if is_table:
         return float(sizes["table_body_min_pt"])
     base = shape_name.split("#", 1)[0]
-    if base == "header/draft_tag":
-        return float(sizes["draft_tag_pt"])
-    if base == "footer/notes":
-        return float(sizes["footnote_pt"])
-    if base == "table/caption":
-        return float(sizes["table_caption_pt"])
-    if base == "col_chart/cat":
-        return float(sizes["chart_value_label_pt"])
-    if "/" not in base:  # claim shape: chart axis/value label까지 허용
-        return float(sizes["chart_axis_label_pt"])
-    return float(sizes["body_min_pt"])
+    table = rules["role_min_pt"]
+    key = table.get(base)
+    if key is None:
+        key = table["_claim_shape"] if "/" not in base else table["_default"]
+    if key not in sizes:
+        raise ValueError(f"role_min_pt[{base!r}] references missing sizes key: {key!r}")
+    return float(sizes[key])
 
 
 def check_font_sizes(prs, rules):
