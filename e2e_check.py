@@ -170,6 +170,35 @@ GATES_NOT_WIRED = {
 }
 
 
+# preflight가 잡는 구조 결함. audit.py 대상이 아니라 expected_results.json에
+# 등재되지 않는다(Codex 판단, f0ae9b0). 그러면 아무도 회귀로 안 본다 — 그래서 여기서 본다.
+#
+# 이 둘이 struct로 안 잡히면 STRUCT 게이트가 스타일 오검만 세고 진짜 구조 결함을
+# 놓치고 있다는 뜻이다. 발동한 적 없는 게이트는 작동을 모르는 게이트다 (2.16-7).
+STRUCT_FIXTURES = {
+    "S04_duplicate_shape_id.pptx": 1,   # 도형 ID 중복 (+ spTree 루트 ID까지 2건 난다)
+    "S05_table_col_width.pptx": 1,      # 표 열 너비 합. 이 장표는 스타일 오류도 같이
+                                        # 나서 한 파일로 분리를 증명한다
+}
+
+
+def struct_fixtures(rules: dict) -> None:
+    """구조 결함 픽스처가 owner=struct로 분류되는지 본다."""
+    cfg = rules["preflight"]
+    exe = REPO / cfg["source"]
+    style_owned = list(cfg["style_owned"])
+    for name, least in STRUCT_FIXTURES.items():
+        path = REPO / "fixtures" / name
+        if not path.is_file():
+            check(f"{name} 있음", False, "make_fixtures.py를 돌려라")
+        out = subprocess.run([sys.executable, str(exe), str(path)],
+                             capture_output=True, text=True).stdout
+        errs = [ln for ln in out.splitlines() if ln.startswith("[오류]")]
+        struct = [ln for ln in errs if not any(ph in ln for ph in style_owned)]
+        check(f"{name} struct {len(struct)}건 (>= {least})", len(struct) >= least,
+              f"오류 {len(errs)}건 전부 style로 분류됐다: {errs[:1]}")
+
+
 def unwired_gates() -> tuple[list[str], list[str]]:
     """규칙이 도달하지 못하는 게이트와, 목록이 낡은 게이트를 돌려준다.
 
@@ -180,7 +209,10 @@ def unwired_gates() -> tuple[list[str], list[str]]:
     orchestrator = importlib.import_module("orchestrator")
     emitted = set()
     for name in ("audit.py", "render_check.py"):
-        emitted |= set(re.findall(r'Issue\("([a-z][a-z_.]+)"', (REPO / name).read_text(encoding="utf-8")))
+        # `Issue(` 와 규칙 이름 사이의 줄바꿈을 허용한다. 이게 없어서 여러 줄에
+        # 걸친 호출 다섯 개가 감시견에 안 보였다 — contract.* 둘, render.* 셋.
+        # 게이트 배선을 증명하는 장치 자신이 눈이 멀어 있었다 (2026-08-30).
+        emitted |= set(re.findall(r'Issue\(\s*"([a-z][a-z_.]+)"', (REPO / name).read_text(encoding="utf-8")))
     # orchestrator가 스스로 붙이는 규칙 (EDITOR 지적, 스키마 위반)
     emitted |= {"editor.MESSAGE", "pipeline.schema_violation"}
 
@@ -364,7 +396,10 @@ def run(job: Path, rules: dict) -> None:
         print(f"       (QA_REPORT가 PASS로 찍는 미검사 게이트 {len(GATES_NOT_WIRED)}개: "
               f"{', '.join(GATES_NOT_WIRED)} — BUILDER_TO_PIPE.md 8절)")
 
-    print("\n[10] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
+    print("\n[10] 구조 결함이 struct로 분류되나 — STRUCT 픽스처 두 장")
+    struct_fixtures(rules)
+
+    print("\n[11] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
     plumbing = len((REPO / "orchestrator.py").read_text(encoding="utf-8").splitlines())
     checker = len((REPO / "audit.py").read_text(encoding="utf-8").splitlines())
     check(f"orchestrator({plumbing}) <= audit({checker})", plumbing <= checker,
