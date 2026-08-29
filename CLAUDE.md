@@ -8,12 +8,19 @@
 - 폰트, 각주 y좌표, 최소 pt, 표 정렬, 금지 영역 등 모든 규칙 값은 `house-rules.yaml`에서만 읽는다. 코드에 하드코딩하지 않는다.
 - `template.js`와 `audit.py`가 같은 값을 각자 들고 있으면 생성기와 검사기가 갈라진다.
 
-## 담당 파일
+## 담당 파일 (에이전트 셋. 계획서 3절)
+- 이 세션은 **BUILDER**다. 담당: `template.js`, `deck.js`
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
-- Claude Code 담당: `template.js`, `deck.js`, `orchestrator.py`, `slack_bot.py`
-- 공동: `house-rules.yaml` (변경 시 상대에게 알림)
-- 브랜치는 `claude/*`를 쓴다. Codex는 `codex/*`. Codex 쪽 세션 규칙은 `AGENTS.md`에 있다.
+- PIPE 담당: `orchestrator.py`, `slack_bot.py` — 건드리지 않는다. 2026-08-29에 넘겼다.
+- 공동: `house-rules.yaml` (변경 시 나머지 둘에게 알림)
+- 브랜치는 `claude/*`를 쓴다. Codex는 `codex/*`, PIPE는 `pipe/*`.
+  Codex 쪽 세션 규칙은 `AGENTS.md`, PIPE 쪽은 계획서 3.2절에 있다.
 - `template.js` 원본은 이 리포다. 스킬 폴더(`~/.claude/skills/.../corporate-strategy-ppt/`)는 배포본이므로 거기서 고치지 않는다.
+
+## 체크아웃을 셋이 공유한다 (계획서 3.1)
+- **커밋은 자기 담당 파일만 이름으로 지정한다.** `git add .` / `git commit -a` 금지.
+  워킹트리에는 항상 다른 둘의 미커밋 작업이 같이 있다.
+- **브랜치를 함부로 바꾸지 않는다.** 체크아웃이 하나라 `git switch`가 나머지 둘의 HEAD도 옮긴다.
 
 ## 잡 폴더
 - 실적 수치가 든 잡 폴더는 리포 밖, 커밋하지 않는다. 리포 자체는 동기화 폴더에 두지 않는다.
@@ -28,3 +35,5 @@
 - 잡 폴더를 커밋하기
 - 규칙 값을 코드에 하드코딩하기
 - 렌더 검사를 폰트가 없는 환경에서 돌리고 결과를 신뢰하기
+- 다른 에이전트 담당 파일 고치기
+- `git add .` / `git commit -a` 로 워킹트리를 통째로 커밋하기

@@ -176,6 +176,36 @@ EDITOR에게 주는 것은 브리프, 원천자료, 렌더된 PDF뿐이다.
 검사기가 조용히 옛 규칙으로 통과를 내주는 상태가 된다. 지금보다 위험하다.
 스킬 폴더는 배포본으로 두고 원본은 git 리포에 둔다.
 
+### 2.16 생성기↔검사기 연결 계약 (확정 2026-08-29)
+
+Codex(audit.py)와 Claude(template.js)가 병렬로 만들면 서로 다른 연결 규격을 믿게 된다.
+아래 계약은 어느 쪽이 먼저 구현하든 지켜야 하는 불변 사항이다.
+
+1. **shape 명명 계약** — 모든 헬퍼와 `claim()`이 만드는 도형에 name을 붙인다.
+   `manifest.shape_id` ↔ XML shape name이 대조 키다. 표는 shape_id + (행, 열)로 셀까지 참조한다.
+2. **claim() 우선 구현** — `claim()`+manifest 방출 → claim 기반 픽스처 재생성 → audit.py 순서로 만든다.
+   06/07 결함은 manifest가 있어야만 3자 대조가 가능하므로 지금의 `golden_deck.js`는 4단계에서 다시 쓴다.
+3. **manifest에 근거 좌표** — 6.2의 `display.text`만으로는 XML과 대조할 수 없다.
+   `bounds{x,y,w,h}`, 폰트, 정렬을 포함해 `check.shape_id`가 뭘 비교할지 확정한다.
+4. **단위·오차 규약** — inch(생성기)/EMU(XML)/pt(COM) 환산 상수와 허용 오차를
+   house-rules.yaml에 둔다. `deck.js`의 `1e-9` 같은 epsilon도 YAML로 옮긴다.
+5. **결과 종합** — audit.py·lint_deck.js·EDITOR는 각자 결과 파일을 내고
+   orchestrator가 `issue_register.json`으로 머지한다. gate 판정은 exit code가 아니라 결과 파일로 결정한다.
+6. **버전 전파** — 생성기는 template.js 버전, claim 스키마 버전, house-rules version을
+   manifest와 픽스처에 함께 새긴다. 규칙이 바뀔 때 "무엇을 기준으로 만든 것인지"를 보존한다.
+7. **검사기 실패 상태** — PASS/FAIL 외에 ERROR(검사 불가: 파일 누락·스키마 위반·XML 이상)와
+   SKIP(폰트 미설치 등 조건 미충족)를 둔다. manifest가 가리키는 요소를 찾지 못하면 FAIL이다.
+   조용한 PASS는 오류로 간주한다.
+8. **override 감사** — `override.value` + `override.reason`에 작성자·시각을 붙여
+   "출처가 진짜 구버전"인지 "숨김 수정"인지 구분 가능하게 한다.
+
+생성기 쪽 이행 상태 (2026-08-29):
+1·3·6 완료 — `template.js` 전 헬퍼가 도형에 name을 붙이고, manifest가 `placements`와
+버전 세 개를 방출한다. 형식은 6.2에 적었다.
+4 완료 — `units` 절 신설(`emu_per_inch` `pt_per_inch` `emu_per_pt` `epsilon_in`
+`bounds_round_in` `bounds_tolerance_emu`). `deck.js`의 `1e-9`는 `units.epsilon_in`으로 옮겼다.
+2·5·7·8은 검사기·오케스트레이터 쪽이라 미착수다.
+
 ---
 
 ## 3. 참여자와 권한
@@ -185,17 +215,46 @@ EDITOR에게 주는 것은 브리프, 원천자료, 렌더된 PDF뿐이다.
 | Claude BUILDER | Claude Code, 리포 폴더 | 제작, 수정 반영, 미수용 사유 제시 | 자기 결과물 승인 불가 |
 | Claude EDITOR | claude.ai 새 대화 | 메시지, 논리, 표현, 정보밀도, 구조 제안 | 제작 과정 미열람, 수정 직접 불가 |
 | Codex | Codex CLI, 같은 리포 폴더 | audit.py 작성·유지, 계산형 claim의 원천 셀 매핑 | 표현·디자인 의견 금지 |
+| PIPE | CLI, 같은 리포 폴더 | orchestrator.py, slack_bot.py 작성·유지 | 규칙 값 판단·표현 의견 금지 |
 | audit.py | 로컬 | 결정적 판정 | |
 | orchestrator.py | 로컬 | 진행, 라우팅, 게이트 판정 | AI 아님 |
 | 사용자 | 폰 슬랙 | 구조 변경 승인, 최종 승인 | |
 
-Claude Code와 Codex CLI가 같은 파일을 동시에 고치면 충돌한다. 담당 파일을 나눈다.
+에이전트 셋이 같은 파일을 동시에 고치면 충돌한다. 담당 파일을 나눈다.
 
 ```
-Codex        audit.py, render_check.py, fixtures/
-Claude Code  template.js, deck.js, orchestrator.py, slack_bot.py
-공동          house-rules.yaml (변경 시 상대에게 알림)
+BUILDER (Claude Code)  template.js, deck.js
+Codex                  audit.py, render_check.py, fixtures/
+PIPE                   orchestrator.py, slack_bot.py
+공동                    house-rules.yaml (변경 시 나머지 둘에게 알림)
 ```
+
+브랜치 접두사로 누구의 작업인지 구분한다. BUILDER `claude/*`, Codex `codex/*`, PIPE `pipe/*`.
+
+### 3.1 셋이 체크아웃 하나를 공유한다 (확정 2026-08-29)
+
+worktree를 나누지 않는다. 셋이 `/Users/shin/Desktop/agent` 한 폴더를 같이 쓴다.
+설정이 늘지 않는 대신 다음 두 가지를 지켜야 서로의 작업이 섞이지 않는다.
+
+- **커밋은 자기 담당 파일만 이름으로 지정해서 한다.** `git add .`, `git commit -a`를 쓰지 않는다.
+  워킹트리에는 항상 다른 둘의 미커밋 작업이 같이 있다.
+- **브랜치를 함부로 바꾸지 않는다.** 체크아웃이 하나라 `git switch`가 나머지 둘의 HEAD도 같이 옮긴다.
+  새 브랜치가 필요하면 사용자에게 알리고 만든다.
+
+### 3.2 PIPE 세션 규칙
+
+`orchestrator.py`와 `slack_bot.py`를 맡는다. 2026-08-29에 BUILDER에서 넘겼다.
+
+- `template.js`, `deck.js`, `audit.py`, `render_check.py`, `fixtures/`를 건드리지 않는다.
+- `house-rules.yaml`은 공동 파일이다. 고치면 나머지 둘에게 알린다. 한 번에 한 쪽만 고친다.
+- 규칙 값을 코드에 두지 않는다. 판정 기준이 필요하면 `house-rules.yaml`에서 읽는다.
+- 배관은 판정하지 않는다. 게이트 판정은 검사기가 낸 **결과 파일**로 하고
+  exit code로 하지 않는다 (2.16-5). 합성 점수를 만들지 않는다.
+- 7절 상한을 지킨다. `orchestrator.py`가 400줄을 넘으면 멈추고 프레임워크 도입을 사용자와 상의한다.
+- manifest.json 형식이 2026-08-29에 바뀌었다 (6.2). 항목에 `placements` 배열이 생겼고
+  파일 머리에 `schema_version`·`house_rule_version`·`template_version`이 박힌다.
+  현재 `orchestrator.py`는 경로만 들고 있고 내용을 파싱하지 않아 영향이 없다.
+  게이트가 manifest를 읽게 되면 이 형식을 본다.
 
 ---
 
@@ -379,6 +438,51 @@ transform 어휘와 필수 인자는 `house-rules.yaml`의 `manifest.transforms`
 - `unverified`는 transform의 **여섯 번째 type**이다. 별도 필드로 두지 않는다.
   필수 인자는 `note` 하나이고, 사람이 근거를 한 줄 적는다. 값 하나에 필드 한 벌만 붙는다.
 - `delta`의 필수 인자는 `from`, `to` 두 셀이다. cagr의 `start`/`end`와 같은 꼴이다.
+
+구현 2026-08-29 (2.16-1·3·6). manifest 항목에 **근거 좌표**를 붙였다.
+`display.text`만으로는 XML의 어느 도형인지 특정할 수 없어 3자 대조가 성립하지 않았다.
+
+```json
+{
+  "slide": 1,
+  "shape_id": "FY26_NIBT",
+  "kind": "numeric",
+  "placements": [
+    {
+      "slide": 1, "type": "shape", "name": "FY26_NIBT", "text": "8,412",
+      "bounds": { "x": 6.05, "y": 3.20, "w": 1.40, "h": 0.35 },
+      "font": { "face": "맑은 고딕", "size": 10, "bold": false },
+      "align": "center", "valign": "middle"
+    }
+  ],
+  "display": { "text": "8,412", "unit": "억원", "rounding": 0 }
+}
+```
+
+- `placements`는 **배열**이다. 같은 지표가 여러 장에 찍히면 항목은 하나, 좌표가 여럿이다.
+  비어 있으면 검사기가 대조할 도형이 없다는 뜻이므로 `deck.js`가 pptx를 만들지 않고 죽는다 (2.16-7).
+- `type: "shape"` — `name`이 pptx XML의 도형 name과 같다. `bounds`는 inch, 자릿수는
+  `units.bounds_round_in`. `text`는 그 도형에 실제로 찍힌 전체 문자열이라
+  `display.text`와 다를 수 있다(라벨을 앞에 붙인 경우: `"평균 10.0"`).
+- `type: "cell"` — 표는 도형 하나라 셀마다 이름을 줄 수 없다.
+  `{ "type": "cell", "table": "table/perf", "row": 1, "col": 4, "text": "+0.0" }`처럼
+  표 이름 + (행, 열)로 참조한다.
+
+도형 이름 규약은 `house-rules.yaml`의 `manifest.shape_name`에 있다.
+값 도형은 `shape_id` 그대로, 구조 도형은 `헬퍼/역할`(예: `banner/text`, `col_chart/bar`).
+한 슬라이드에서 이름이 겹치면 `#2`가 붙는다. `template.js`의 헬퍼는 `s.addShape`/`s.addText`를
+직접 부르지 않고 이름을 붙이는 통로만 쓴다 — 이름 없는 도형을 만들 수 없게 막은 것이다.
+
+방출 파일에는 버전 세 개가 함께 박힌다 (2.16-6).
+
+```json
+{
+  "schema_version": 1,
+  "house_rule_version": "2026.08",
+  "template_version": "2026.08.29",
+  "claims": [ { "...": "위 형식" } ]
+}
+```
 
 ### 6.3 issue
 
@@ -611,6 +715,10 @@ Socket Mode. `files:read` 스코프로 파일을 받고, `thread_ts`를 잡 ID�
   9pt로 통일할지 현행(본문과 동일)을 규칙으로 승격할지 정해야 한다.
 - 상시 가동 기계가 필요해지는 시점. 필요해지면 소형 Windows PC를 검토한다.
   맥미니는 폰트와 COM 문제로 이 용도에 맞지 않는다.
+- 숫자 토큰 화이트리스트(2.6)의 정의 위치. house-rules.yaml에 둘지 잡별로 둘지.
+  배너·단위 표기·연도 축이 대표 항목인데, 오탐이 쌓이면 검사가 조용히 꺼지므로 먼저 정한다.
+- lint_deck.js(2.1의 핵심 도구)의 보류 유지 여부. 8절 gate `LINT`는 이미 존재하므로
+  3~5단계 후 재판단하되, 최소한 픽스처에는 raw 호출 예시를 남겨 둔다.
 
 ---
 
@@ -624,3 +732,5 @@ Socket Mode. `files:read` 스코프로 파일을 받고, `thread_ts`를 잡 ID�
 - 잡 폴더를 커밋하기.
 - 규칙 값을 코드에 하드코딩하기. house-rules.yaml만 본다.
 - 렌더 검사를 폰트가 없는 환경에서 돌리고 결과를 신뢰하기.
+- 다른 에이전트 담당 파일 고치기. 셋이 체크아웃 하나를 공유한다 (3.1).
+- `git add .` / `git commit -a` 로 워킹트리를 통째로 커밋하기. 남의 미커밋 작업이 끌려 들어간다.

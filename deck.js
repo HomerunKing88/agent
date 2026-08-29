@@ -41,13 +41,30 @@ tpl.sourceRoot(path.join(__dirname, "..", "source"));
 // 그래서 이 함수는 슬라이드가 열린 뒤에 호출돼야 한다 (buildPage 참조).
 // 잡에서는 값과 셀 참조(ref)를 여기서 바꾼다. 값만 바꾸고 ref를 안 바꾸면 3자 대조가 잡는다.
 function pageData() {
+  // claim()이 만든 문자열과 id를 함께 돌려준다. id가 있어야 셀 위치를 manifest에 적을 수 있다
+  // (계획서 2.16-1: 표는 shape_id + (행, 열)로 참조한다)
   const num = (id, ref, v, o) =>
-    tpl.claim(v, Object.assign({ id, ref, src: SRC, sheet: SH_PERF, unit: UNIT, rounding: 1 }, o));
+    ({ id, text: tpl.claim(v, Object.assign({ id, ref, src: SRC, sheet: SH_PERF, unit: UNIT, rounding: 1 }, o)) });
 
   // 증감 열은 계산값이다. delta는 근거 두 셀을 적는다 (transform 어휘, 계획서 2.5)
   const delta = (id, from, to, v) =>
-    tpl.claim(v, { id, src: SRC, sheet: SH_PERF, unit: UNIT, rounding: 1,
-                   signed: true, transform: "delta", from, to });
+    ({ id, text: tpl.claim(v, { id, src: SRC, sheet: SH_PERF, unit: UNIT, rounding: 1,
+                                signed: true, transform: "delta", from, to }) });
+
+  // 동종 비교 막대. 막대 높이(v)와 찍히는 문자열이 같은 원천에서 나오게 한 배열에 묶는다
+  const peer = [
+    { id: "ROE_OWN",    ref: "C12", v: 10 },
+    { id: "ROE_PEER_A", ref: "D12", v: 10 },
+    { id: "ROE_PEER_B", ref: "E12", v: 10 },
+    { id: "ROE_PEER_C", ref: "F12", v: 10 },
+    { id: "ROE_PEER_D", ref: "G12", v: 10 },
+  ];
+  peer.forEach(x => tpl.claim(x.v, { id: x.id, src: SRC, sheet: SH_PEER, ref: x.ref, unit: "%", rounding: 1 }));
+
+  // 단순평균은 transform 어휘 다섯 개에 없다. unverified로 두고 근거를 한 줄 적는다 (계획서 2.5)
+  const PEER_AVG = 10;
+  tpl.claim(PEER_AVG, { id: "ROE_PEER_AVG", unit: "%", rounding: 1,
+                        transform: "unverified", note: "동종 4사 단순평균. 가중 아님" });
 
   return {
     title:    "○○ 부문 수익성 점검",
@@ -76,15 +93,12 @@ function pageData() {
     },
     chart: {
       labels: ["당사", "A사", "B사", "C사", "D사"],
-      // 차트 막대는 수치를 pptxgenjs가 직접 그린다. 라벨 문자열은 claim()이 만든 것을 쓴다
-      vals: [10, 10, 10, 10, 10],
-      valClaims: ["OWN", "PEER_A", "PEER_B", "PEER_C", "PEER_D"].map((id, i) =>
-        tpl.claim(10, { id: "ROE_" + id, src: SRC, sheet: SH_PEER,
-                        ref: String.fromCharCode(67 + i) + "12", unit: "%", rounding: 1 })),
-      // 단순평균은 transform 어휘 다섯 개에 없다. unverified로 두고 근거를 한 줄 적는다 (계획서 2.5)
-      avg: 10,
-      avgClaim: tpl.claim(10, { id: "ROE_PEER_AVG", unit: "%", rounding: 1,
-                                transform: "unverified", note: "동종 4사 단순평균. 가중 아님" }),
+      // 막대 높이는 v로 그리고, 막대 위 수치는 claim 문자열로 찍는다.
+      // 둘이 갈라지면 그림과 숫자가 다른 말을 하므로 같은 배열에서 뽑는다
+      vals: peer.map(x => x.v),
+      valClaims: peer.map(x => x.id),
+      avg: PEER_AVG,
+      avgClaim: "ROE_PEER_AVG",
     },
     bullets: [
       [{ t: "관찰 1 " }, { t: "핵심 구절", b: true, c: tpl.C.navy }, { t: " 서술" }],
@@ -102,7 +116,7 @@ function pageData() {
 // house-rules: table.colw_sum_must_equal_width
 function assertColW(colW, w, where) {
   const sum = colW.reduce((a, b) => a + b, 0);
-  if (Math.abs(sum - w) > 1e-9)
+  if (Math.abs(sum - w) > tpl.U.epsilon_in)
     throw new Error(`[${where}] colW 합계 ${sum.toFixed(4)} != 표 폭 ${w.toFixed(4)}`);
 }
 
@@ -143,23 +157,26 @@ function buildPage(pres, data) {
   const colW = [1.60, 0.85, 0.85, 0.85, 0.85];
   assertColW(colW, COL_L_W, "실적 추이 표");
 
+  // 값이 claim이면 셀과 manifest를 잇고, 아니면 그냥 문자열 셀을 만든다
+  const mkCell = (v, style) =>
+    (v && typeof v === "object" && v.id) ? tpl.cell(v.text, v.id, style) : { text: v, options: style };
+
   const rows = [
-    d.table.head.map(t => ({ text: t, options: tpl.tableStyles.hd })),
-    ...d.table.rows.map(r => r.map((t, i) => ({
+    d.table.head.map(t => mkCell(t, tpl.tableStyles.hd)),
+    ...d.table.rows.map(r => r.map((t, i) =>
       // 첫 열은 항목명(짧은 구절이므로 중앙정렬 유지), 나머지는 수치
-      text: t, options: i === 0 ? tpl.tableStyles.td : tpl.tableStyles.tdR,
-    }))),
-    d.table.total.map(t => ({ text: t, options: tpl.tableStyles.tl })),
+      mkCell(t, i === 0 ? tpl.tableStyles.td : tpl.tableStyles.tdR))),
+    d.table.total.map(t => mkCell(t, tpl.tableStyles.tl)),
   ];
   const rowH = rows.map(() => R.table.row_height_min);
   assertRowH(rowH, "실적 추이 표");
 
-  s.addTable(rows, { x: COL_L_X, y: BODY_Y, w: COL_L_W, colW, rowH, border: { pt: 0.5, color: tpl.C.grayLt } });
+  tpl.table(s, tpl.nameOf("table", "perf"), rows, { x: COL_L_X, y: BODY_Y, w: COL_L_W, colW, rowH, border: { pt: 0.5, color: tpl.C.grayLt } });
 
   const tableBottom = BODY_Y + rowH.reduce((a, b) => a + b, 0) + R.table.below_table_gap;
 
   // 표 아래 캡션 — house-rules: components.table_caption_prefix
-  s.addText(R.components.table_caption_prefix + "표 판독 한 문장.", {
+  tpl.text(s, tpl.nameOf("table", "caption"), R.components.table_caption_prefix + "표 판독 한 문장.", {
     x: COL_L_X, y: tableBottom, w: COL_L_W, h: 0.20,
     fontFace: tpl.F, fontSize: R.sizes.table_caption_pt, color: tpl.C.gray, margin: 0,
   });
@@ -169,7 +186,8 @@ function buildPage(pres, data) {
 
   const chartBase = BODY_Y + 2.10;
   tpl.colChart(s, COL_R_X, COL_R_W, chartBase, 1.70, 12,
-    d.chart.labels, d.chart.vals, { avg: d.chart.avg, avgLbl: "평균 " + d.chart.avgClaim });
+    d.chart.labels, d.chart.vals,
+    { avg: d.chart.avg, avgLbl: "평균 ", avgClaim: d.chart.avgClaim, valClaims: d.chart.valClaims });
 
   const panelY = chartBase + 0.45, panelH = 1.35;
   tpl.panel2(s, COL_R_X, panelY, COL_R_W, panelH);
@@ -194,6 +212,11 @@ function buildPage(pres, data) {
 function build(outPath) {
   const pres = tpl.newPres(pptxgen);
   buildPage(pres);
+  // 등록만 되고 어디에도 찍히지 않은 claim은 audit.py가 XML에서 찾을 도형이 없다는 뜻이다.
+  // 조용한 PASS를 만드는 상태이므로 pptx를 만들지 않고 죽는다 (계획서 2.1, 2.16-7)
+  const unplaced = tpl.manifest().filter(c => !c.placements.length).map(c => c.shape_id);
+  if (unplaced.length)
+    throw new Error(`장표에 찍히지 않은 claim: ${unplaced.join(", ")}`);
   // manifest는 pptx와 같은 폴더에 둔다 (잡 폴더 builder/)
   const mf = tpl.writeManifest(path.join(path.dirname(path.resolve(outPath)), "manifest.json"));
   return pres.writeFile({ fileName: outPath }).then(f => ({ pptx: f, manifest: mf }));

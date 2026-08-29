@@ -10,6 +10,17 @@
 
 version: "2026.08"
 
+# ── 단위·오차 (계획서 2.16-4) ─────────────────────────────────────────
+# 생성기는 inch, pptx XML은 EMU, PowerPoint COM은 pt로 말한다.
+# 환산 상수와 허용 오차를 세 곳이 각자 들고 있으면 같은 장표를 두고 판정이 갈린다.
+units:
+  emu_per_inch: 914400
+  pt_per_inch: 72
+  emu_per_pt: 12700
+  epsilon_in: 1.0e-9        # 인치 실수 비교 허용치 (표 열너비 합 검증 등)
+  bounds_round_in: 4        # manifest bounds를 적을 때 반올림 자릿수
+  bounds_tolerance_emu: 1000  # manifest bounds ↔ XML 좌표 대조 허용 오차 (약 0.001in)
+
 # ── 판형 ────────────────────────────────────────────────────────────
 layout:
   name: A4L
@@ -106,6 +117,17 @@ notation:
 # template.js claim()이 이 목록으로 호출을 막고, audit.py가 같은 목록으로 재계산한다.
 # 여기 없는 계산은 unverified로 표시하고 근거를 사람이 한 줄 적는다.
 manifest:
+  schema_version: 1                   # manifest 항목 구조의 버전. 구조가 바뀌면 올린다 (계획서 2.16-6)
+  # 도형 이름 규약 (계획서 2.16-1). manifest.shape_id ↔ pptx XML의 도형 name이 대조 키다.
+  # 값 도형 이름 = claim_prefix + shape_id, 구조 도형 이름 = "헬퍼<sep>역할".
+  # 한 슬라이드에서 같은 이름이 겹치면 index_sep + 일련번호를 붙인다.
+  # claim_prefix는 빈 문자열이다 — 계획서 2.16-1이 shape_id를 그대로 name으로 쓴다고 적었고
+  # fixtures/golden_deck.js도 그렇게 만들고 있다. 구조 도형 이름에는 sep("/")가 반드시 들어가고
+  # claim id에는 들어가지 않으므로 접두사 없이도 둘은 섞이지 않는다.
+  shape_name:
+    claim_prefix: ""
+    sep: "/"
+    index_sep: "#"
   kinds: [numeric, text]
   source_required: true               # unverified 제외 전 항목은 src·sheet가 있어야 한다
   source_ref_required_for: [identity] # identity의 근거 셀은 source.ref에 적는다 (계획서 6.2)
