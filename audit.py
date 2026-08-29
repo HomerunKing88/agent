@@ -201,6 +201,8 @@ def check_font_sizes(prs, rules):
             if getattr(shape, "has_table", False):
                 frames.extend((cell.text_frame, True) for row in shape.table.rows for cell in row.cells)
             for frame, is_table in frames:
+                if not any(run.text.strip() for paragraph in frame.paragraphs for run in paragraph.runs):
+                    continue
                 minimum = minimum_font_size(shape.name, rules, is_table)
                 for paragraph in frame.paragraphs:
                     for run in paragraph.runs:
