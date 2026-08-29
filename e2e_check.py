@@ -151,7 +151,8 @@ def slack_run(job: Path) -> tuple[str, str]:
 # "검사했고 통과"와 "검사한 적 없음"이 구분되지 않는 자리다 (2.16-7).
 # 사용자가 받는 문서라 조용히 늘어나면 안 된다. 아래 목록과 실제가 어긋나면 FAIL.
 GATES_NOT_WIRED = {
-    "CALC": "audit이 계산 불일치를 claim.source_manifest_pptx로 낸다. SOURCE에 합쳐져 있다",
+    # CALC는 2026-08-29에 살아났다. Codex가 계산 불일치를 calc.* 규칙으로 분리했다(e5eb0c9).
+    # 이 감시가 "목록이 낡았다"로 잡아서 알았다. 합성 테스트가 아니라 실제로 발동한 첫 사례다.
     "LINT": "lint_deck.js가 계획서 9절 보류 항목이다. 아예 존재하지 않는다",
 }
 

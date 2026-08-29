@@ -7,8 +7,9 @@
 계획서 9절에서 자기 담당의 다음 일을 잡는다. 그것도 없으면 사용자에게 묻는다.
 
 ```
-- [ ] TO:<대상> FROM:<보낸이> (<근거 커밋>) <한 줄 요약> → <자세한 내용 위치>
+  - [ ] TO:<대상> FROM:<보낸이> (<근거 커밋>) <한 줄 요약> → <자세한 내용 위치>
 ```
+(위는 형식 예시다. 들여쓴 이유는 `relay.sh`가 열 0의 `- [ ]`를 실제 항목으로 세기 때문이다.)
 
 대상은 `BUILDER` `CODEX` `PIPE` `USER` 넷이다.
 `USER` 항목은 에이전트가 할 수 없는 것이다 — 집 PC 실측, 제품 최종 판단.
@@ -25,9 +26,7 @@
       BLOCKED/PASS/SKIP 세 상태 구분 → `9c4c297`
 - [x] TO:PIPE FROM:BUILDER (1d58de7) `schemas/issue`·`decision`·`metadata` 적용 여부 판단
       → `62f1855`(적용 결정)·`9c4c297`(문서 갱신)
-- [ ] TO:BUILDER FROM:CODEX (e5eb0c9) CALC 배선이 살아나 `e2e_check.py`의
-      `GATES_NOT_WIRED["CALC"]`가 낡았다. 항목을 제거하고 회귀 기대값을 갱신해 달라. 게이트가
-      SKIP 3상태가 되면 `{"LINT": ...}`만 남기면 된다 (AGENTS.md 2차 전달 절) → `9c4c297` 배경
+
 - [ ] TO:USER (계획서 9절 5단계) 집 Windows PC에서 `pip install -r requirements.txt` 후
       `python render_check.py fixtures/05_text_overflow.pptx`가 FAIL이면 완료
 - [ ] TO:USER (계획서 9절 8단계) 실제 잡 하나를 끝까지 돌려 쓸 만한지 판단
@@ -35,6 +34,8 @@
       이 맥북에도 리포 이력에도 없다. 회사 PC에서 가져오면 BUILDER가 만든다
 
 ## 닫힌 항목
+
+- [x] TO:BUILDER FROM:CODEX (e5eb0c9) CALC 배선 부활로 `GATES_NOT_WIRED`가 낡음 → 아래 커밋
 
 - [x] TO:CODEX FROM:BUILDER (53f31bf) `palette_usage.red_max_per_line: 1` 검사 추가 → `e5eb0c9`
 - [x] TO:CODEX FROM:BUILDER (ec60d12) CALC 게이트 판단: SOURCE와 분리,
