@@ -50,41 +50,28 @@ if (!NT) throw new Error("house-rules.yaml에 numeric_tokens 절이 없다 (계�
 // manifest에 함께 새겨 두어야 "이 픽스처가 어느 생성기로 만들어졌는지"가 남는다 (계획서 2.16-6).
 const TEMPLATE_VERSION = "2026.08.29";
 
-// ── 도형 이름 (계획서 2.16-1) ────────────────────────────────────────
-// audit.py는 manifest 항목을 pptx XML의 도형 name으로 찾는다. 이름이 없으면
-// 대조할 대상을 잃고 조용히 PASS가 난다(계획서 2.16-7이 금지하는 상태다).
-// 그래서 헬퍼는 s.addShape/s.addText를 직접 부르지 않고 아래 두 함수를 거친다.
-const _nameSeq = new Map();          // slide 번호 -> Map(이름 -> 사용 횟수)
-function _uniqName(base) {
-  let m = _nameSeq.get(_slideNo);
-  if (!m) { m = new Map(); _nameSeq.set(_slideNo, m); }
-  const n = (m.get(base) || 0) + 1;
-  m.set(base, n);
-  return n === 1 ? base : base + NM.index_sep + n;
-}
-function nameOf(...parts) { return parts.join(NM.sep); }
-function claimName(id) { return NM.claim_prefix + id; }
-// 실제로 붙은 이름을 돌려준다. 같은 이름이 겹치면 #2가 붙으므로 호출부가 받아 써야 한다
-function _shape(s, type, base, opts) {
-  const name = _uniqName(base);
-  s.addShape(type, Object.assign({}, opts, { objectName: name }));
-  return name;
-}
-function _text(s, content, base, opts) {
-  const name = _uniqName(base);
-  s.addText(content, Object.assign({}, opts, { objectName: name }));
-  return name;
-}
+// ── 계약은 deckkit.js에 있다 (계획서 2.16, 2.17) ──────────────────────
+// 도형 이름·claim·manifest는 스타일이 달라도 같아야 한다. 그래서 여기 두지 않는다.
+// 이 파일에는 corporate-strategy-ppt의 헬퍼와 수치만 남는다.
+const kit = require("./deckkit.js").init(R);
+const { nameOf, claimName, claim, claimText, table, cell, whitelistToken,
+        manifest, resetManifest, sourceRoot, currentSlide } = kit;
+
+// 이 생성기가 어느 스킬의 문법인지 manifest에 새긴다 (계획서 2.17).
+// 검사기는 이 값으로 styles[STYLE]을 읽는다. 없으면 틀린 기준으로 판정하게 된다
+const STYLE = "corporate-strategy-ppt";
+const writeManifest = (file) => kit.writeManifest(file, { style: STYLE, templateVersion: TEMPLATE_VERSION });
+
+// 헬퍼가 도형을 그릴 때 쓰는 통로. 이름 없는 도형을 만들 수 없게 막는다
+const _shape = (s, type, base, opts) => kit.shape(s, type, base, opts);
+const _text  = (s, content, base, opts) => kit.text(s, base, content, opts);
+function shape(s, type, name, opts) { return kit.shape(s, type, name, opts); }
+function text(s, name, content, opts) { return kit.text(s, name, content, opts); }
 
 function newPres(pptxgen) {
-  const pres = new pptxgen();
+  const pres = kit.newPres(pptxgen, R);
   pres.defineLayout({ name: R.layout.name, width: W, height: H });
   pres.layout = R.layout.name;
-  // manifest의 slide 번호를 손으로 적지 않기 위해 addSlide를 가로챈다 (계획서 2.4).
-  // 한 프로세스에서 덱을 여러 개 만들 때 앞 덱의 claim이 섞이지 않도록 여기서 초기화한다.
-  resetManifest();
-  const addSlide = pres.addSlide.bind(pres);
-  pres.addSlide = function (...args) { _slideNo += 1; return addSlide(...args); };
   return pres;
 }
 
@@ -278,262 +265,10 @@ const tableStyles = {
   usCell: { bold: true, color: C.navy, fill: { color: C[T.own_column_fill] } } // 당사 열
 };
 
-// ── claim / manifest (계획서 2.4, 2.5, 2.8, 6.2) ──────────────────────
-// 값을 찍는 지점에서 manifest를 부산물로 방출한다. 손으로 쓰면 실제 장표와 어긋난다.
-// manifest에 적는 것은 값이 아니라 근거 좌표(파일·시트·셀)다.
-// claim()이 돌려준 문자열을 그대로 장표에 그려야 3자 대조가 성립한다.
-//   SOURCE(source.xlsx) ↔ MANIFEST(manifest.json) ↔ FINAL(pptx)
-
-const N = R.notation;
-
-// override.at 검증용. 타임존 없는 시각은 받지 않는다 — 누가 언제 조정했는지가 감사의 핵심이다
-const ISO8601_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
-
-let _claims = [];
-let _tokenWhitelist = [];
-let _slideNo = 0;
-let _srcRoot = process.env.DECK_SOURCE_ROOT || __dirname;
-const _hashCache = new Map();
-
-function resetManifest() { _claims = []; _tokenWhitelist = []; _slideNo = 0; _hashCache.clear(); _nameSeq.clear(); }
-// 잡 폴더에서는 builder/ 기준으로 ../source 를 가리킨다
-function sourceRoot(dir) { if (dir != null) _srcRoot = dir; return _srcRoot; }
-function currentSlide() { return _slideNo; }
-function manifest() { return JSON.parse(JSON.stringify(_claims)); }
-
-function _decimalsOf(v) {
-  const s = String(v);
-  if (!/^-?\d+(\.\d+)?$/.test(s)) throw new Error(`claim: 표기할 수 없는 수 ${s}. rounding을 명시한다`);
-  const i = s.indexOf(".");
-  return i < 0 ? 0 : s.length - i - 1;
-}
-
-// 음수는 notation.negative("-"). △는 forbidden.negative_triangle이라 여기서 나올 수 없다
-function _fmt(v, rounding, signed) {
-  const neg = v < 0;
-  const [ip0, dp] = Math.abs(v).toFixed(rounding).split(".");
-  const ip = ip0.replace(/\B(?=(\d{3})+(?!\d))/g, N.thousands_sep);
-  let out = dp ? ip + N.decimal_sep + dp : ip;
-  if (neg) out = N.negative + out;
-  else if (signed) out = N.positive + out;
-  return out;
-}
-
-// 원천 파일이 없는 환경(리포의 더미 실행)에서는 null로 남긴다. 게이트가 잡는다
-function _hash(file) {
-  if (_hashCache.has(file)) return _hashCache.get(file);
-  const p = path.isAbsolute(file) ? file : path.join(_srcRoot, file);
-  let h = null;
-  try { h = "sha256:" + crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex"); } catch (e) { h = null; }
-  _hashCache.set(file, h);
-  return h;
-}
-
-// transform 어휘는 house-rules.yaml에서 닫혀 있다. 일반 수식 평가기를 만들지 않는다
-function _transform(id, o) {
-  const type = o.transform || "identity";
-  const spec = MF.transforms[type];
-  if (!spec) throw new Error(`claim[${id}]: transform '${type}'은 어휘 밖이다. 허용: ${Object.keys(MF.transforms).join(", ")}`);
-  const t = { type };
-  spec.forEach(k => {
-    if (o[k] == null || o[k] === "") throw new Error(`claim[${id}]: transform '${type}'에는 ${k}가 필요하다`);
-    t[k] = o[k];
-  });
-  return t;
-}
-
-/**
- * 장표에 찍을 값 하나를 등록하고, 찍을 문자열을 돌려준다.
- *
- *   const v = tpl.claim(8412, { id: "FY26_NIBT", src: "source.xlsx", sheet: "실적", ref: "G22", unit: "억원" });
- *   // v === "8,412"  —  이 문자열을 그대로 addText/표 셀에 넣는다
- *
- * opts: id(필수) type(numeric|text) src sheet ref unit rounding signed slide
- *       transform(identity|sum|ratio|delta|cagr|unverified) + 그 type의 필수 인자
- *       override: { value, reason, author, at }  원천과 다른 값을 의도적으로 찍을 때 (계획서 2.8)
- *         at은 ISO-8601 + 타임존. 조정을 결정한 시각이며 호출부가 적는다.
- *         빌드 시각을 자동으로 넣으면 manifest가 비결정적이 되어 회귀 비교가 깨진다.
- */
-function claim(value, opts = {}) {
-  const id = opts.id;
-  if (!id) throw new Error("claim: id가 없다. manifest의 shape_id로 쓰인다");
-
-  const kind = opts.type || MF.kinds[0];
-  if (!MF.kinds.includes(kind)) throw new Error(`claim[${id}]: kind '${kind}'는 허용 밖이다. 허용: ${MF.kinds.join(", ")}`);
-
-  const slide = opts.slide != null ? opts.slide : _slideNo;
-  if (!slide) throw new Error(`claim[${id}]: 열린 슬라이드가 없다. addSlide() 뒤에 값을 만들거나 opts.slide를 넘긴다`);
-
-  const tf = _transform(id, opts);
-  if (MF.source_required && tf.type !== "unverified" && (!opts.src || !opts.sheet))
-    throw new Error(`claim[${id}]: src와 sheet가 필요하다. 근거가 없으면 transform: "unverified" + note를 쓴다`);
-  if (MF.source_ref_required_for.includes(tf.type) && !opts.ref)
-    throw new Error(`claim[${id}]: transform '${tf.type}'의 근거 셀 ref가 없다`);
-
-  let text, rounding = null;
-  if (opts.override) {
-    // override는 불일치가 나도 FAIL이 아니라 CHANGELOG에 사유와 함께 기록된다 (계획서 2.8).
-    // 그래서 "누가 언제" 없이는 받지 않는다. 그게 없으면 숨김 수정과 구분이 안 된다 (2.16-8)
-    const miss = MF.override_fields.filter(k => opts.override[k] == null || opts.override[k] === "");
-    if (miss.length)
-      throw new Error(`claim[${id}]: override에 ${miss.join(", ")}가 없다. 필수: ${MF.override_fields.join(", ")} (계획서 2.16-8)`);
-    if (!ISO8601_TZ.test(String(opts.override.at)))
-      throw new Error(`claim[${id}]: override.at은 타임존이 붙은 ISO-8601이어야 한다: ${opts.override.at}`);
-    text = String(opts.override.value);
-    // 표시 자릿수는 남긴다. 없으면 audit이 원천 값을 "0"으로 적어
-    // CHANGELOG가 "0 -> 9.9"가 된다. 실제 원천은 "0.0"이다
-    if (opts.rounding != null) rounding = opts.rounding;
-  } else if (kind === "numeric") {
-    if (typeof value !== "number" || !Number.isFinite(value))
-      throw new Error(`claim[${id}]: numeric인데 값이 수가 아니다: ${value}`);
-    rounding = opts.rounding != null ? opts.rounding : _decimalsOf(value);
-    text = _fmt(value, rounding, !!opts.signed);
-  } else {
-    text = String(value);
-  }
-
-  const bad = N.negative_forbidden.find(ch => text.includes(ch));
-  if (bad) throw new Error(`claim[${id}]: 금지된 음수 표기 '${bad}' 포함: ${text}`);
-
-  // 같은 지표가 페이지마다 다른 값으로 찍히는 것을 생성 단계에서 막는다 (게이트 XREF)
-  const prev = _claims.find(c => c.shape_id === id);
-  if (prev && prev.display.text !== text)
-    throw new Error(`claim[${id}]: 같은 지표를 다른 값으로 등록했다 — p${prev.slide} "${prev.display.text}" vs p${slide} "${text}"`);
-
-  const entry = {
-    slide, shape_id: id, kind,
-    // 이 값이 실제로 어느 도형/셀에 찍혔는지. claimText()·table()이 채운다 (계획서 2.16-3).
-    // 비어 있으면 audit.py가 대조할 대상이 없다는 뜻이므로 writeManifest가 센다.
-    placements: [],
-    display: { text, unit: opts.unit || null, rounding },
-    source: {
-      file: opts.src || null,
-      file_hash: opts.src ? _hash(opts.src) : null,
-      sheet: opts.sheet || null,
-      ref: opts.ref || null,
-    },
-    transform: tf,
-  };
-  if (opts.override) {
-    entry.override = {};
-    MF.override_fields.forEach(k => { entry.override[k] = String(opts.override[k]); });
-  }
-
-  _claims.push(entry);
-  return text;
-}
-
-// ── 근거 좌표 (계획서 2.16-3) ────────────────────────────────────────
-// display.text만으로는 XML의 어느 도형인지 특정할 수 없다. 좌표·서체·정렬을 함께 적어야
-// audit.py가 "그 값이 그 자리에 그 서체로 찍혔는지"까지 본다.
-
-const _rd = v => (typeof v === "number" ? Number(v.toFixed(U.bounds_round_in)) : null);
-
-function _claimOf(id, who) {
-  const e = _claims.find(c => c.shape_id === id);
-  if (!e) throw new Error(`${who}: 등록되지 않은 claim '${id}'. claim()을 먼저 부른다`);
-  return e;
-}
-
-/**
- * claim한 값을 그린다. 문자열을 호출부가 다시 쓰지 않는다 —
- * manifest에 등록된 display.text를 그대로 찍어야 MANIFEST ↔ FINAL이 어긋날 수 없다.
- *
- * opts: pptxgenjs addText 옵션 + prefix/suffix (라벨과 값을 한 도형에 넣을 때)
- */
-function claimText(s, id, opts = {}) {
-  const e = _claimOf(id, "claimText");
-  const { prefix = "", suffix = "", ...to } = opts;
-  const shown = prefix + e.display.text + suffix;
-  const name = _text(s, shown, claimName(id), to);
-  e.placements.push({
-    slide: _slideNo, type: "shape", name, text: shown,
-    bounds: { x: _rd(to.x), y: _rd(to.y), w: _rd(to.w), h: _rd(to.h) },
-    font: { face: to.fontFace || F, size: to.fontSize != null ? to.fontSize : null, bold: !!to.bold },
-    // 미지정 시의 기본값은 pptxgenjs의 것을 그대로 적는다. 다르게 적으면
-    // 실제 XML과 어긋나 audit이 도형마다 오탐을 낸다 (align=left, valign=middle)
-    align: to.align || "left", valign: to.valign || "middle",
-  });
-  return shown;
-}
-
-/**
- * 표를 그린다. 표는 도형 하나라서 셀마다 이름을 줄 수 없다.
- * 그래서 셀은 shape_id + (행, 열)로 참조한다 (계획서 2.16-1).
- * 셀에 claim: "<id>"를 달면 위치를 기록하고 addTable에 넘기기 전에 그 키를 떼어낸다.
- */
-function table(s, base, rows, opts = {}) {
-  const name = _uniqName(base);
-  const clean = rows.map((row, ri) => row.map((cell, ci) => {
-    if (!cell || typeof cell !== "object" || !cell.claim) return cell;
-    const e = _claimOf(cell.claim, "table");
-    if (cell.text !== e.display.text)
-      throw new Error(`table[${cell.claim}]: 셀 문자열이 manifest와 다르다 — "${cell.text}" vs "${e.display.text}"`);
-    e.placements.push({ slide: _slideNo, type: "cell", table: name, row: ri, col: ci, text: cell.text });
-    const { claim: _drop, ...rest } = cell;
-    return rest;
-  }));
-  s.addTable(clean, Object.assign({}, opts, { objectName: name }));
-  return name;
-}
-
-// 잡 덱이 헬퍼 밖에서 도형을 그릴 때 쓰는 통로. 이름 없는 도형을 만들지 않기 위해 열어 둔다
-function text(s, name, content, opts) { return _text(s, content, name, opts); }
-function shape(s, type, name, opts) { return _shape(s, type, name, opts); }
-
-// 표 셀 하나를 만든다. claim() 결과 문자열과 id를 함께 넘겨 셀과 manifest를 잇는다
-function cell(text, id, options) { return { text, claim: id, options }; }
-
-// ── 숫자 토큰 예외 (계획서 10절 해소, 2026-08-29) ────────────────────
-// audit.py는 장표의 모든 숫자 토큰이 claim으로 등록돼 있기를 기대한다.
-// 연도 라벨처럼 어느 잡에나 나오는 예외는 house-rules의
-// numeric_tokens.global_text_whitelist에 있다. 그 잡에서만 통하는 예외를 여기 둔다.
-//
-// 사유 없는 예외를 만들 수 없게 막는다. 사유가 없으면 검사를 그냥 끈 것과 같고,
-// 그러면 오탐 몇 건 때문에 검사 전체가 조용히 죽는다.
-// 필수 필드는 house-rules의 job_whitelist_fields가 정한다 — 어휘를 한 곳에만 둔다.
-//
-//   tpl.whitelistToken({ token: "-100", reason: "브리프 원문 인용. 산출값 아님" });
-//
-function whitelistToken(opts = {}) {
-  const entry = {};
-  NT.job_whitelist_fields.forEach(k => {
-    const v = (k === "slide" && opts.slide == null) ? _slideNo : opts[k];
-    if (v == null || v === "")
-      throw new Error(`whitelistToken: ${k}가 없다. 필수 필드는 ${NT.job_whitelist_fields.join(", ")}`);
-    entry[k] = k === "slide" ? Number(v) : String(v);
-  });
-  if (!entry.slide) throw new Error("whitelistToken: 열린 슬라이드가 없다. addSlide() 뒤에 부르거나 slide를 넘긴다");
-  _tokenWhitelist.push(entry);
-  return entry;
-}
-
-// 타임스탬프를 넣지 않는다. 같은 입력이면 같은 파일이어야 픽스처 회귀 비교가 된다.
-// 실행 정보는 run_metadata.json이 따로 담는다 (계획서 6.4)
-function writeManifest(file) {
-  const claims = manifest();
-  // 규칙이 바뀔 때 "이 덱이 무엇을 기준으로 만들어졌는지"를 보존한다 (계획서 2.16-6)
-  const out = {
-    schema_version: MF.schema_version,
-    house_rule_version: R.version,
-    template_version: TEMPLATE_VERSION,
-    token_whitelist: _tokenWhitelist.slice(),
-    claims,
-  };
-  fs.writeFileSync(file, JSON.stringify(out, null, 2) + "\n", "utf8");
-  return {
-    file, count: claims.length,
-    unhashed: claims.filter(c => c.source.file && !c.source.file_hash).length,
-    // 좌표가 없는 claim은 audit.py가 XML에서 찾을 수 없다. 게이트가 잡는다 (계획서 2.16-7)
-    unplaced: claims.filter(c => !c.placements.length).map(c => c.shape_id),
-    whitelisted: _tokenWhitelist.length,
-  };
-}
-
 module.exports = {
   R, F, FH, C, W, H, MX, CW, FOOT_BASE,
   newPres, header, banner, banner2, sectionChip, panel, panel2, creamBox,
   bullets, footer, darkCard, statCard, iconBadge, colChart, stacked100, waterfall, tableStyles,
   claim, claimText, table, cell, text, shape, whitelistToken, manifest, writeManifest, resetManifest, sourceRoot, currentSlide,
-  TEMPLATE_VERSION, nameOf, claimName, U
+  TEMPLATE_VERSION, STYLE, nameOf, claimName, U
 };
