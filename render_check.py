@@ -23,10 +23,33 @@ class RenderIssue:
 def load_rules(path: Path) -> dict:
     with path.open(encoding="utf-8") as handle:
         rules = yaml.safe_load(handle)
-    for section in ("fonts", "qa", "units"):
+    for section in ("units", "styles", "default_style"):
         if section not in rules:
             raise ValueError(f"house-rules missing section: {section}")
     return rules
+
+
+def style_rules(rules: dict, style: str | None = None, manifest_path: Path | None = None) -> dict:
+    """Select render rules without silently falling back to a default style."""
+    if manifest_path is not None:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest_style = payload.get("style")
+        if not manifest_style:
+            raise ValueError("manifest style is required")
+        if style is not None and style != manifest_style:
+            raise ValueError(f"style {style!r} disagrees with manifest style {manifest_style!r}")
+        style = manifest_style
+    if not style:
+        raise ValueError("style is unknown: provide --manifest or --style")
+    selected = rules["styles"].get(style)
+    if selected is None:
+        raise ValueError(f"unknown style {style!r}; expected one of {sorted(rules['styles'])}")
+    missing = sorted({"fonts", "qa"} - selected.keys())
+    if missing:
+        raise ValueError(f"style {style!r} missing sections: {', '.join(missing)}")
+    effective = dict(rules)
+    effective.update(selected)
+    return effective
 
 
 def result(file: Path, status: str, issues=(), skips=(), error=None) -> dict:
@@ -180,9 +203,11 @@ def inspect_presentation(presentation, rules, missing_heading: bool):
     return issues, skips
 
 
-def run(path: Path, rules: dict) -> dict:
+def run(path: Path, rules: dict, style: str | None = None,
+        manifest_path: Path | None = None) -> dict:
     if platform.system() != "Windows":
         return result(path, "SKIP", skips=[{"reason": "PowerPoint COM requires native Windows"}])
+    rules = style_rules(rules, style, manifest_path)
     try:
         import pythoncom
         import win32com.client
@@ -224,12 +249,15 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("pptx", type=Path)
     parser.add_argument("--rules", type=Path, default=Path(__file__).with_name("house-rules.yaml"))
+    parser.add_argument("--manifest", type=Path,
+                        help="manifest used to select the render style")
+    parser.add_argument("--style", help="render style when no manifest is available")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     try:
         if not args.pptx.is_file():
             raise FileNotFoundError(args.pptx)
-        payload = run(args.pptx, load_rules(args.rules))
+        payload = run(args.pptx, load_rules(args.rules), args.style, args.manifest)
     except Exception as error:
         payload = result(args.pptx, "ERROR", error=f"{type(error).__name__}: {error}")
 
