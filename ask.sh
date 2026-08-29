@@ -42,11 +42,17 @@ HANDOFF.md에 인계 줄을 남겨라.
 지시:
 '
 
+# 사용자는 맥북 앞에 없다 (계획서 3.0). 에이전트가 승인 프롬프트에서 멈추면
+# 아무도 답할 수 없고, 폰에서는 그냥 조용한 것과 구분되지 않는다.
+# 상한 시간에서 끊고 "사용자 입력 필요"로 돌려준다. macOS에는 timeout(1)이 없어 alarm을 쓴다.
+LIMIT="${ASK_TIMEOUT:-900}"   # 초. ASK_TIMEOUT으로 바꾼다
+with_limit() { perl -e 'alarm shift @ARGV; exec @ARGV' "$LIMIT" "$@"; }
+
 run_codex() {
-  codex exec --sandbox workspace-write --approve-for-me "$1"
+  with_limit codex exec --sandbox workspace-write --approve-for-me "$1"
 }
 run_pipe() {
-  opencode run "$1"
+  with_limit opencode run "$1"
 }
 
 case "$WHO" in
@@ -72,6 +78,15 @@ case "$WHO" in
   PIPE)  run_pipe  "$PREAMBLE$TASK" ;;
 esac
 status=$?
+
+if [ "$status" -ge 128 ]; then
+  echo
+  echo "== $WHO 가 ${LIMIT}초 안에 안 끝났다 =="
+  echo "   승인 프롬프트에 걸렸을 가능성이 크다. 사용자 입력이 필요하다 (계획서 3.0)."
+  echo "   워킹트리를 확인하고 폰으로 올린다."
+  git status --short
+  exit 124
+fi
 
 echo
 echo "== 지시 뒤 회귀 =="

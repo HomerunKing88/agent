@@ -19,6 +19,9 @@
 - 사용자는 폰에서 나에게만 지시한다. CODEX·PIPE에게는 `./ask.sh <대상> "지시"`로 시킨다.
   **판정은 내가 하지 않는다. 스크립트가 한다** — "괜찮아 보인다"로 통과시키지 않는다.
   브랜치·푸시·삭제·`house-rules.yaml`·확정 사항 변경, 실적 수치가 든 잡은 폰으로 올린다 (3.0).
+- **사용자는 맥북 앞에 없다.** CODEX·PIPE가 막히면 아무도 답할 수 없다.
+  막힌 것을 내가 받아 폰으로 올리고, 답을 받아 다시 지시한다.
+  `ask.sh`가 상한 시간에서 끊고 "사용자 입력 필요"로 돌려준다 (`ASK_TIMEOUT`, 기본 900초).
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
 - PIPE 담당: `orchestrator.py`, `slack_bot.py` — 건드리지 않는다. 2026-08-29에 넘겼다.
 - 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림)
