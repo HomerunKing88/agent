@@ -43,6 +43,8 @@ const NM = MF.shape_name;
 if (!NM) throw new Error("house-rules.yaml manifest.shape_name이 없다 (계획서 2.16-1)");
 const U = R.units;
 if (!U) throw new Error("house-rules.yaml에 units 절이 없다 (계획서 2.16-4)");
+const NT = R.numeric_tokens;
+if (!NT) throw new Error("house-rules.yaml에 numeric_tokens 절이 없다 (계획서 10절)");
 
 // template.js 자신의 버전. 헬퍼의 좌표나 이름 규약이 바뀌면 올린다.
 // manifest에 함께 새겨 두어야 "이 픽스처가 어느 생성기로 만들어졌는지"가 남는다 (계획서 2.16-6).
@@ -285,11 +287,12 @@ const tableStyles = {
 const N = R.notation;
 
 let _claims = [];
+let _tokenWhitelist = [];
 let _slideNo = 0;
 let _srcRoot = process.env.DECK_SOURCE_ROOT || __dirname;
 const _hashCache = new Map();
 
-function resetManifest() { _claims = []; _slideNo = 0; _hashCache.clear(); _nameSeq.clear(); }
+function resetManifest() { _claims = []; _tokenWhitelist = []; _slideNo = 0; _hashCache.clear(); _nameSeq.clear(); }
 // 잡 폴더에서는 builder/ 기준으로 ../source 를 가리킨다
 function sourceRoot(dir) { if (dir != null) _srcRoot = dir; return _srcRoot; }
 function currentSlide() { return _slideNo; }
@@ -466,6 +469,30 @@ function shape(s, type, name, opts) { return _shape(s, type, name, opts); }
 // 표 셀 하나를 만든다. claim() 결과 문자열과 id를 함께 넘겨 셀과 manifest를 잇는다
 function cell(text, id, options) { return { text, claim: id, options }; }
 
+// ── 숫자 토큰 예외 (계획서 10절 해소, 2026-08-29) ────────────────────
+// audit.py는 장표의 모든 숫자 토큰이 claim으로 등록돼 있기를 기대한다.
+// 연도 라벨처럼 어느 잡에나 나오는 예외는 house-rules의
+// numeric_tokens.global_text_whitelist에 있다. 그 잡에서만 통하는 예외를 여기 둔다.
+//
+// 사유 없는 예외를 만들 수 없게 막는다. 사유가 없으면 검사를 그냥 끈 것과 같고,
+// 그러면 오탐 몇 건 때문에 검사 전체가 조용히 죽는다.
+// 필수 필드는 house-rules의 job_whitelist_fields가 정한다 — 어휘를 한 곳에만 둔다.
+//
+//   tpl.whitelistToken({ token: "-100", reason: "브리프 원문 인용. 산출값 아님" });
+//
+function whitelistToken(opts = {}) {
+  const entry = {};
+  NT.job_whitelist_fields.forEach(k => {
+    const v = (k === "slide" && opts.slide == null) ? _slideNo : opts[k];
+    if (v == null || v === "")
+      throw new Error(`whitelistToken: ${k}가 없다. 필수 필드는 ${NT.job_whitelist_fields.join(", ")}`);
+    entry[k] = k === "slide" ? Number(v) : String(v);
+  });
+  if (!entry.slide) throw new Error("whitelistToken: 열린 슬라이드가 없다. addSlide() 뒤에 부르거나 slide를 넘긴다");
+  _tokenWhitelist.push(entry);
+  return entry;
+}
+
 // 타임스탬프를 넣지 않는다. 같은 입력이면 같은 파일이어야 픽스처 회귀 비교가 된다.
 // 실행 정보는 run_metadata.json이 따로 담는다 (계획서 6.4)
 function writeManifest(file) {
@@ -475,6 +502,7 @@ function writeManifest(file) {
     schema_version: MF.schema_version,
     house_rule_version: R.version,
     template_version: TEMPLATE_VERSION,
+    token_whitelist: _tokenWhitelist.slice(),
     claims,
   };
   fs.writeFileSync(file, JSON.stringify(out, null, 2) + "\n", "utf8");
@@ -483,6 +511,7 @@ function writeManifest(file) {
     unhashed: claims.filter(c => c.source.file && !c.source.file_hash).length,
     // 좌표가 없는 claim은 audit.py가 XML에서 찾을 수 없다. 게이트가 잡는다 (계획서 2.16-7)
     unplaced: claims.filter(c => !c.placements.length).map(c => c.shape_id),
+    whitelisted: _tokenWhitelist.length,
   };
 }
 
@@ -490,6 +519,6 @@ module.exports = {
   R, F, FH, C, W, H, MX, CW, FOOT_BASE,
   newPres, header, banner, banner2, sectionChip, panel, panel2, creamBox,
   bullets, footer, darkCard, statCard, iconBadge, colChart, stacked100, waterfall, tableStyles,
-  claim, claimText, table, cell, text, shape, manifest, writeManifest, resetManifest, sourceRoot, currentSlide,
+  claim, claimText, table, cell, text, shape, whitelistToken, manifest, writeManifest, resetManifest, sourceRoot, currentSlide,
   TEMPLATE_VERSION, nameOf, claimName, U
 };

@@ -480,6 +480,9 @@ transform 어휘와 필수 인자는 `house-rules.yaml`의 `manifest.transforms`
   "schema_version": 1,
   "house_rule_version": "2026.08",
   "template_version": "2026.08.29",
+  "token_whitelist": [
+    { "slide": 1, "token": "-100", "reason": "브리프 원문 인용. 산출값 아님" }
+  ],
   "claims": [ { "...": "위 형식" } ]
 }
 ```
@@ -712,12 +715,19 @@ Socket Mode. `files:read` 스코프로 파일을 받고, `thread_ts`를 잡 ID�
   정례화 전에 준법감시 확인이 필요하다.
 - 상시 가동 기계가 필요해지는 시점. 필요해지면 소형 Windows PC를 검토한다.
   맥미니는 폰트와 COM 문제로 이 용도에 맞지 않는다.
-- 숫자 토큰 화이트리스트(2.6)의 정의 위치. house-rules.yaml에 둘지 잡별로 둘지.
-  배너·단위 표기·연도 축이 대표 항목인데, 오탐이 쌓이면 검사가 조용히 꺼지므로 먼저 정한다.
 - lint_deck.js(2.1의 핵심 도구)의 보류 유지 여부. 8절 gate `LINT`는 이미 존재하므로
   3~5단계 후 재판단하되, 최소한 픽스처에는 raw 호출 예시를 남겨 둔다.
 
 ### 해소된 미결
+
+- **숫자 토큰 화이트리스트(2.6)의 정의 위치 — 확정 2026-08-29. 두 층으로 나눈다.**
+  어느 잡에나 나오는 예외는 `house-rules.yaml`의 `numeric_tokens.global_text_whitelist`에,
+  그 잡에서만 통하는 예외는 manifest 머리의 `token_whitelist` 배열에 둔다.
+  필수 필드는 `numeric_tokens.job_whitelist_fields`가 정한다 (`slide` `token` `reason`).
+  **사유 없는 예외는 만들 수 없다.** `template.js`의 `whitelistToken()`이 생성 단계에서 막고,
+  필드가 빠진 예외는 `audit.py`가 ERROR로 본다.
+  오탐 몇 건 때문에 검사를 통째로 끄는 것을 막으려는 것이다 — 미결 항목이 경계하던 게 그거다.
+  3방향으로 확인했다. 예외 없는 맨숫자는 FAIL, 사유를 붙이면 PASS, 사유를 빼면 빌드가 죽는다.
 
 - **불릿 ▸ 마커 크기 — 확정 2026-08-29. 본문과 같은 10pt.**
   현행(본문 크기를 따라감)을 규칙으로 승격했다. design-system.md의 9pt는 이 값으로 대체한다.

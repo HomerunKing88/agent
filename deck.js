@@ -61,6 +61,11 @@ function pageData() {
   ];
   peer.forEach(x => tpl.claim(x.v, { id: x.id, src: SRC, sheet: SH_PEER, ref: x.ref, unit: "%", rounding: 1 }));
 
+  // 장표에 숫자가 찍히는데 claim이 아닌 것이 있으면 audit이 미등록 토큰으로 잡는다.
+  // 연도 라벨 같은 공통 예외는 house-rules에 있다. 이 잡에서만 통하는 예외는 아래처럼 사유와 함께 등록한다.
+  // 사유 없는 예외는 만들 수 없다 — 오탐 몇 건 때문에 검사를 통째로 끄는 일을 막는다.
+  //   tpl.whitelistToken({ token: "-100", reason: "브리프 원문 인용. 산출값 아님" });
+
   // 단순평균은 transform 어휘 다섯 개에 없다. unverified로 두고 근거를 한 줄 적는다 (계획서 2.5)
   const PEER_AVG = 10;
   tpl.claim(PEER_AVG, { id: "ROE_PEER_AVG", unit: "%", rounding: 1,
