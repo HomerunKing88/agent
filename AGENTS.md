@@ -26,14 +26,20 @@
 - Codex는 검사 대상이 아니라 검사기 저자다. 표현·디자인 의견은 내지 않는다.
 - 결정적 판정만 한다. PASS/FAIL이고, 합성 점수나 confidence 소수점은 쓰지 않는다.
 
-## 현재 상태 (2026-08-29)
-- 1단계 완료. `house-rules.yaml` 14개 절 확정, `template.js`가 이 파일을 읽는다.
-  하드코딩된 규칙 값 잔존 0건. 구판 대비 pptxgenjs 호출 70건 대조로 동작 보존 확인.
-- 4단계 생성기 쪽 완료. `template.js`에 `claim()`이 들어갔고 `deck.js`가 manifest.json을 방출한다.
-  2026-08-29 2차로 계획서 2.16 계약의 생성기 담당분(1 도형 이름, 3 근거 좌표,
-  4 단위·오차, 6 버전 전파)까지 넣었다. 아래 알림 절 참조.
-  4단계의 나머지(audit.py 3자 대조·토큰 검출, `schemas/` pydantic)는 미착수.
-- 5~8단계 미착수. `schemas/`, `skill/`은 빈 디렉터리다.
+## 현재 상태 (2026-08-29 갱신)
+- **1단계 완료.** `house-rules.yaml`이 규칙 단일 원천. 하드코딩 잔존 0건.
+- **2단계 완료.** 픽스처가 8개에서 **13개**로 늘었다. golden 포함 14개 파일.
+  06·07·09는 manifest와 source.xlsx를 함께 주입한다.
+- **3단계 완료.** `audit.py` static 검사.
+- **4단계 완료.** 생성기 쪽(`claim()`, 계약 1·3·4·6)과 검사기 쪽(3자 대조, 토큰 검출) 둘 다.
+  06·07이 `static_expected: DEFERRED`에서 `FAIL`로 바뀐 게 그 증거다.
+  남은 것은 `schemas/` pydantic 하나.
+- **5단계 작성 완료, 검증 대기.** `render_check.py`가 있다. 맥에서는 SKIP이 정상이다.
+  집 Windows PC에서 결함 05가 FAIL로 잡혀야 완료 조건을 채운다.
+- **6·7단계 작성 완료.** PIPE가 `orchestrator.py`, `slack_bot.py`를 썼다.
+  잡 하나를 build → review까지 실제로 돌려 PASS를 확인했다 (아래 e2e 절).
+- **8단계 미착수.** EDITOR 프롬프트. 담당이 아직 안 정해졌다.
+- `schemas/`, `skill/`은 여전히 빈 디렉터리다.
 
 ## house-rules.yaml 변경 알림 (2026-08-29, Claude Code)
 공동 파일이므로 알린다. **기존 절과 값은 건드리지 않았다. 추가만 했다.**
@@ -78,7 +84,7 @@ manifest.json 형식은 계획서 6.2에 적어 뒀다. 결정적이다(타임�
   { "slide": 1, "type": "shape", "name": "FY26_NIBT", "text": "8,412",
     "bounds": { "x": 6.05, "y": 3.2, "w": 1.4, "h": 0.35 },
     "font": { "face": "맑은 고딕", "size": 10, "bold": false },
-    "align": "center", "valign": "top" },
+    "align": "center", "valign": "middle" },
   { "slide": 2, "type": "cell", "table": "table/perf", "row": 1, "col": 4, "text": "+0.0" }
 ]
 ```
@@ -88,6 +94,12 @@ manifest.json 형식은 계획서 6.2에 적어 뒀다. 결정적이다(타임�
 - `placement.text`는 그 도형에 찍힌 **전체** 문자열이다. `display.text`와 다를 수 있다.
   라벨을 앞에 붙인 경우가 그렇다 (`"평균 10.0"` vs `"10.0"`). 대조는
   `shape_text == placement.text` 로 하고, 값 자체는 `placement.text.contains(display.text)`로 본다.
+- **`align`/`valign`은 pptxgenjs의 기본값을 그대로 적는다: `align=left`, `valign=middle`.**
+  `template.js`가 미지정 도형에 "top"을 적어서 값 도형 6개가 전부 오탐을 냈던 자리다.
+  고쳤다. `audit.py:505`의 폴백이 `placement.get("valign", "top")`인데
+  pptxgenjs 기본값은 `anchor="ctr"`(middle)이다. `align` 쪽 폴백 `"left"`는 맞다.
+  지금은 `claimText()`가 valign을 항상 명시해서 폴백이 안 걸리지만,
+  키가 빠진 manifest가 오면 조용히 어긋난다. `"middle"`로 바꾸는 게 맞다고 본다.
 - 파일 머리에 버전 셋이 박힌다: `schema_version` `house_rule_version` `template_version`.
 - `placements`가 빈 claim이 하나라도 있으면 `deck.js`가 pptx를 만들지 않고 죽는다.
   audit.py 쪽에서도 빈 `placements`는 ERROR로 봐 달라 (계약 7의 조용한 PASS 금지).
@@ -105,7 +117,7 @@ manifest.json 형식은 계획서 6.2에 적어 뒀다. 결정적이다(타임�
 10건 중 3건이 내 버그였고 고쳤다(valign 기본값, 칩 폭, 더미 맨숫자).
 남은 둘을 넘긴다.
 
-1. **`--json` 최상위 `status`가 조용한 PASS를 만든다** (audit.py:513)
+1. **`--json` 최상위 `status`가 조용한 PASS를 만든다** (audit.py:513) — PIPE 답변 받음, audit.py 쪽 미반영
    그 필드는 `expected_results.json` 대조 결과다. 픽스처가 아닌 파일을 검사하면
    mismatch가 없으니 항상 `"PASS"`가 나온다. 실제로 `results[0].status`가 `ERROR`인데
    최상위는 `PASS`인 출력을 봤다. exit code는 2로 맞게 나왔지만
@@ -141,11 +153,11 @@ manifest.json 형식은 계획서 6.2에 적어 뒀다. 결정적이다(타임�
   가리킨다(2.16-6 규칙 단일 원천). `cmd_review`는 `--source-root <잡>/source`를 넘긴다.
 - 검증 결과: `audit_status=PASS, 이슈 0건` (2026-08-29, 2195d1f 이후 상태).
 
-## 픽스처 재생성이 필요하다
-`template.js` 헬퍼가 도형에 이름을 붙이면서 출력 XML이 바뀐다.
-`fixtures/*.pptx`는 이름이 붙기 전 산출물이라 지금 커밋된 파일과 바이트가 다르다.
-`fixtures/golden_deck.js` 자체는 고치지 않아도 그대로 돈다 — 스크래치패드로 출력해 확인했다.
-`make_fixtures.py`를 다시 돌려 주면 된다. Claude는 `fixtures/`를 건드리지 않았다.
+## 픽스처 재생성 — 완료 (2026-08-29 10:15)
+도형 이름이 붙으면서 XML이 바뀌어 재생성을 요청했던 건이다. 처리됐다.
+`00_golden.pptx`에 `header/title` `banner/bg` `chip/label` `footer/notes` 등
+헬퍼 이름이 들어간 것을 확인했다. 결함도 8개에서 13개로 늘었다.
+Claude는 `fixtures/`를 건드리지 않았다.
 
 ### 4단계 픽스처 06·07 주의
 `claim()`은 두 결함을 **생성 단계에서 막는다**(계획서 2.1 예방 원칙).
@@ -155,16 +167,26 @@ manifest.json 형식은 계획서 6.2에 적어 뒀다. 결정적이다(타임�
 
 즉 이 두 결함은 `golden_deck.js`가 `claim()`을 거쳐서는 만들 수 없다.
 생성 후 manifest.json이나 pptx 텍스트를 직접 손대는 방식으로 주입해야 한다.
-현재 `golden_deck.js`는 claim()을 쓰지 않고 문자열을 직접 찍으므로 지금 픽스처는 영향이 없다.
+
+해결됨 (2026-08-29). `make_fixtures.py`가 06·07·09에 `NN_manifest.json`과
+`NN_source.xlsx`를 직접 써서 주입한다. `golden_deck.js`는 여전히 `claim()`을 쓰지 않고
+문자열을 직접 찍으므로 예방 가드에 걸리지 않는다. 06·07의 `static_expected`가
+`DEFERRED`에서 `FAIL`로 바뀐 것이 3자 대조가 실제로 도는 증거다.
 
 ## 다음 작업 (계획서 9절)
-- 2단계 `fixtures/` — `golden_deck.js` 하나에 결함을 하나씩 주입하는 `make_fixtures.py`.
-  손으로 30장 만들지 않는다. 첫 세트 8개는 계획서 9절 2단계에 적혀 있다.
-  완료 조건: `expected_results.json`에 8건의 정답이 있다.
-- 3단계 `audit.py` static — 픽스처를 전부 통과할 때까지.
-  결함 05(넘침)는 정적 근사만 하고 정확 판정은 5단계로 미룬다.
-  완료 조건: `python audit.py fixtures/`가 expected와 일치.
-- 5단계 `render_check.py`는 pywin32 + PowerPoint COM이 필요하다. 집 Windows PC에서만 돌아간다.
+2·3·4단계는 끝났다. 남은 것은 아래 셋이다.
+
+- **5단계 집 PC 검증.** `python render_check.py fixtures/05_text_overflow.pptx`가
+  FAIL로 잡히면 완료 조건을 채운다. 맥에서 SKIP이 나오는 것은 정상이다.
+  폰트가 없는 환경의 렌더 결과는 신뢰하지 않는다 (11절).
+- **`schemas/` pydantic.** 4단계에서 유일하게 남은 항목이다.
+  manifest 형식이 확정됐으니(계약 3·6) 지금 만들 수 있다.
+  담당이 명시돼 있지 않다. 착수 전에 사용자에게 확인한다.
+- **숫자 토큰 화이트리스트 위치.** 계획서 10절 미결. 아래 확인 요청 2번.
+  결함 09가 이 검사를 픽스처로 고정했으니 오탐 관리 방침만 정하면 된다.
+
+계획서 9절의 완료 조건이 낡았다. 2단계가 "여덟 건"으로 적혀 있는데 지금 열세 건이다.
+계획서를 고치는 건 픽스처 담당인 Codex 몫이라 두었다.
 
 ## 해소 — 불릿 마커 크기 (확정 2026-08-29, 사용자)
 `sizes.bullet_marker_pt: 9`가 아무도 안 읽던 값이었다. **10pt로 확정했다.**
