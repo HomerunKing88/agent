@@ -10,7 +10,7 @@ const DEFECTS = new Set(["01", "02", "03", "04", "05", "06", "07", "08", "09", "
 
 function addPage(pres, defectId, metric = "1,000") {
   const slide = pres.addSlide();
-  const R = tpl.R;
+  const R = tpl.SR;
 
   tpl.header(slide, "검사기 정상 기준 장표", "FIXTURE");
   tpl.banner(slide, "모든 규칙을 지키는 기준 장표", "⇒ 결함은 한 번에 하나만 주입");
@@ -18,7 +18,7 @@ function addPage(pres, defectId, metric = "1,000") {
 
   const headerStyle = {
     ...tpl.tableStyles.hd,
-    align: defectId === "03" ? "left" : tpl.R.table.header_align,
+    align: defectId === "03" ? "left" : tpl.SR.table.header_align,
   };
   const negative = defectId === "02" ? "△100" : "-100";
   const bodyFont = defectId === "01" ? "Courier New" : tpl.F;
@@ -125,7 +125,7 @@ async function build(outPath, defectId = null) {
   const metric = defectId === "06" ? "8,421" : defectId === "14" ? "1,100" : "1,000";
   addPage(pres, defectId, metric);
   if (defectId === "07") addPage(pres, defectId, "1,001");
-  return pres.writeFile({ fileName: outPath });
+  return tpl.writeDeck(pres, outPath);
 }
 
 if (require.main === module) {
