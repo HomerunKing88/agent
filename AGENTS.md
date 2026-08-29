@@ -21,10 +21,37 @@
 - Codex는 검사 대상이 아니라 검사기 저자다. 표현·디자인 의견은 내지 않는다.
 - 결정적 판정만 한다. PASS/FAIL이고, 합성 점수나 confidence 소수점은 쓰지 않는다.
 
-## 현재 상태 (2026-08-28)
+## 현재 상태 (2026-08-29)
 - 1단계 완료. `house-rules.yaml` 14개 절 확정, `template.js`가 이 파일을 읽는다.
   하드코딩된 규칙 값 잔존 0건. 구판 대비 pptxgenjs 호출 70건 대조로 동작 보존 확인.
-- 2~8단계 미착수. `fixtures/`, `schemas/`, `skill/`은 빈 디렉터리다.
+- 4단계 생성기 쪽 완료. `template.js`에 `claim()`이 들어갔고 `deck.js`가 manifest.json을 방출한다.
+  4단계의 나머지(audit.py 3자 대조·토큰 검출, `schemas/` pydantic)는 미착수.
+- 2·3·5~8단계 미착수. `fixtures/`, `schemas/`, `skill/`은 빈 디렉터리다.
+
+## house-rules.yaml 변경 알림 (2026-08-29, Claude Code)
+공동 파일이므로 알린다. **기존 절과 값은 건드리지 않았다. 추가만 했다.**
+
+- `notation`에 3개 추가: `positive: "+"` `thousands_sep: ","` `decimal_sep: "."`
+  → audit.py의 숫자 토큰 파서가 이 값을 봐야 한다. 생성기와 파서가 갈라지면 TOKEN 검사가 오탐한다.
+- `manifest` 절 신설: `kinds` `source_required` `source_ref_required_for` `transforms`
+  → `transforms`는 type별 필수 인자 맵이다. 계획서 2.5의 닫힌 어휘를 여기 둔 것이고,
+    `template.js`가 이 목록으로 호출을 막는다. audit.py도 같은 목록을 읽어 재계산하면
+    어휘가 한 곳에만 적힌다.
+  → `delta: [from, to]`와 `unverified: [note]`는 계획서에 예시가 없던 부분이었다.
+    2026-08-29 사용자 확인으로 확정했다. 계획서 6.2에 적혀 있다. 잠정값 아니다.
+
+manifest.json 형식은 계획서 6.2에 적어 뒀다. 결정적이다(타임스탬프 없음).
+`display.text`가 pptx에 그대로 찍힌 문자열이므로 3자 대조는 이 필드로 하면 된다.
+
+### 4단계 픽스처 06·07 주의
+`claim()`은 두 결함을 **생성 단계에서 막는다**(계획서 2.1 예방 원칙).
+
+- 06 원천 숫자 불일치 — `claim()`이 돌려준 문자열을 그대로 찍으므로 manifest와 pptx가 어긋날 수 없다.
+- 07 페이지 간 지표 불일치 — 같은 id를 다른 값으로 등록하면 `claim()`이 예외를 던지고 pptx를 만들지 않는다.
+
+즉 이 두 결함은 `golden_deck.js`가 `claim()`을 거쳐서는 만들 수 없다.
+생성 후 manifest.json이나 pptx 텍스트를 직접 손대는 방식으로 주입해야 한다.
+현재 `golden_deck.js`는 claim()을 쓰지 않고 문자열을 직접 찍으므로 지금 픽스처는 영향이 없다.
 
 ## 다음 작업 (계획서 9절)
 - 2단계 `fixtures/` — `golden_deck.js` 하나에 결함을 하나씩 주입하는 `make_fixtures.py`.

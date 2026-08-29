@@ -18,6 +18,7 @@
 const fs = require("fs");
 const path = require("path");
 const yaml = require("js-yaml");
+const crypto = require("crypto");
 
 const RULES_PATH = process.env.HOUSE_RULES || path.join(__dirname, "house-rules.yaml");
 const R = yaml.load(fs.readFileSync(RULES_PATH, "utf8"));
@@ -40,6 +41,11 @@ function newPres(pptxgen) {
   const pres = new pptxgen();
   pres.defineLayout({ name: R.layout.name, width: W, height: H });
   pres.layout = R.layout.name;
+  // manifest의 slide 번호를 손으로 적지 않기 위해 addSlide를 가로챈다 (계획서 2.4).
+  // 한 프로세스에서 덱을 여러 개 만들 때 앞 덱의 claim이 섞이지 않도록 여기서 초기화한다.
+  resetManifest();
+  const addSlide = pres.addSlide.bind(pres);
+  pres.addSlide = function (...args) { _slideNo += 1; return addSlide(...args); };
   return pres;
 }
 
@@ -215,8 +221,146 @@ const tableStyles = {
   usCell: { bold: true, color: C.navy, fill: { color: C[T.own_column_fill] } } // 당사 열
 };
 
+// ── claim / manifest (계획서 2.4, 2.5, 2.8, 6.2) ──────────────────────
+// 값을 찍는 지점에서 manifest를 부산물로 방출한다. 손으로 쓰면 실제 장표와 어긋난다.
+// manifest에 적는 것은 값이 아니라 근거 좌표(파일·시트·셀)다.
+// claim()이 돌려준 문자열을 그대로 장표에 그려야 3자 대조가 성립한다.
+//   SOURCE(source.xlsx) ↔ MANIFEST(manifest.json) ↔ FINAL(pptx)
+
+if (!R.manifest) throw new Error("house-rules.yaml에 manifest 절이 없다");
+const MF = R.manifest;
+const N = R.notation;
+
+let _claims = [];
+let _slideNo = 0;
+let _srcRoot = process.env.DECK_SOURCE_ROOT || __dirname;
+const _hashCache = new Map();
+
+function resetManifest() { _claims = []; _slideNo = 0; _hashCache.clear(); }
+// 잡 폴더에서는 builder/ 기준으로 ../source 를 가리킨다
+function sourceRoot(dir) { if (dir != null) _srcRoot = dir; return _srcRoot; }
+function currentSlide() { return _slideNo; }
+function manifest() { return JSON.parse(JSON.stringify(_claims)); }
+
+function _decimalsOf(v) {
+  const s = String(v);
+  if (!/^-?\d+(\.\d+)?$/.test(s)) throw new Error(`claim: 표기할 수 없는 수 ${s}. rounding을 명시한다`);
+  const i = s.indexOf(".");
+  return i < 0 ? 0 : s.length - i - 1;
+}
+
+// 음수는 notation.negative("-"). △는 forbidden.negative_triangle이라 여기서 나올 수 없다
+function _fmt(v, rounding, signed) {
+  const neg = v < 0;
+  const [ip0, dp] = Math.abs(v).toFixed(rounding).split(".");
+  const ip = ip0.replace(/\B(?=(\d{3})+(?!\d))/g, N.thousands_sep);
+  let out = dp ? ip + N.decimal_sep + dp : ip;
+  if (neg) out = N.negative + out;
+  else if (signed) out = N.positive + out;
+  return out;
+}
+
+// 원천 파일이 없는 환경(리포의 더미 실행)에서는 null로 남긴다. 게이트가 잡는다
+function _hash(file) {
+  if (_hashCache.has(file)) return _hashCache.get(file);
+  const p = path.isAbsolute(file) ? file : path.join(_srcRoot, file);
+  let h = null;
+  try { h = "sha256:" + crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex"); } catch (e) { h = null; }
+  _hashCache.set(file, h);
+  return h;
+}
+
+// transform 어휘는 house-rules.yaml에서 닫혀 있다. 일반 수식 평가기를 만들지 않는다
+function _transform(id, o) {
+  const type = o.transform || "identity";
+  const spec = MF.transforms[type];
+  if (!spec) throw new Error(`claim[${id}]: transform '${type}'은 어휘 밖이다. 허용: ${Object.keys(MF.transforms).join(", ")}`);
+  const t = { type };
+  spec.forEach(k => {
+    if (o[k] == null || o[k] === "") throw new Error(`claim[${id}]: transform '${type}'에는 ${k}가 필요하다`);
+    t[k] = o[k];
+  });
+  return t;
+}
+
+/**
+ * 장표에 찍을 값 하나를 등록하고, 찍을 문자열을 돌려준다.
+ *
+ *   const v = tpl.claim(8412, { id: "FY26_NIBT", src: "source.xlsx", sheet: "실적", ref: "G22", unit: "억원" });
+ *   // v === "8,412"  —  이 문자열을 그대로 addText/표 셀에 넣는다
+ *
+ * opts: id(필수) type(numeric|text) src sheet ref unit rounding signed slide
+ *       transform(identity|sum|ratio|delta|cagr|unverified) + 그 type의 필수 인자
+ *       override: { value, reason }   원천과 다른 값을 의도적으로 찍을 때 (계획서 2.8)
+ */
+function claim(value, opts = {}) {
+  const id = opts.id;
+  if (!id) throw new Error("claim: id가 없다. manifest의 shape_id로 쓰인다");
+
+  const kind = opts.type || MF.kinds[0];
+  if (!MF.kinds.includes(kind)) throw new Error(`claim[${id}]: kind '${kind}'는 허용 밖이다. 허용: ${MF.kinds.join(", ")}`);
+
+  const slide = opts.slide != null ? opts.slide : _slideNo;
+  if (!slide) throw new Error(`claim[${id}]: 열린 슬라이드가 없다. addSlide() 뒤에 값을 만들거나 opts.slide를 넘긴다`);
+
+  const tf = _transform(id, opts);
+  if (MF.source_required && tf.type !== "unverified" && (!opts.src || !opts.sheet))
+    throw new Error(`claim[${id}]: src와 sheet가 필요하다. 근거가 없으면 transform: "unverified" + note를 쓴다`);
+  if (MF.source_ref_required_for.includes(tf.type) && !opts.ref)
+    throw new Error(`claim[${id}]: transform '${tf.type}'의 근거 셀 ref가 없다`);
+
+  let text, rounding = null;
+  if (opts.override) {
+    // override는 불일치가 나도 FAIL이 아니라 CHANGELOG에 사유와 함께 기록된다
+    if (opts.override.value == null || !opts.override.reason)
+      throw new Error(`claim[${id}]: override에는 value와 reason이 둘 다 필요하다 (계획서 2.8)`);
+    text = String(opts.override.value);
+  } else if (kind === "numeric") {
+    if (typeof value !== "number" || !Number.isFinite(value))
+      throw new Error(`claim[${id}]: numeric인데 값이 수가 아니다: ${value}`);
+    rounding = opts.rounding != null ? opts.rounding : _decimalsOf(value);
+    text = _fmt(value, rounding, !!opts.signed);
+  } else {
+    text = String(value);
+  }
+
+  const bad = N.negative_forbidden.find(ch => text.includes(ch));
+  if (bad) throw new Error(`claim[${id}]: 금지된 음수 표기 '${bad}' 포함: ${text}`);
+
+  // 같은 지표가 페이지마다 다른 값으로 찍히는 것을 생성 단계에서 막는다 (게이트 XREF)
+  const prev = _claims.find(c => c.shape_id === id);
+  if (prev && prev.display.text !== text)
+    throw new Error(`claim[${id}]: 같은 지표를 다른 값으로 등록했다 — p${prev.slide} "${prev.display.text}" vs p${slide} "${text}"`);
+
+  const entry = {
+    slide, shape_id: id, kind,
+    display: { text, unit: opts.unit || null, rounding },
+    source: {
+      file: opts.src || null,
+      file_hash: opts.src ? _hash(opts.src) : null,
+      sheet: opts.sheet || null,
+      ref: opts.ref || null,
+    },
+    transform: tf,
+  };
+  if (opts.override) entry.override = { value: String(opts.override.value), reason: opts.override.reason };
+
+  _claims.push(entry);
+  return text;
+}
+
+// 타임스탬프를 넣지 않는다. 같은 입력이면 같은 파일이어야 픽스처 회귀 비교가 된다.
+// 실행 정보는 run_metadata.json이 따로 담는다 (계획서 6.4)
+function writeManifest(file) {
+  const claims = manifest();
+  const out = { house_rule_version: R.version, claims };
+  fs.writeFileSync(file, JSON.stringify(out, null, 2) + "\n", "utf8");
+  return { file, count: claims.length, unhashed: claims.filter(c => c.source.file && !c.source.file_hash).length };
+}
+
 module.exports = {
   R, F, FH, C, W, H, MX, CW, FOOT_BASE,
   newPres, header, banner, banner2, sectionChip, panel, panel2, creamBox,
-  bullets, footer, darkCard, statCard, iconBadge, colChart, stacked100, waterfall, tableStyles
+  bullets, footer, darkCard, statCard, iconBadge, colChart, stacked100, waterfall, tableStyles,
+  claim, manifest, writeManifest, resetManifest, sourceRoot, currentSlide
 };

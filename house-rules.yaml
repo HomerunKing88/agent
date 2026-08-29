@@ -96,6 +96,26 @@ notation:
   negative_forbidden: ["△", "▲"]
   not_available: ["-", "적자*"]
   unit_label: "[단위: 억원]"  # 대괄호 표기. 괄호 표기 금지 (계획서 6.1)
+  # 숫자 표기. claim()의 표시 문자열과 audit.py의 토큰 파서가 같은 값을 봐야 한다. 추가 2026-08-29
+  positive: "+"              # 증감 열의 양수 부호 (음수는 negative)
+  thousands_sep: ","
+  decimal_sep: "."
+
+# ── manifest (계획서 2.4~2.8, 6.2) ───────────────────────────────────
+# transform 어휘는 닫아 둔다 (계획서 2.5). 키가 type, 값이 그 type의 필수 인자다.
+# template.js claim()이 이 목록으로 호출을 막고, audit.py가 같은 목록으로 재계산한다.
+# 여기 없는 계산은 unverified로 표시하고 근거를 사람이 한 줄 적는다.
+manifest:
+  kinds: [numeric, text]
+  source_required: true               # unverified 제외 전 항목은 src·sheet가 있어야 한다
+  source_ref_required_for: [identity] # identity의 근거 셀은 source.ref에 적는다 (계획서 6.2)
+  transforms:
+    identity:   []
+    sum:        [range]
+    ratio:      [numerator, denominator]
+    delta:      [from, to]              # 확정 2026-08-29
+    cagr:       [start, end, periods]
+    unverified: [note]                  # 확정 2026-08-29. 어휘 밖 값은 여섯 번째 type으로 둔다
 
 # ── 표 ──────────────────────────────────────────────────────────────
 table:
