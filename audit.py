@@ -39,6 +39,30 @@ def load_rules(path):
     return rules
 
 
+def style_rules(rules, manifest_path=None):
+    """Return the rules for a manifest's style, or the configured default.
+
+    A missing/unknown style is an error: silently falling back to another
+    style would produce a PASS against the wrong house standard.
+    """
+    style = None
+    if manifest_path is not None:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        style = payload.get("style")
+        if not style:
+            raise ValueError("manifest style is required")
+    else:
+        style = rules.get("default_style")
+        if not style:
+            raise ValueError("style is unknown: manifest missing and default_style is not configured")
+    styles = rules.get("styles", {})
+    if style not in styles:
+        raise ValueError(f"unknown style {style!r}; expected one of {sorted(styles)}")
+    effective = dict(rules)
+    effective.update(styles[style])
+    return effective
+
+
 def text_shapes(slide):
     return (shape for shape in slide.shapes if getattr(shape, "has_text_frame", False))
 
@@ -518,6 +542,7 @@ def check_shape_placement(shape, placement, rules, page, shape_id, issues):
 
 
 def audit(path, rules, manifest_path=None, source_root=None):
+    rules = style_rules(rules, manifest_path)
     prs = Presentation(str(path))
     checks = (check_fonts, check_notation, check_negative_red, check_red_runs_per_line, check_font_sizes,
               check_headers, check_footnotes,

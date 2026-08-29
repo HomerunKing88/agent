@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "style": "corporate-strategy-ppt",
+  "house_rule_version": "2026.08",
+  "template_version": "fixture-1",
+  "token_whitelist": [
+    {
+      "slide": 1,
+      "token": "1,000",
+      "reason": "기준 장표 공통 고정 토큰"
+    },
+    {
+      "slide": 1,
+      "token": "-100",
+      "reason": "기준 장표 공통 고정 토큰"
+    },
+    {
+      "slide": 1,
+      "token": "100",
+      "reason": "기준 장표 공통 고정 토큰"
+    },
+    {
+      "slide": 1,
+      "token": "2026",
+      "reason": "기준 장표 공통 고정 토큰"
+    },
+    {
+      "slide": 1,
+      "token": "2026.08",
+      "reason": "기준 장표 공통 고정 토큰"
+    },
+    {
+      "slide": 1,
+      "token": "08",
+      "reason": "기준 장표 공통 고정 토큰"
+    },
+    {
+      "slide": 1,
+      "token": "29",
+      "reason": "기준 장표 공통 고정 토큰"
+    }
+  ],
+  "claims": []
+}

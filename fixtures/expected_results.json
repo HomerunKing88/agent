@@ -13,7 +13,8 @@
       "name": "third_font",
       "rule": "forbidden.third_font",
       "stage": 3,
-      "static_expected": "FAIL"
+      "static_expected": "FAIL",
+      "manifest": "01_manifest.json"
     },
     {
       "id": "02",
@@ -22,7 +23,8 @@
       "name": "negative_triangle",
       "rule": "notation.negative_forbidden",
       "stage": 3,
-      "static_expected": "FAIL"
+      "static_expected": "FAIL",
+      "manifest": "02_manifest.json"
     },
     {
       "id": "03",
@@ -31,7 +33,8 @@
       "name": "table_header_left_align",
       "rule": "table.header_align",
       "stage": 3,
-      "static_expected": "FAIL"
+      "static_expected": "FAIL",
+      "manifest": "03_manifest.json"
     },
     {
       "id": "04",
@@ -40,7 +43,8 @@
       "name": "footnote_position",
       "rule": "zones.footnote_bottom_y",
       "stage": 3,
-      "static_expected": "FAIL"
+      "static_expected": "FAIL",
+      "manifest": "04_manifest.json"
     },
     {
       "id": "05",
@@ -49,7 +53,8 @@
       "name": "text_overflow",
       "rule": "qa.text_max_ymax_pt",
       "stage": 5,
-      "static_expected": "FAIL"
+      "static_expected": "FAIL",
+      "manifest": "05_manifest.json"
     },
     {
       "id": "06",
@@ -78,7 +83,8 @@
       "name": "title_top_right_not_clear",
       "rule": "zones.title_right_clear",
       "stage": 3,
-      "static_expected": "FAIL"
+      "static_expected": "FAIL",
+      "manifest": "08_manifest.json"
     },
     {
       "id": "09",
@@ -97,7 +103,8 @@
       "name": "table_row_too_short",
       "rule": "table.row_height_min",
       "stage": 3,
-      "static_expected": "FAIL"
+      "static_expected": "FAIL",
+      "manifest": "10_manifest.json"
     },
     {
       "id": "11",
@@ -106,7 +113,8 @@
       "name": "content_bottom_overflow",
       "rule": "zones.content_max_y",
       "stage": 3,
-      "static_expected": "FAIL"
+      "static_expected": "FAIL",
+      "manifest": "11_manifest.json"
     },
     {
       "id": "12",
@@ -115,7 +123,8 @@
       "name": "negative_red",
       "rule": "forbidden.negative_red",
       "stage": 3,
-      "static_expected": "FAIL"
+      "static_expected": "FAIL",
+      "manifest": "12_manifest.json"
     },
     {
       "id": "13",
@@ -124,7 +133,8 @@
       "name": "body_text_too_small",
       "rule": "sizes.body_min_pt",
       "stage": 3,
-      "static_expected": "FAIL"
+      "static_expected": "FAIL",
+      "manifest": "13_manifest.json"
     },
     {
       "id": "14",
@@ -143,7 +153,8 @@
       "name": "red_runs_per_line",
       "rule": "palette_usage.red_max_per_line",
       "stage": 3,
-      "static_expected": "FAIL"
+      "static_expected": "FAIL",
+      "manifest": "15_manifest.json"
     }
   ]
 }

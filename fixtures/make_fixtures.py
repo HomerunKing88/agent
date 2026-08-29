@@ -39,6 +39,23 @@ def generate(output: Path, defect_id: str | None = None) -> None:
 
 
 def make_claim_inputs(defect_id: str) -> None:
+    claim_ids = {"00", "06", "07", "09", "14"}
+    if defect_id not in claim_ids:
+        manifest = {
+            "schema_version": 1,
+            "style": "corporate-strategy-ppt",
+            "house_rule_version": "2026.08",
+            "template_version": "fixture-1",
+            "token_whitelist": [
+                {"slide": 1, "token": token, "reason": "기준 장표 공통 고정 토큰"}
+                for token in ("1,000", "-100", "100", "2026", "2026.08", "08", "29")
+            ],
+            "claims": [],
+        }
+        (HERE / f"{defect_id}_manifest.json").write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        return
     source_name = f"{defect_id}_source.xlsx"
     source_path = HERE / source_name
     workbook = Workbook()
@@ -107,8 +124,7 @@ def main() -> None:
     make_claim_inputs("00")
     for defect_id, expected in EXPECTED.items():
         generate(HERE / f"{defect_id}_{expected['name']}.pptx", defect_id)
-        if defect_id in {"06", "07", "09", "14"}:
-            make_claim_inputs(defect_id)
+        make_claim_inputs(defect_id)
 
     payload = {
         "schema_version": 1,
@@ -119,7 +135,7 @@ def main() -> None:
                 "file": f"{defect_id}_{expected['name']}.pptx",
                 "expected": "FAIL",
                 **expected,
-                **({"manifest": f"{defect_id}_manifest.json"} if defect_id in {"06", "07", "09", "14"} else {}),
+                "manifest": f"{defect_id}_manifest.json",
             }
             for defect_id, expected in EXPECTED.items()
         ],
