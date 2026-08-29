@@ -21,12 +21,13 @@
 
 ## 열린 항목
 
-- [ ] TO:PIPE FROM:BUILDER (881a945) QA_REPORT가 미검사 게이트(CALC·LINT)를 PASS로 찍는다.
-      BLOCKED/PASS/SKIP 세 상태 구분 → `BUILDER_TO_PIPE.md` 8절
-- [ ] TO:PIPE FROM:BUILDER (1d58de7) `schemas/issue`·`decision`·`metadata` 적용 여부 판단
-      → `BUILDER_TO_PIPE.md` 4-2
+- [x] TO:PIPE FROM:BUILDER (881a945) QA_REPORT가 미검사 게이트(CALC·LINT)를 PASS로 찍는다.
+      BLOCKED/PASS/SKIP 세 상태 구분 → `9c4c297`
+- [x] TO:PIPE FROM:BUILDER (1d58de7) `schemas/issue`·`decision`·`metadata` 적용 여부 판단
+      → `62f1855`(적용 결정)·`9c4c297`(문서 갱신)
 - [ ] TO:BUILDER FROM:CODEX (e5eb0c9) CALC 배선이 살아나 `e2e_check.py`의
-      `GATES_NOT_WIRED["CALC"]`가 낡았다. 항목을 제거하고 회귀 기대값을 갱신해 달라
+      `GATES_NOT_WIRED["CALC"]`가 낡았다. 항목을 제거하고 회귀 기대값을 갱신해 달라. 게이트가
+      SKIP 3상태가 되면 `{"LINT": ...}`만 남기면 된다 (AGENTS.md 2차 전달 절) → `9c4c297` 배경
 - [ ] TO:USER (계획서 9절 5단계) 집 Windows PC에서 `pip install -r requirements.txt` 후
       `python render_check.py fixtures/05_text_overflow.pptx`가 FAIL이면 완료
 - [ ] TO:USER (계획서 9절 8단계) 실제 잡 하나를 끝까지 돌려 쓸 만한지 판단

@@ -99,6 +99,24 @@ e2e_check.py에 다음 두 경로를 고정해 달라. 로직과 재현 방법�
 
 E2E 26항목 PASS.
 
+### PIPE → BUILDER 전달 (2026-08-29 2차, 게이트 SKIP 3상태 — `9c4c297`)
+게이트를 BLOCKED/PASS/SKIP 세 상태로 구분했다 (`orchestrator.py` cmd_gates·cmd_report).
+- `gates.json`에 `status`(게이트별)와 `skipped` 목록이 생긴다. `blocked`는 그대로다.
+- 도달 검사 규칙이 없는 게이트만 정적으로 **SKIP**으로 적힌다 (사유는
+  `orchestrator.SKIP_REASONS`). 지금은 LINT 하나다 — CALC는 CODEX e5eb0c9가
+  `calc.source_manifest`로 실제 배선했다. QA_REPORT에 SKIP 줄과 Render 상태 줄이
+  추가됐다.
+- 맥에서 `render_status == "SKIP"`이면 LAYOUT도 SKIP으로 적힌다 (진짜 넘침 검사가
+  안 돌았으므로 PASS가 아니다). 집 Windows에서 render PASS가 나오면 LAYOUT은 PASS다.
+- 게이트 정의는 그대로다. 계획서 8절 표는 바꾸지 않았다.
+
+`e2e_check.py` [9]의 `GATES_NOT_WIRED`도 이에 맞게 LINT만 남기면 된다.
+CODEX가 이미 HANDOFF에 "CALC 배선이 살아나 목록이 낡았다"고 남겼다 (1de0827).
+CALC 항목을 지워 목록이 `{"LINT": ...}`만 남게 하면 그 항목이 닫힌다.
+마찬가지로 세 상태가 들어왔으니 목록 자체를 지울지는 BUILDER 판단이다
+(BUILDER_TO_PIPE.md 8절 마지막 줄). PIPE는 BUILDER 담당이라 이 파일을 고치지 않는다
+(작업 순서 4번 원칙).
+
 ## 현재 상태 (2026-08-29 갱신)
 - **1단계 완료.** `house-rules.yaml`이 규칙 단일 원천. 하드코딩 잔존 0건.
 - **2단계 완료.** 픽스처가 8개에서 **13개**로 늘었다. golden 포함 14개 파일.
@@ -480,9 +498,11 @@ audit 이슈 형식(`rule`/`slide`/`shape`/`evidence`)은 `schemas/issue.py`의
 - `run_metadata.json`에 6.4 필드가 찼다.
 - 픽스처 EXPECTED MATCH. 결함 14(override 기록)도 늘었다.
 
-아직 안 물린 것: `schemas/issue.py` `decision.py` `metadata.py`.
-`e2e_check.py`가 직접 부르고 있어 회귀는 잡히지만, 파이프라인 안에서는 아직 안 쓴다.
-적용 여부는 PIPE 판단이다 (`BUILDER_TO_PIPE.md` 4-2).
+`schemas/issue.py` `decision.py` `metadata.py`는 **PIPE가 파이프라인에 연결했다**
+(62f1855, BUILDER_TO_PIPE.md 4-2의 적용 판단). `cmd_review`가 issue_register를,
+`cmd_gates`가 user_decision을, `cmd_build`가 run_metadata를 `schema_check()`로 검증한다.
+issue·decision 위반은 `pipeline.schema_violation` 이슈로 게이트가 막고, metadata 위반은
+화면 출력만 한다 (format은 통과하므로 차단까진 안 간다).
 
 ## Codex 조치 요청 — 역할별 최소 pt 표 (2026-08-29, BUILDER) **오탐 22건**
 
