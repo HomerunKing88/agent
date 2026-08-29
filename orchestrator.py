@@ -38,10 +38,13 @@ import preview
 # ── 계획서 5절 잡 폴더 구조 ─────────────────────────────────────────
 DIRS = ("source", "builder", "review", "revision", "final")
 
-# cmd_build가 잡 폴더로 복사하는 리포 생성기 파일 (헬퍼·계약). deck_v1.js는 잡이
-# 채운 것이 정본이라 목록에 없다. template.js가 계약 deckkit.js를 require하므로
-# 둘을 함께 복사한다 — 스타일별 생성기(2.17)가 더 늘면 이 목록이 늘어난다.
-BUILD_SHARED = ("template.js", "deckkit.js")
+# 스타일별 생성기 (2.17). deck_v1.js가 require하는 생성기로 스타일을 판정한다.
+# 추측하지 않는다 — 정확히 하나여야 하며, 모르면 멈춘다 (audit.py bfd482b와 같은 이유).
+GENERATOR_STYLE = {
+    "template.js": "corporate-strategy-ppt",
+    "template_shin.js": "shin-ppt1",
+}
+DECKKIT_NAME = "deckkit.js"
 
 
 def job_paths(root: Path, version: int = 1) -> dict[str, Path]:
@@ -171,10 +174,18 @@ def cmd_build(root: Path, version: int = 1) -> None:
     if not p["deck_js"].exists():
         print(f"누락  : {p['deck_js']}  (잡 폴더로 deck.js를 복사해 수치를 채운다)", file=sys.stderr)
         sys.exit(1)
-    # deck.js는 생성 헬퍼를 ./template.js로 참조하고(계획서 5절) 그 안에서
-    # 계약 ./deckkit.js를 require한다. 잡 폴더가 리포 밖이므로 잡으로 복사해
-    # 운용하되, 복제된 헬퍼가 리포 node_modules(pptxgenjs, js-yaml)를 보게 한다.
-    for name in BUILD_SHARED:
+    # 어느 스타일 생성기인지 deck_v1.js의 require로 판정하고, 그 생성기와 계약
+    # deckkit.js를 잡으로 복사한다 (2.17). 잡이 리포 밖이므로 복사해 운용하되,
+    # 복제된 헬퍼가 리포 node_modules(pptxgenjs, js-yaml)를 보게 한다.
+    deck_src = p["deck_js"].read_text(encoding="utf-8")
+    required = set(re.findall(r'require\(["\']\./([\w./-]+\.js)["\']\)', deck_src))
+    generators = sorted(set(GENERATOR_STYLE) & required)
+    if len(generators) != 1:
+        print(f"누락  : {p['deck_js']}가 스타일 생성기를 정확히 하나 require하지 않는다 "
+              f"({sorted(required)}). 스타일을 추측하지 않는다.", file=sys.stderr)
+        sys.exit(1)
+    style = GENERATOR_STYLE[generators[0]]
+    for name in (*generators, DECKKIT_NAME):
         src = repo / name
         if not src.exists():
             print(f"누락  : {src}  (생성기 파일)", file=sys.stderr)
@@ -187,8 +198,10 @@ def cmd_build(root: Path, version: int = 1) -> None:
     p["builder"].mkdir(parents=True, exist_ok=True)
     subprocess.run(["node", str(p["deck_js"]), str(p["pptx"])],
                    cwd=p["builder"], env=env, check=True)
-    # 6.4 실행 정보. 소스 해시는 이 잡의 입력이므로 매 build에 다시 계산한다
+    # 6.4 실행 정보. 소스 해시는 이 잡의 입력이므로 매 build에 다시 계산한다.
+    # style은 6.4 재현성과 같은 성격이다 — '무엇을 기준으로 만든 잡인가' (2.17).
     meta = dict(repo_versions())
+    meta["style"] = style
     meta["source_hashes"] = source_hashes(root)
     meta["stage"] = "BUILT"
     meta["deck_version"] = version
