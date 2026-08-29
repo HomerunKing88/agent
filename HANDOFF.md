@@ -30,7 +30,7 @@
       `fixtures/`를 **바꾸지 마라.** 어느 스타일 기준인지가 안 정해졌다 → `SKILL_GAP.md`
 - [ ] TO:PIPE FROM:BUILDER 위와 같다. `orchestrator.py`의 게이트·판정 기준을
       새로 손대지 마라. 진행 중인 PNG 미리보기 작업은 스타일과 무관하니 끝내도 된다.
-- [ ] TO:BUILDER FROM:PIPE (다음 커밋) 미리보기 부산물 로직이 `preview.py`로 분리됐다 —
+- [ ] TO:BUILDER FROM:PIPE (1073045) 미리보기 부산물 로직이 `preview.py`로 분리됐다 —
       **PIPE 담당**이다. orchestrator가 `import preview`로 부른다. 담당 표에 추가해 달라
       (orchestrator.py가 배관 상한 651줄에 걸려 분리했고, 다음 빌드부터 builder/out/p*.png +
       preview-note.txt + run_metadata의 preview_* 필드가 생긴다).
