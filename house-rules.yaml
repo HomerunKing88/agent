@@ -10,6 +10,25 @@
 
 version: "2026.08"
 
+# ── 검사 없는 규칙 (확정 2026-08-29) ──────────────────────────────────
+# 아래 키는 이 파일에 값이 있지만 **아무 검사기도 읽지 않는다.**
+# 규칙은 있는데 강제가 없는 상태를 문서에 안 적으면 "검사되고 있다"고 착각하게 된다.
+# 여기 없는데 코드 참조가 0인 키가 생기면 e2e_check.py가 알린다.
+# 검사에 넣기로 하면 이 목록에서 뺀다.
+unenforced:
+  - key: palette_usage.brand_swatch
+    why: 브랜드 색 정의다. 검사 대상이 아니라 참고값이다
+  - key: palette_usage.red_max_per_line
+    why: 검사에 넣기로 했다. 한 문단의 빨강 런 개수 세기라 결정적이다. audit.py 반영 대기
+  - key: palette_usage.red_scope
+    why: 검사 가능하다. 결론 줄(⇒ 접두) 판별이 필요해 red_max_per_line 다음 순서다
+  - key: charts.grouped_bar.series_max
+    why: template.js에 groupedBar 헬퍼가 아직 없다. 헬퍼를 만들 때 생성기 가드로 넣는다
+  - key: limits.parallel_items_max
+    why: 무엇을 "병렬 항목"으로 셀지 정의가 없다. 정의부터 정해야 검사가 된다
+  - key: limits.diagrams_per_page_max
+    why: 무엇을 "다이어그램"으로 셀지 정의가 없다. 위와 같은 이유다
+
 # ── 단위·오차 (계획서 2.16-4) ─────────────────────────────────────────
 # 생성기는 inch, pptx XML은 EMU, PowerPoint COM은 pt로 말한다.
 # 환산 상수와 허용 오차를 세 곳이 각자 들고 있으면 같은 장표를 두고 판정이 갈린다.

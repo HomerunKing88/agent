@@ -122,6 +122,44 @@ EDITOR_MAJOR = {"issues": [{
     "finding": "e2e 회귀용 지적", "evidence": "p1", "proposal": "사용자가 정한다"}]}
 
 
+CODE_FILES = ("template.js", "deck.js", "audit.py", "render_check.py",
+              "orchestrator.py", "slack_bot.py")
+
+
+def unenforced_drift(rules: dict) -> tuple[list[str], list[str]]:
+    """house-rules의 규칙 중 아무도 안 읽는 것과, 목록이 낡은 것을 돌려준다.
+
+    규칙을 YAML에 적어 두고 검사기를 안 붙이면 "검사되고 있다"고 착각하게 된다.
+    실제로 그런 키가 여섯 개 있었다 (2026-08-29 점검).
+    의도적으로 강제하지 않는 것은 `unenforced` 절에 사유와 함께 적는다.
+
+    양쪽을 다 본다. 한쪽만 보면 목록이 낡아도 아무도 모른다.
+      dead   코드 참조가 0인데 unenforced에 없다  → 규칙이 조용히 죽었다
+      stale  unenforced에 있는데 코드가 읽고 있다  → 목록을 지워야 한다
+    """
+    code = "\n".join((REPO / name).read_text(encoding="utf-8") for name in CODE_FILES)
+    code += "\n".join(path.read_text(encoding="utf-8") for path in (REPO / "schemas").glob("*.py"))
+    listed = {item["key"] for item in rules.get("unenforced", [])}
+
+    def walk(node, path=()):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                yield from walk(value, path + (key,))
+        else:
+            yield path
+
+    dead, enforced = [], []
+    for path in walk({k: v for k, v in rules.items() if k != "unenforced"}):
+        dotted, leaf = ".".join(path), path[-1]
+        parent = path[-2] if len(path) > 1 else None
+        read_by_code = leaf in code or (parent is not None and parent in code)
+        if not read_by_code and dotted not in listed:
+            dead.append(dotted)
+        if read_by_code and dotted in listed:
+            enforced.append(dotted)
+    return sorted(set(dead)), sorted(set(enforced))
+
+
 def run(job: Path, rules: dict) -> None:
     print("\n[1] 정상 잡 — 전 구간이 돌고 게이트가 열린다")
     result = orch(job, "build")
@@ -219,6 +257,17 @@ def run(job: Path, rules: dict) -> None:
     orch(job, "report")
     check("QA_REPORT.md", (job / "final" / "QA_REPORT.md").exists())
     check("CHANGELOG.md", (job / "final" / "CHANGELOG.md").exists())
+
+    print("\n[7] 규칙이 강제되고 있나 — house-rules의 죽은 키를 센다")
+    dead, stale = unenforced_drift(rules)
+    check("검사 없는 새 규칙 없음", not dead, ", ".join(dead))
+    check("unenforced 목록이 최신", not stale, ", ".join(stale))
+
+    print("\n[8] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
+    plumbing = len((REPO / "orchestrator.py").read_text(encoding="utf-8").splitlines())
+    checker = len((REPO / "audit.py").read_text(encoding="utf-8").splitlines())
+    check(f"orchestrator({plumbing}) <= audit({checker})", plumbing <= checker,
+          "배관이 검사기보다 크다. 멈추고 프레임워크 도입을 사용자와 상의한다")
 
 
 def main() -> int:

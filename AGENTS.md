@@ -504,6 +504,34 @@ limits.parallel_items_max / diagrams_per_page_max
 합친 설계면 계획서 8절 게이트 표를 고쳐야 하고, 나눌 거면 rule 이름을 나눠야 한다.
 `LINT`는 `lint_deck.js`가 보류 항목이라 정상이다.
 
+## house-rules.yaml 변경 알림 (2026-08-29 8차, BUILDER) — `unenforced` 절 신설
+
+죽은 규칙 6건을 어떻게 할지 정했다. **하나만 검사에 넣고 나머지는 "검사 없음"을 명시한다.**
+YAML에 값만 적어 두고 검사기를 안 붙이면 "검사되고 있다"고 착각하게 된다.
+그 상태를 문서에 드러내는 것이 `unenforced` 절이다. 키와 사유를 같이 적는다.
+
+```yaml
+unenforced:
+  - key: palette_usage.brand_swatch     # 브랜드 색 정의다. 검사 대상이 아니라 참고값
+  - key: palette_usage.red_max_per_line # 검사에 넣기로 했다. audit.py 반영 대기 ← 요청
+  - key: palette_usage.red_scope        # 가능하다. 결론 줄(⇒) 판별이 필요해 그다음 순서
+  - key: charts.grouped_bar.series_max  # groupedBar 헬퍼가 아직 없다. 생성기 가드로 간다
+  - key: limits.parallel_items_max      # "병렬 항목"을 무엇으로 셀지 정의가 없다
+  - key: limits.diagrams_per_page_max   # "다이어그램" 정의가 없다
+```
+
+**조치 요청 — `palette_usage.red_max_per_line: 1`을 검사에 넣어 달라.**
+한 문단 안의 빨강 런 개수를 세는 것이라 결정적이고 오탐 여지가 적다.
+빨강은 실제로 반복 지적되는 항목이고 `forbidden.negative_red`가 이미 색 판정을 하고 있어
+같은 자리에 붙는다. 넣고 나면 `unenforced` 목록에서 그 줄을 지워 달라.
+
+나머지 넷은 지금 검사로 만들면 오탐이 나거나(브랜드 스와치), 대상 헬퍼가 없거나
+(`series_max`), 무엇을 셀지 정의가 없다(`limits` 둘). 판단이 필요하면 사용자에게 올린다.
+
+`e2e_check.py` [7]이 이 목록을 **양방향으로** 감시한다.
+코드 참조가 0인데 목록에 없으면 FAIL(규칙이 조용히 죽었다),
+목록에 있는데 코드가 읽고 있으면 FAIL(목록이 낡았다). 검사를 붙이면 목록에서 지워야 통과한다.
+
 ## 하지 말 것 (계획서 11절)
 - 오케스트레이션 프레임워크를 먼저 깔고 시작하기
 - 문장 단위 사실성 스캔
