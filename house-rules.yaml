@@ -434,10 +434,29 @@ styles:
       legend_pt: 10.5
       value_pt: 10
       foot_pt: 9
+    # audit.py가 도형 이름으로 역할별 하한을 판정하기 위한 shin-ppt1 매핑
+    role_min_pt:
+      "header/text": title_pt
+      "summary/text": summary_pt
+      "msgBox/text": card_body_pt
+      "sub/text": sub_desc_pt
+      "bullets/text": bullet_pt
+      "caption/text": legend_pt
+      "bars/text": value_pt
+      "barsGroup/text": value_pt
+      "footer/text": foot_pt
+      "openTable/table": table_min_pt
+      "chartBar/chart": table_min_pt
+      "chartLine/chart": table_min_pt
+      "chartStack100/chart": table_min_pt
+      "chartWaterfall/chart": table_min_pt
+      _claim_shape: value_pt
+      _default: card_body_pt
     # 세로 좌표와 리듬. 원본 스킬은 코드에 두었다 (계획서 2.14로 옮김).
     # 여백을 눈대중으로 맞추지 않으려고 값으로 고정한 것들이다.
     zones:
       footnote_bottom_y: 8.14   # 각주 바닥 기준선
+      content_max_y: 8.00
       band_top: 2.00            # 콘텐츠 시작 (요약박스 아래 첫 소제목)
       sub_gap: 0.44             # 소제목 y → 그 아래 콘텐츠 y
       block_gap: 0.34           # 블록 하단 → 다음 소제목 y (허용 0.30~0.46)

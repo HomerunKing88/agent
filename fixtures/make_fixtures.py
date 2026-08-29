@@ -11,6 +11,7 @@ from openpyxl import Workbook
 
 HERE = Path(__file__).resolve().parent
 GENERATOR = HERE / "golden_deck.js"
+SHIN_GENERATOR = HERE / "shin_deck.js"
 
 EXPECTED = {
     "01": {"name": "third_font", "rule": "forbidden.third_font", "stage": 3, "static_expected": "FAIL"},
@@ -36,6 +37,13 @@ def generate(output: Path, defect_id: str | None = None) -> None:
     if defect_id:
         command.append(defect_id)
     subprocess.run(command, cwd=HERE.parent, check=True)
+
+
+def generate_shin() -> None:
+    subprocess.run(
+        ["node", str(SHIN_GENERATOR), str(HERE / "shin_golden.pptx"), str(HERE / "shin_golden_manifest.json")],
+        cwd=HERE.parent, check=True,
+    )
 
 
 def make_claim_inputs(defect_id: str) -> None:
@@ -122,6 +130,7 @@ def make_claim_inputs(defect_id: str) -> None:
 def main() -> None:
     generate(HERE / "00_golden.pptx")
     make_claim_inputs("00")
+    generate_shin()
     for defect_id, expected in EXPECTED.items():
         generate(HERE / f"{defect_id}_{expected['name']}.pptx", defect_id)
         make_claim_inputs(defect_id)
@@ -138,7 +147,13 @@ def main() -> None:
                 "manifest": f"{defect_id}_manifest.json",
             }
             for defect_id, expected in EXPECTED.items()
-        ],
+        ] + [{
+            "id": "shin-golden",
+            "file": "shin_golden.pptx",
+            "expected": "PASS",
+            "static_expected": "PASS",
+            "manifest": "shin_golden_manifest.json",
+        }],
     }
     (HERE / "expected_results.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",

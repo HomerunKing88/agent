@@ -56,8 +56,16 @@ def style_rules(rules, manifest_path=None):
     styles = rules.get("styles", {})
     if style not in styles:
         raise ValueError(f"unknown style {style!r}; expected one of {sorted(styles)}")
-    effective = dict(rules)
-    effective.update(styles[style])
+    def merge(base, override):
+        merged = dict(base)
+        for key, value in override.items():
+            if isinstance(value, dict) and isinstance(merged.get(key), dict):
+                merged[key] = merge(merged[key], value)
+            else:
+                merged[key] = value
+        return merged
+
+    effective = merge(rules, styles[style])
     return effective
 
 

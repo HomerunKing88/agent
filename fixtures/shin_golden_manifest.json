@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "house_rule_version": "2026.08",
+  "style": "shin-ppt1",
+  "template_version": "2026.08.29",
+  "token_whitelist": [
+    {
+      "slide": 1,
+      "token": "FY26E",
+      "reason": "FY26E 연도 표기"
+    }
+  ],
+  "claims": []
+}
