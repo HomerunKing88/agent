@@ -7,9 +7,9 @@
 
 ## 담당 파일 (에이전트 셋. 계획서 3절)
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/`
-- BUILDER(Claude Code) 담당: `template.js`, `deck.js` — 건드리지 않는다.
+- BUILDER(Claude Code) 담당: `template.js`, `deck.js`, `schemas/` — 건드리지 않는다.
 - PIPE 담당: `orchestrator.py`, `slack_bot.py` — 건드리지 않는다. 2026-08-29 신설.
-- 공동: `house-rules.yaml` (변경 시 나머지 둘에게 알림. 한 번에 한 쪽만 고친다)
+- 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림. 한 번에 한 쪽만 고친다)
 - 브랜치는 `codex/*`를 쓴다. BUILDER는 `claude/*`, PIPE는 `pipe/*`.
 
 ## 체크아웃을 셋이 공유한다 (계획서 3.1)
@@ -257,6 +257,51 @@ status: PASS | 이슈 0건
 ```
 원천과 다른데 FAIL이 아니라 changes에 기록됐다. 계획서 2.8 그대로다.
 이걸로 4단계 완료 조건 "override 경로가 동작한다"가 채워졌다.
+
+## schemas/ 신설 + requirements.txt (2026-08-29, BUILDER)
+
+4단계의 마지막 잔여 항목이었다. 담당이 비어 있어 BUILDER가 가져갔다.
+manifest 형식을 내가 정했으니 판정도 같은 쪽에 두는 게 맞다고 봤다.
+담당 표 세 곳(계획서 3절, CLAUDE.md, AGENTS.md)에 `schemas/`를 BUILDER로 적었다.
+다르게 가야 하면 말해 달라.
+
+`schemas/manifest.py` — manifest.json **형식** 판정처
+
+- 구조는 pydantic 모델, 어휘는 house-rules.yaml에서 읽는다.
+  `transforms` `kinds` `override_fields` `numeric_tokens.job_whitelist_fields`
+  `manifest.shape_name` `manifest.schema_version`을 그대로 본다.
+  어휘를 모델에 박으면 규칙이 두 벌이 된다.
+- `extra="forbid"`다. 모르는 키가 들어오면 막는다.
+  오타 난 필드가 조용히 무시되면 검사기가 기본값을 읽고 통과시킨다 (2.16-7).
+- 예외를 던지지 않는다. `validate(payload, rules) -> list[str]`이고 빈 목록이면 통과다.
+  게이트는 결과 파일로 판정해야 하므로(2.16-5) 호출부가 ERROR로 묶을 수 있게 했다.
+- 형식만 본다. 원천 재계산과 XML 좌표 대조는 audit.py 몫이다. 거기는 안 건드렸다.
+
+```
+python schemas/manifest.py <manifest.json>
+from schemas.manifest import validate
+```
+
+**검증 결과.** 잡 manifest와 `fixtures/00·06·09_manifest.json` PASS.
+`fixtures/07_manifest.json`은 FAIL인데 그게 정답이다 —
+결함 07(페이지 간 지표 불일치)은 manifest 자체가 앞뒤가 안 맞으므로
+**원천 파일도 pptx도 없이 manifest만으로 걸린다.**
+
+주입 10건 전부 잡힌다: placements 비움 / 어휘 밖 transform / transform 인자 누락 /
+override author 누락 / override.at 타임존 없음 / 모르는 키 / schema_version 불일치 /
+shape_id 중복 / 도형 이름 규약 위반 / 화이트리스트 사유 없음.
+
+**채택 요청 (강제 아님).** audit.py:331~362, 429, 472와 orchestrator.py가
+manifest 형식을 각자 손으로 본다. 지금은 셋이 우연히 같지만 한쪽만 고쳐지면 갈라진다.
+`from schemas.manifest import validate`로 바꾸면 형식 판정이 한 벌이 된다.
+내용 판정은 그대로 audit.py에 남는다. 급하지 않다.
+
+`requirements.txt` 신설 — 공동 파일이다.
+파이썬 의존성이 어디에도 적혀 있지 않았다. 집 Windows PC에서 5단계를 돌리려면 필요하다.
+맥에서 확인한 셋은 고정했고(`PyYAML==6.0.3` `python-pptx==1.0.2` `openpyxl==3.1.5`),
+`pydantic==2.13.5`는 이번에 설치했다. `slack-bolt`와 `pywin32`는 미설치라 하한만 뒀다.
+집 PC에서 확인한 뒤 같은 방식으로 고정하면 된다.
+`pywin32`는 `sys_platform == "win32"` 마커를 달아 맥에서 설치되지 않게 했다.
 
 ## 하지 말 것 (계획서 11절)
 - 오케스트레이션 프레임워크를 먼저 깔고 시작하기

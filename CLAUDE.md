@@ -9,10 +9,10 @@
 - `template.js`와 `audit.py`가 같은 값을 각자 들고 있으면 생성기와 검사기가 갈라진다.
 
 ## 담당 파일 (에이전트 셋. 계획서 3절)
-- 이 세션은 **BUILDER**다. 담당: `template.js`, `deck.js`
+- 이 세션은 **BUILDER**다. 담당: `template.js`, `deck.js`, `schemas/`
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
 - PIPE 담당: `orchestrator.py`, `slack_bot.py` — 건드리지 않는다. 2026-08-29에 넘겼다.
-- 공동: `house-rules.yaml` (변경 시 나머지 둘에게 알림)
+- 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림)
 - 브랜치는 `claude/*`를 쓴다. Codex는 `codex/*`, PIPE는 `pipe/*`.
   Codex 쪽 세션 규칙은 `AGENTS.md`, PIPE 쪽은 계획서 3.2절에 있다.
 - `template.js` 원본은 이 리포다. 스킬 폴더(`~/.claude/skills/.../corporate-strategy-ppt/`)는 배포본이므로 거기서 고치지 않는다.

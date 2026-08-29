@@ -1,0 +1,23 @@
+# 파이썬 의존성 (계획서 4절 실행 환경)
+#
+# 집 Windows PC 셋업용이다. render_check.py는 pywin32 + PowerPoint가 있어야 돌고,
+# 그 둘이 없으면 SKIP을 낸다. 폰트가 없는 환경의 렌더 결과는 신뢰하지 않는다 (11절).
+#
+#   pip install -r requirements.txt
+#
+# 맥에서 검증한 세 개는 실제 쓰는 버전으로 고정했다.
+# 나머지 셋은 집 PC에서 확인한 뒤 같은 방식으로 고정한다.
+
+# audit.py — 정적 검사
+PyYAML==6.0.3
+python-pptx==1.0.2
+openpyxl==3.1.5
+
+# schemas/ — manifest 형식 판정 (계획서 4단계)
+pydantic==2.13.5
+
+# slack_bot.py — 6단계. Socket Mode
+slack-bolt>=1.18
+
+# render_check.py — 5단계. Windows 전용. COM으로 PowerPoint를 연다
+pywin32>=306; sys_platform == "win32"

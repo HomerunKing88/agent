@@ -224,10 +224,10 @@ Codex(audit.py)와 Claude(template.js)가 병렬로 만들면 서로 다른 연�
 에이전트 셋이 같은 파일을 동시에 고치면 충돌한다. 담당 파일을 나눈다.
 
 ```
-BUILDER (Claude Code)  template.js, deck.js
+BUILDER (Claude Code)  template.js, deck.js, schemas/
 Codex                  audit.py, render_check.py, fixtures/
 PIPE                   orchestrator.py, slack_bot.py
-공동                    house-rules.yaml (변경 시 나머지 둘에게 알림)
+공동                    house-rules.yaml, requirements.txt (변경 시 나머지 둘에게 알림)
 ```
 
 브랜치 접두사로 누구의 작업인지 구분한다. BUILDER `claude/*`, Codex `codex/*`, PIPE `pipe/*`.
@@ -666,6 +666,15 @@ Codex 담당. 2단계 픽스처를 전부 통과할 때까지 만든다.
 audit.py에 3자 대조와 토큰 검출을 추가한다.
 
 완료 조건: 결함 06, 07이 3자 대조로 잡힌다. override 경로가 동작한다.
+
+완료 2026-08-29. override는 잡 하나로 확인했다 — 원천 `0.0`과 장표 `9.9`가 다른데
+FAIL이 아니라 `changes`에 사유·작성자·시각과 함께 기록됐다 (2.8).
+
+`schemas/manifest.py`는 형식 판정만 한다. 원천 재계산과 XML 좌표 대조는 audit.py 몫이다.
+구조는 pydantic 모델로, 어휘(transform·kind·override 필드·화이트리스트 필드)는
+house-rules.yaml에서 읽는다. 어휘를 모델에 박으면 규칙이 두 벌이 된다 (2.14).
+모르는 키는 막는다 — 오타 난 필드가 조용히 무시되면 검사기가 기본값을 읽고 통과시킨다.
+audit.py와 orchestrator.py가 각자 손으로 하던 형식 검사를 여기로 모으면 검증이 한 벌이 된다.
 
 ### 5단계 render_check.py
 
