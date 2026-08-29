@@ -294,13 +294,18 @@ function bullets(s, items, x, y, w, fs = TS.bullet, step = 0.40) {
 }
 
 // 단일 계열 세로 막대. 강조 항목만 accent, 나머지 rule
-function bars(s, px, pw, base, maxH, vmax, labels, vals, hi) {
+// valClaims: vals와 같은 길이의 claim id 배열. 주면 막대 위 수치를 manifest 문자열로 그린다.
+// 막대 높이(v)와 찍히는 문자열이 갈라지면 그림과 숫자가 다른 말을 한다 (계획서 2.4).
+function bars(s, px, pw, base, maxH, vmax, labels, vals, hi, valClaims) {
   const x0 = px + 0.18, slot = (pw - 0.36) / vals.length, bw = Math.min(0.44, slot - 0.18);
   vals.forEach((v, i) => {
     const cx = x0 + i * slot + (slot - bw) / 2, on = i === hi;
     const h = v / vmax * maxH;
     s.addShape("rect", { objectName: "bars/shape", x: cx, y: base - h, w: bw, h, fill: { color: on ? C.accent : C.rule } });
-    s.addText(String(v), { objectName: "bars/text", x: cx - 0.22, y: base - h - 0.24, w: bw + 0.44, h: 0.22, fontFace: F, fontSize: TS.value, bold: on, color: on ? C.accent : C.body, align: "center", margin: 0 });
+    const vOpts = { x: cx - 0.22, y: base - h - 0.24, w: bw + 0.44, h: 0.22, fontFace: F, fontSize: TS.value, bold: on, color: on ? C.accent : C.body, align: "center", margin: 0 };
+    const vClaim = valClaims && valClaims[i];
+    if (vClaim) claimText(s, vClaim, vOpts);
+    else s.addText(String(v), { objectName: "bars/text", ...vOpts });
     s.addText(labels[i], { objectName: "bars/text", x: x0 + i * slot - 0.06, y: base + 0.06, w: slot + 0.12, h: 0.34, fontFace: F, fontSize: TS.axis, color: on ? C.ink : C.mute, align: "center", margin: 0, valign: "top", lineSpacingMultiple: 1.0 });
   });
   ruleThin(s, base, px, pw);
@@ -331,7 +336,12 @@ function barsGroup(s, x, w, base, maxH, vmax, labels, series, opts = {}) {
       const v = sr.vals[i], bh = Math.max(0, v) / vmax * maxH;
       s.addShape("rect", { objectName: "barsGroup/shape", x: gx + si * bw, y: base - bh, w: bw - 0.03, h: bh, fill: { color: C.series[si] } });
       if (opts.values !== false) {
-        s.addText(String(v), { objectName: "barsGroup/text", x: gx + si * bw - 0.20, y: base - bh - 0.22, w: bw + 0.37, h: 0.20, fontFace: F, fontSize: TS.value, color: C.mute, align: "center", margin: 0 });
+        // opts.valClaims[si][i] 가 있으면 manifest 문자열로 찍는다.
+        // 막대 높이와 숫자가 갈라지면 그림과 값이 다른 말을 한다 (계획서 2.4)
+        const vOpts = { x: gx + si * bw - 0.20, y: base - bh - 0.22, w: bw + 0.37, h: 0.20, fontFace: F, fontSize: TS.value, color: C.mute, align: "center", margin: 0 };
+        const vClaim = opts.valClaims && opts.valClaims[si] && opts.valClaims[si][i];
+        if (vClaim) claimText(s, vClaim, vOpts);
+        else s.addText(String(v), { objectName: "barsGroup/text", ...vOpts });
       }
     });
     s.addText(lb, { objectName: "barsGroup/text", x: x + i * slot, y: base + 0.06, w: slot, h: 0.30, fontFace: F, fontSize: TS.axis, color: C.ink, align: "center", margin: 0, valign: "top" });
@@ -703,8 +713,11 @@ function lineTrend(s, x, y, w, h, labels, series, opts = {}) {
     sr.vals.forEach((v, i) => {
       s.addShape("ellipse", { objectName: "lineTrend/shape", x: xOf(i) - 0.065, y: yOf(v) - 0.065, w: 0.13, h: 0.13, fill: { color: col } });
       if (opts.values !== false && (opts.values === true || si === 0 || m === 1)) {
-        s.addText(fmtNum(v, opts.digits), { objectName: "lineTrend/text", x: xOf(i) - 0.48, y: yOf(v) - 0.34, w: 0.96, h: 0.20,
-          fontFace: F, fontSize: TS.value, color: C.body, align: "center", margin: 0 });
+        const vOpts = { x: xOf(i) - 0.48, y: yOf(v) - 0.34, w: 0.96, h: 0.20,
+          fontFace: F, fontSize: TS.value, color: C.body, align: "center", margin: 0 };
+        const vClaim = opts.valClaims && opts.valClaims[si] && opts.valClaims[si][i];
+        if (vClaim) claimText(s, vClaim, vOpts);
+        else s.addText(fmtNum(v, opts.digits), { objectName: "lineTrend/text", ...vOpts });
       }
     });
   });
@@ -806,8 +819,11 @@ function funnel(s, x, y, w, stages, opts = {}) {
     box(s, { x: bx, y: by, w: bw, h: rh, fill: { color: col } });
     s.addText(st.label, { objectName: "funnel/text", x: bx, y: by, w: bw, h: rh, fontFace: F, fontSize: TS.cardBody, bold: true,
       color: textOn(col), align: "center", valign: "middle", margin: 0 });
-    s.addText(fmtNum(st.value) + (opts.unit || ""), { objectName: "funnel/text", x: x + zone + 0.16, y: by, w: 1.16, h: rh,
-      fontFace: F, fontSize: TS.cardBody, bold: true, color: C.ink, align: "right", valign: "middle", margin: 0 });
+    const stOpts = { x: x + zone + 0.16, y: by, w: 1.16, h: rh,
+      fontFace: F, fontSize: TS.cardBody, bold: true, color: C.ink, align: "right", valign: "middle", margin: 0 };
+    // stages[i].claim 에 claim id를 주면 manifest 문자열로 찍는다
+    if (st.claim) claimText(s, st.claim, { ...stOpts, suffix: opts.unit || "" });
+    else s.addText(fmtNum(st.value) + (opts.unit || ""), { objectName: "funnel/text", ...stOpts });
     const rest = w - zone - 1.68;
     if (i > 0) {
       const conv = st.value / stages[i - 1].value * 100;
