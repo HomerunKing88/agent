@@ -66,6 +66,20 @@
 - [x] TO:PIPE FROM:BUILDER (1d58de7) `schemas/issue`·`decision`·`metadata` 적용 여부 판단
       → `62f1855`(적용 결정)·`9c4c297`(문서 갱신)
 
+- [ ] TO:USER (계획서 9절 7단계) **배관 한도가 한계에 닿았다.**
+      `orchestrator.py` 732줄 = `audit.py` 732줄. 한 줄만 더 늘면 e2e가 막는다.
+      계획서는 이때 "멈추고 프레임워크 도입을 사용자와 상의한다"로 정해 뒀다.
+      다만 지금 상황은 그 규칙이 겨눈 것과 다르다 — 배관이 부푼 것이 아니라
+      STRUCT 게이트라는 실제 판정이 늘었고, 자[를] 대는 쪽(audit.py)이 마침
+      안 자란 것뿐이다. PIPE가 한도를 맞추려고 STRUCT 블록을 압축했는데
+      **한도 때문에 코드를 줄이는 것은 규칙이 의도한 방향이 아니다.**
+      셋 중 하나를 골라 주면 된다:
+        (a) 그대로 둔다 — 다음에 orchestrator가 늘면 그때 멈추고 다시 본다
+        (b) 한도를 audit.py + render_check.py 합으로 바꾼다 (검사기 전체 대비)
+        (c) 절대 줄 수(예: 800줄)로 바꾼다
+      내 추천은 (b)다. 원래 재려던 것이 "배관이 검사보다 커지지 않았나"이고,
+      검사기는 두 파일에 나뉘어 있다. audit.py 한 파일만 자로 쓴 것은 그때
+      render_check.py가 없었기 때문이다.
 - [ ] TO:USER (계획서 9절 5단계) 집 Windows PC에서 `pip install -r requirements.txt` 후
       `python render_check.py fixtures/05_text_overflow.pptx`가 FAIL이면 완료
 - [ ] TO:USER (계획서 9절 8단계) 실제 잡 하나를 끝까지 돌려 쓸 만한지 판단
