@@ -421,6 +421,19 @@ PREFIX_GATE = {
 }
 GATES = ("SOURCE", "CALC", "XREF", "TOKEN", "LAYOUT", "HOUSE", "LINT", "ISSUE")
 
+# 어떤 검사 규칙도 도달하지 못하는 게이트는 PASS가 아니라 SKIP으로 적는다 (2.16-7,
+# BUILDER_TO_PIPE.md 8절). "검사했고 통과"와 "검사한 적 없음"이 구분되지 않으면
+# QA_REPORT가 하지도 않은 검사를 통과했다고 말하게 된다. 사유는 여기만 둔다.
+# CALC는 CODEX e5eb0c9(`calc.source_manifest`)가 실제 배선해서 정적 SKIP이 아니다.
+SKIP_REASONS = {
+    "LINT": "lint_deck.js 미구현 (계획서 9절 보류)",
+}
+
+
+def skip_reason(gate: str) -> str:
+    """게이트가 SKIP일 이유. SKIP_REASONS에 없으면 환경(render SKIP) 쪽이다."""
+    return SKIP_REASONS.get(gate, "render_check가 이 환경에서 SKIP (PowerPoint COM — 집 Windows)")
+
 
 def gate_of(rule: str) -> str:
     if rule in EXACT_GATE:
@@ -460,16 +473,36 @@ def cmd_gates(root: Path) -> None:
         # gate_of에 없는 새 검사 규칙은 앞으로 판정이 막힌다. 조용히 HOUSE로
         # 빠지거나(HOUSE 차단 표시) 모두 통과로 새치기 못 한다 (2.16.7).
         blocked.append("UNMAPPED")
+
+    # 세 상태: BLOCKED(위반 있음) / PASS(검사했고 위반 0) / SKIP(검사기가 없거나
+    # 이 환경에서 안 돎). 정적 미도달(CALC·LINT)과 맥의 render SKIP(LAYOUT의 진짜
+    # 넘침 검사가 안 돎)이 PASS로 오인되어서는 안 된다 (계약 7, BUILDER_TO_PIPE.md 8절).
+    render_status = (register.get("render_status") or "").upper()
+    status = {}
+    for gate in GATES:
+        if gate in blocked:
+            status[gate] = "BLOCKED"
+        elif gate in SKIP_REASONS:
+            status[gate] = "SKIP"
+        elif gate == "LAYOUT" and render_status == "SKIP":
+            status[gate] = "SKIP"
+        else:
+            status[gate] = "PASS"
+    skipped = [g for g in GATES if status[g] == "SKIP"]
     gates = {
         "job": root.name,
         "blocked": blocked,
-        "pass": [g for g in GATES if not violations[g]],
+        "pass": [g for g in GATES if status[g] == "PASS"],
+        "skipped": skipped,
+        "status": status,
         "violations": violations,
     }
     write_json(root / "review" / "gates.json", gates)
     print("GATE      " + "  ".join(gates["blocked"] or ["ALL PASS"]))
     if blocked:
         print("차단      : " + ", ".join(blocked))
+    if skipped:
+        print("건너뜀    : " + ", ".join(f"{g} ({skip_reason(g)})" for g in skipped))
     if violations["UNMAPPED"]:
         print("미매핑    : " + ", ".join(violations["UNMAPPED"]) +
               "  ← gate_of에 정확히 매핑할 새 검사 규칙")
@@ -487,7 +520,13 @@ def cmd_report(root: Path) -> None:
     lines.append("## Gates")
     if gates:
         lines.append("BLOCKING: " + ("없음" if not gates["blocked"] else ", ".join(gates["blocked"])))
-        lines.append("PASS    : " + (", ".join(gates["pass"]) if gates["pass"] else "없음"))
+        passed = gates.get("pass") or []
+        skipped = gates.get("skipped") or []
+        lines.append("PASS    : " + (", ".join(passed) if passed else "없음"))
+        lines.append("SKIP    : " + (", ".join(f"{g} ({skip_reason(g)})" for g in skipped) if skipped else "없음"))
+        if register.get("render_status"):
+            lines.append("Render  : " + str(register["render_status"])
+                         + (f" — {register.get('render_error')}" if register.get("render_error") else ""))
     lines.append("")
 
     # 채택·기각은 user_decision.json이 정본이다. CHANGELOG.md(마크다운)는
