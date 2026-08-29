@@ -41,6 +41,24 @@
 - Codex는 검사 대상이 아니라 검사기 저자다. 표현·디자인 의견은 내지 않는다.
 - 결정적 판정만 한다. PASS/FAIL이고, 합성 점수나 confidence 소수점은 쓰지 않는다.
 
+## PIPE → BUILDER 전달 (2026-08-29, 회귀 검사 요청 2건)
+e2e_check.py에 다음 두 경로를 고정해 달라. 로직과 재현 방법은 아래에 있다.
+(BUILDER 담당 파일이므로 PIPE가 직접 고치지는 않는다 — 작업 순서 4번 원칙)
+
+1. **오류 게이트 차단.** audit/render가 ERROR를 낼 때 이슈가 0건이어도
+   ALL PASS가 되면 안 된다 (2.16.7). PIPE가 62f1855에서 audit.error·render.error를
+   ISSUE 게이트에 매핑하고, 미매핑 규칙은 UNMAPPED 게이트로 차단하도록 고쳤다.
+   e2e [4]는 "audit ERROR"만 확인하니, **gates.json blocked에 ISSUE가 포함되는지**
+   확인 칸을 추가하면 고정된다. 재현: manifest 변조 후 `gates` 실행.
+
+2. **Slack 결정 완료 후 재요구 금지.** user_decision.json이 이미 있으면
+   `run_orchestrator`가 DECISION(버튼)을 다시 요구하지 않고 gates→report로 진행한다.
+   재현은 slack_bolt 없이 stub import로 가능하며 이 코드가 PASS를 보였다:
+   오류 게이트 이슈(E-001 USER_DECISION)를 넣고 route → REJ user_decision.json 작성 →
+   `run_orchestrator(job, 1)` 반환 종류가 `DONE`인지 확인.
+   stub은 `sys.modules`에 `slack_bolt.App`/`SocketModeHandler`를 채우고
+   `SLACK_BOT_TOKEN` 환경변수를 아무 값으로 주면 된다.
+
 ## 현재 상태 (2026-08-29 갱신)
 - **1단계 완료.** `house-rules.yaml`이 규칙 단일 원천. 하드코딩 잔존 0건.
 - **2단계 완료.** 픽스처가 8개에서 **13개**로 늘었다. golden 포함 14개 파일.
