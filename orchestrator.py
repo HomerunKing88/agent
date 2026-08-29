@@ -203,8 +203,10 @@ def cmd_review(root: Path, version: int = 1) -> None:
             stdout=out, check=False,
         )
 
-    # EDITOR 결과(editor_r1.json)가 있으면 그대로 두고, 없으면 빈 슬롯으로 표시한다
-    editor = read_json(p["editor"]) if p["editor"].exists() else {}
+    # EDITOR 결과(editor_r1.json)가 있으면 검증해 통과분만 합친다.
+    # 계획서 6.3: pydantic 검증, 실패/어휘위반은 원문을 로그에 남기고 그 이슈만
+    # 버린다. 재시도 트리거는 편집기 응답을 받는 쪽이므로 여기선 검증·로그만 한다.
+    editor_issues, editor_log = validate_editor(p, version)
 
     audit = read_json(p["audit"])
     probe = next(iter(audit.get("results") or []), None)
@@ -220,18 +222,60 @@ def cmd_review(root: Path, version: int = 1) -> None:
         audit_issues.append({"rule": "audit.error", "slide": 0, "shape": "-",
                              "evidence": audit_error or "검사 수행 불가 (2.16.7)"})
 
-    issues = audit_issues + editor.get("issues", [])
+    issues = audit_issues + editor_issues
     register = {
         "job": root.name,
         "round": version,
         "audit_status": audit_status,
         "audit_error": audit_error,
+        "editor_kept": len(editor_issues),
+        "editor_dropped": len(editor_log),
         "issues": issues,
         "merged_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     write_json(p["register"], register)
     meta_update(root, stage="REVIEWED", audit_round=version)
     print(f"issue : 총 {len(issues)}건 → {p['register'].name}")
+    if editor_log:
+        print(f"editor: 통과 {len(editor_issues)}건, 버림 {len(editor_log)}건 → {p['editor'].with_name('editor_log' + str(version) + '.json')}")
+
+
+def validate_editor(p: dict, version: int) -> tuple[list[dict], list[dict]]:
+    """EDITOR 응답을 house-rules 어휘로 검증한다. (통과, 버림)을 반환.
+
+    버림 원문은 review/editor_log{n}.json에 기록한다 (6.3: "원문을 로그에
+    남기고 그 이슈만 버린다"). 이슈가 아예 없으면 빈 결과를 돌려준다.
+    """
+    if not p["editor"].exists():
+        return [], []
+    try:
+        from schemas.editor import validate
+        import yaml as _yaml
+    except ImportError:
+        # 검증기 의존성(pydantic/yaml)이 없으면 그 이슈를 감사 이슈로 만들어 막는다
+        log = [{ "raw": {}, "errors": ["schemas/editor.py 검증기 로드 불가 (pydantic/yaml 필요)"] }]
+        write_json(p["editor"].with_name(f"editor_log{version}.json"),
+                   {"job": p["root"].name, "dropped": log})
+        return [], log
+
+    rules = _yaml.safe_load(Path(__file__).resolve().parent.joinpath("house-rules.yaml")
+                            .read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(p["editor"].read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        log = [{ "raw": {}, "errors": [f"editor JSON 파싱 실패: {error}"] }]
+        write_json(p["editor"].with_name(f"editor_log{version}.json"),
+                   {"job": p["root"].name, "dropped": log})
+        return [], log
+
+    kept, dropped = validate(payload, rules)
+    if dropped:
+        write_json(p["editor"].with_name(f"editor_log{version}.json"),
+                   {"job": p["root"].name, "dropped": dropped})
+    # 게이트·라우터 호환: type → rule (gate_of의 ISSUE 분류용)로 승격한다.
+    # 가공하지 않고 "editor." 프리픽스로 단일 게이트(ISSUE)에 모인다.
+    editor_issues = [{**issue, "rule": f"editor.{issue['type']}"} for issue in kept]
+    return list(editor_issues), list(dropped)
 
 
 # ── 라우터 (계획서 2.7) ─────────────────────────────────────────────
@@ -313,7 +357,7 @@ RULE_TO_GATE = {
     "qa.text_max_ymax_pt": "LAYOUT", "layout.": "LAYOUT",
     "forbidden.": "HOUSE", "fonts.": "HOUSE", "sizes.": "HOUSE",
     "table.": "HOUSE", "zones.": "HOUSE", "notation.": "HOUSE",
-    "render.": "LAYOUT", "lint.": "LINT",
+    "render.": "LAYOUT", "lint.": "LINT", "editor.": "ISSUE",
 }
 GATES = ("SOURCE", "CALC", "XREF", "TOKEN", "LAYOUT", "HOUSE", "LINT", "ISSUE")
 
