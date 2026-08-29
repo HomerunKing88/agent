@@ -402,16 +402,16 @@ def cmd_render(root: Path, version: int = 1) -> None:
 
 
 def cmd_preflight(root: Path, version: int = 1) -> None:
-    """STRUCT 게이트 1차: 스킬 preflight.py를 부르고 결과만 review/preflight_rN.json에 남긴다.
+    """STRUCT 게이트 1단계: 스킬 preflight.py의 [오류]/[경고]를 파일로 남긴다.
 
-    skill/shin-ppt1/scripts/preflight.py를 **스킬 원본 경로로** 부른다. 리포로
-    복사하지 않는다 — 복사해서 고치면 스킬 원본과 갈라진다 (계획서 2.15).
-    게이트 합류는 2차다. 못 돌린 경우(pptx 없음·파이썬 오류)도 항상 유효한
-    JSON을 쓴다 — status=ERROR로 하고 사유를 error에 담는다 (audit.py와
-    같은 방식). exit code가 아니라 결과 파일로 판정한다 (2.16.5).
+    preflight 경로는 house-rules.yaml의 preflight.source에서 읽는다 (규칙 단일
+    원천, 2.14). 리포로 복사하지 않는다 — 복사해서 고치면 스킬 원본과 갈라진다
+    (2.15). [오류]는 preflight.style_owned의 문구를 담으면 owner=style(스타일
+    판정. audit.py가 정본), 아니면 owner=struct다. 게이트 합류는 2단계다.
+    못 돌린 경우(pptx 없음·잘못된 경로·파이썬 오류)도 항상 유효한 JSON을 쓴다
+    — status=ERROR로 하고 사유를 error에 담는다 (audit.py와 같은 방식).
     """
     p = job_paths(root, version)
-    exe = Path(__file__).resolve().parent / "skill" / "shin-ppt1" / "scripts" / "preflight.py"
     target = p["pptx"]
     payload = {
         "job": root.name,
@@ -419,16 +419,31 @@ def cmd_preflight(root: Path, version: int = 1) -> None:
         "file": target.name,
         "status": "ERROR",
         "error": None,
+        "issues": [],
+        "counts": {"errors": 0, "warnings": 0, "ownership": {"style": 0, "struct": 0}},
         "output": "",
     }
 
-    if not exe.is_file():
-        payload["error"] = f"FileNotFoundError: {exe}  (스킬 preflight 원본)"
+    if not target.is_file():
+        payload["error"] = f"FileNotFoundError: {target}  (먼저 build)"
         write_json(p["preflight"], payload)
         print(f"preflight: ERROR  {payload['error']}")
         return
-    if not target.is_file():
-        payload["error"] = f"FileNotFoundError: {target}  (먼저 build)"
+    try:
+        import yaml as _yaml
+        rules = _yaml.safe_load(Path(__file__).resolve().parent.joinpath("house-rules.yaml")
+                                .read_text(encoding="utf-8"))
+        cfg = rules["preflight"]
+        exe = Path(__file__).resolve().parent / cfg["source"]
+        style_owned = list(cfg["style_owned"])
+    except (ImportError, KeyError, OSError) as error:
+        payload["error"] = f"{type(error).__name__}: {error}  (house-rules preflight 절 읽기 실패)"
+        write_json(p["preflight"], payload)
+        print(f"preflight: ERROR  {payload['error']}")
+        return
+
+    if not exe.is_file():
+        payload["error"] = f"FileNotFoundError: {exe}  (스킬 preflight 원본)"
         write_json(p["preflight"], payload)
         print(f"preflight: ERROR  {payload['error']}")
         return
@@ -443,6 +458,16 @@ def cmd_preflight(root: Path, version: int = 1) -> None:
         return
 
     payload["output"] = (proc.stdout or "") + (proc.stderr or "")
+    for line in payload["output"].splitlines():
+        if line.startswith("[오류]"):
+            owner = "style" if any(ph in line for ph in style_owned) else "struct"
+            payload["issues"].append({"kind": "오류", "owner": owner, "line": line})
+            payload["counts"]["errors"] += 1
+            payload["counts"]["ownership"][owner] += 1
+        elif line.startswith("[경고]"):
+            payload["issues"].append({"kind": "경고", "line": line})
+            payload["counts"]["warnings"] += 1
+
     if proc.returncode == 0:
         payload["status"] = "PASS"
     elif "Traceback" in (proc.stderr or ""):
@@ -455,7 +480,9 @@ def cmd_preflight(root: Path, version: int = 1) -> None:
         payload["status"] = "ERROR"
         payload["error"] = f"preflight가 종료 코드 {proc.returncode}로 나가 원인을 못 밝혔다"
     write_json(p["preflight"], payload)
-    print(f"preflight: {payload['status']}  → {p['preflight'].relative_to(root)}")
+    c = payload["counts"]
+    print(f"preflight: {payload['status']}  [오류 {c['errors']} / 경고 {c['warnings']} / "
+          f"struct {c['ownership']['struct']}]  → {p['preflight'].relative_to(root)}")
 
 
 def cmd_route(root: Path) -> None:
