@@ -358,7 +358,7 @@ function caption(s, x, y, w, text) {
 function footer(s, notes, y, opts = {}) {
   if (y != null && typeof y === "object") { opts = y; y = null; }   // footer(s, notes, {page})
   if (y == null) {
-    y = FOOT_BASE - 0.15 * notes.length;
+    y = FOOT_BASE - SR.zones.footnote_line_step * notes.length;
     if (opts.rule !== false) ruleThin(s, y - 0.12);
   }
   // 텍스트 상자 높이를 줄수에 맞춘다. 고정 0.42로 두면 상자 하단이 지면 밖으로 나간다

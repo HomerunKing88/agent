@@ -489,6 +489,9 @@ styles:
     # 여백을 눈대중으로 맞추지 않으려고 값으로 고정한 것들이다.
     zones:
       footnote_bottom_y: 8.14   # 각주 바닥 기준선
+      footnote_line_step: 0.15  # 각주 한 줄당 올라가는 높이.
+                                # 생성기가 0.15, 검사기가 corporate의 0.14를 보며 갈라져 있었다 (2.14)
+      footnote_max_lines: 4
       content_max_y: 8.00
       band_top: 2.00            # 콘텐츠 시작 (요약박스 아래 첫 소제목)
       sub_gap: 0.44             # 소제목 y → 그 아래 콘텐츠 y
