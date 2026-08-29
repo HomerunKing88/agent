@@ -32,10 +32,12 @@ class Issue:
 def load_rules(path):
     with path.open(encoding="utf-8") as handle:
         rules = yaml.safe_load(handle)
-    required = {"fonts", "sizes", "table", "zones", "notation", "forbidden", "palette", "qa"}
+    required = {"units", "notation", "numeric_tokens", "manifest", "issues", "styles", "default_style"}
     missing = sorted(required - rules.keys())
     if missing:
         raise ValueError(f"house-rules missing sections: {', '.join(missing)}")
+    if not isinstance(rules["styles"], dict) or not rules["styles"]:
+        raise ValueError("house-rules styles must contain at least one style")
     return rules
 
 
@@ -56,6 +58,13 @@ def style_rules(rules, manifest_path=None):
     styles = rules.get("styles", {})
     if style not in styles:
         raise ValueError(f"unknown style {style!r}; expected one of {sorted(styles)}")
+    required_style = {
+        "fonts", "sizes", "table", "zones", "forbidden", "palette", "palette_usage",
+        "components", "qa", "role_min_pt", "layout",
+    }
+    missing = sorted(required_style - styles[style].keys())
+    if missing:
+        raise ValueError(f"style {style!r} missing sections: {', '.join(missing)}")
     def merge(base, override):
         merged = dict(base)
         for key, value in override.items():
@@ -255,7 +264,11 @@ def estimated_height(shape, rules):
     width_pt = shape.width / rules["units"]["emu_per_inch"] * rules["units"]["pt_per_inch"]
     if width_pt <= 0:
         return math.inf
-    lines, max_size = 0, float(rules["sizes"]["body_min_pt"])
+    sizes = rules["sizes"]
+    baseline = sizes.get("body_min_pt", sizes.get("card_body_pt", sizes.get("table_body_min_pt")))
+    if baseline is None:
+        raise ValueError("style sizes must define a text-size baseline")
+    lines, max_size = 0, float(baseline)
     for paragraph in shape.text_frame.paragraphs:
         weighted = 0.0
         for run in paragraph.runs:
@@ -282,7 +295,7 @@ def check_overflow(prs, rules):
 
 
 def check_title_right(prs, rules):
-    if not rules["zones"]["title_right_clear"]:
+    if not rules["zones"].get("title_right_clear", False):
         return []
     title, layout = rules["components"]["page_title"], rules["layout"]
     right_start = layout["width"] - 3.1
@@ -308,7 +321,7 @@ def check_table_geometry(prs, rules):
             if not getattr(shape, "has_table", False):
                 continue
             table = shape.table
-            if rules["table"]["colw_sum_must_equal_width"]:
+            if rules["table"].get("colw_sum_must_equal_width", False):
                 total = sum(column.width for column in table.columns)
                 if abs(total - shape.width) > tolerance:
                     issues.append(Issue("table.colw_sum_must_equal_width", page, shape.name,
@@ -316,6 +329,8 @@ def check_table_geometry(prs, rules):
             for row_index, row in enumerate(table.rows, 1):
                 two_line = any("\n" in cell.text or "\r" in cell.text for cell in row.cells)
                 key = "row_height_2line_min" if two_line else "row_height_min"
+                if key not in rules["table"]:
+                    continue
                 minimum = float(rules["table"][key])
                 actual = row.height / unit
                 if actual + rules["units"]["epsilon_in"] < minimum:
