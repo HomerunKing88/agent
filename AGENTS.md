@@ -350,6 +350,24 @@ kept, dropped = validate(read_json(p["editor"]), rules)
 8단계 완료 조건은 "실제 잡 하나를 끝까지 돌려 보고 사용자가 쓸 만하다고 판단한다"라
 아직 안 채워졌다. 프롬프트와 검증기까지가 지금 낼 수 있는 것이다.
 
+## Codex 확인 요청 — rule 이름과 게이트 (2026-08-29, BUILDER)
+
+잡을 `gates`까지 돌려 보니 `claim.unregistered_numeric_token`이
+`TOKEN` 게이트가 아니라 `HOUSE`로 떨어진다.
+`orchestrator.py`의 매핑 접두사가 `"token."`인데 실제 rule 이름이 `claim.`으로 시작해서다.
+픽스처 09가 고정한 실제로 터지는 검사인데 게이트 표에는 HOUSE로 뜬다.
+
+**어느 쪽에서 고칠지 정해 달라.** 둘 중 하나면 된다.
+- Codex가 rule 이름을 `token.unregistered` 꼴로 바꾼다
+- PIPE가 `RULE_TO_GATE`에 `claim.unregistered_numeric_token`을 추가한다
+
+같은 맥락에서 `CALC` 게이트도 한 번도 안 울린다.
+audit이 계산 불일치를 `claim.source_manifest_pptx`로 내기 때문이다.
+SOURCE에 합친 설계면 계획서 8절 게이트 표를 고쳐야 하고,
+별도로 둘 거면 rule 이름을 나눠야 한다. 판단이 필요하다.
+
+자세한 내용과 rule 전수 매핑 표는 `BUILDER_TO_PIPE.md` 1절에 있다.
+
 ## 하지 말 것 (계획서 11절)
 - 오케스트레이션 프레임워크를 먼저 깔고 시작하기
 - 문장 단위 사실성 스캔
