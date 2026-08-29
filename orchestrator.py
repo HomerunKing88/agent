@@ -7,6 +7,7 @@ run_metadata.json)로만 판단한다. 이 프로세스는 상태를 들고 있�
   python orchestrator.py <잡_폴더>            # 현재 상태와 다음 행동을 보여준다
   python orchestrator.py <잡_폴더> build      # builder/deck_v1.js → pptx + manifest
   python orchestrator.py <잡_폴더> review     # audit.py + EDITOR 결과 → issue_register.json
+  python orchestrator.py <잡_폴더> render     # render_check.py (GATE 2, 집 Windows에서 유효)
   python orchestrator.py <잡_폴더> route      # issue_register.json → 라우터 분류
   python orchestrator.py <잡_폴더> gates      # 검사 결과 → 게이트 표 (계획서 8절)
   python orchestrator.py <잡_폴더> report     # final/QA_REPORT.md + CHANGELOG.md
@@ -201,6 +202,46 @@ def issue_action(issue: dict) -> str:
     return issue.get("action", "REVIEW_ONLY")
 
 
+def cmd_render(root: Path, version: int = 1) -> None:
+    """GATE 2: PowerPoint COM 실측 렌더 검사 (render_check.py).
+
+    집 Windows PC에서만 실행한다. macOS에서는 SKIP이므로 게이트를 막지 않는다.
+    결과.issues는 register의 render_issues로 따로 기록해 게이트가 audit 이슈와
+    합쳐 판정한다. render_check.py 실행 파일은 리포 루트에 있다 (담당: Codex).
+    """
+    p = job_paths(root, version)
+    if not p["pptx"].exists():
+        print(f"누락  : {p['pptx']}", file=sys.stderr)
+        sys.exit(1)
+
+    render_exe = Path(__file__).with_name("render_check.py")
+    render_file = root / "review" / f"render_r{version}.json"
+    with render_file.open("w", encoding="utf-8") as out:
+        subprocess.run(
+            [sys.executable, str(render_exe), str(p["pptx"]), "--json"],
+            stdout=out, check=False,
+        )
+
+    payload = read_json(render_file)
+    probe = payload if isinstance(payload, dict) and "status" in payload else None
+    if probe is None:
+        render_status, render_issues, render_error = "ERROR", [], "render 결과 JSON이 없다"
+    else:
+        render_status = probe.get("status", "ERROR")
+        render_issues = list(probe.get("issues", []))
+        render_error = probe.get("error")
+
+    register = read_json(p["register"])
+    register["render_status"] = render_status
+    register["render_error"] = render_error
+    register["render_issues"] = render_issues
+    stale = [i for i in register.get("issues", []) if not str(i.get("rule", "")).startswith("render.")]
+    register["issues"] = stale + list(render_issues)
+    write_json(p["register"], register)
+    meta_update(root, stage="REVIEWED", render_round=version, render_status=render_status)
+    print(f"render: {render_status}  렌더 이슈 {len(render_issues)}건 → {render_file.name}")
+
+
 def cmd_route(root: Path) -> None:
     register = read_json(root / "review" / "issue_register.json")
     if not register:
@@ -233,7 +274,7 @@ RULE_TO_GATE = {
     "qa.text_max_ymax_pt": "LAYOUT", "layout.": "LAYOUT",
     "forbidden.": "HOUSE", "fonts.": "HOUSE", "sizes.": "HOUSE",
     "table.": "HOUSE", "zones.": "HOUSE", "notation.": "HOUSE",
-    "lint.": "LINT",
+    "render.": "LAYOUT", "lint.": "LINT",
 }
 GATES = ("SOURCE", "CALC", "XREF", "TOKEN", "LAYOUT", "HOUSE", "LINT", "ISSUE")
 
@@ -316,7 +357,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("job_root", type=Path)
     parser.add_argument("command", nargs="?", default="status",
-                        choices=("status", "build", "review", "route", "gates", "report"))
+                        choices=("status", "build", "review", "render", "route", "gates", "report"))
     args = parser.parse_args(argv)
 
     for name in DIRS:
@@ -328,6 +369,8 @@ def main(argv=None) -> int:
         cmd_build(args.job_root)
     elif args.command == "review":
         cmd_review(args.job_root)
+    elif args.command == "render":
+        cmd_render(args.job_root)
     elif args.command == "route":
         cmd_route(args.job_root)
     elif args.command == "gates":
