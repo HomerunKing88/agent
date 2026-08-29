@@ -1,4 +1,22 @@
-# AGENTS.md — Codex CLI 세션 규칙
+# AGENTS.md — Codex CLI / opencode 공용 세션 규칙
+
+## 먼저: 너는 누구인가 (2026-08-29 추가)
+
+**이 파일을 Codex CLI와 opencode가 둘 다 읽는다.** 둘은 담당 파일이 다르다.
+자기가 어느 도구인지로 판별하고, 자기 절만 따른다.
+
+| 네가 이 도구면 | 너는 | 담당 파일 |
+|---|---|---|
+| **Codex CLI** (`codex`) | CODEX | `audit.py` `render_check.py` `fixtures/` |
+| **opencode** | PIPE | `orchestrator.py` `slack_bot.py` |
+
+- 아래 규칙 중 "Codex 담당"이라고 적힌 것은 **CODEX에게만** 해당한다.
+  opencode라면 그 파일들을 건드리지 않는다.
+- PIPE(opencode)의 상세 규칙은 계획서 3.2절에 있다. 그것도 같이 읽는다.
+- 브랜치 접두사도 다르다. CODEX는 `codex/*`, PIPE는 `pipe/*`.
+- `HANDOFF.md`에서 볼 줄도 다르다. CODEX는 `TO:CODEX`, PIPE는 `TO:PIPE`.
+
+세 번째 에이전트 BUILDER(Claude Code)는 `CLAUDE.md`를 읽는다. 이 파일이 아니다.
 
 ## 세션 시작
 - **`HANDOFF.md`에서 자기 앞으로 온 미완 항목(`[ ]`)을 먼저 처리한다.**

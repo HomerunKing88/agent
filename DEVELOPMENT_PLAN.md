@@ -216,7 +216,7 @@ Codex(audit.py)와 Claude(template.js)가 병렬로 만들면 서로 다른 연�
 | Claude BUILDER | Claude Code, 리포 폴더 | 제작, 수정 반영, 미수용 사유 제시 | 자기 결과물 승인 불가 |
 | Claude EDITOR | claude.ai 새 대화 | 메시지, 논리, 표현, 정보밀도, 구조 제안 | 제작 과정 미열람, 수정 직접 불가 |
 | Codex | Codex CLI, 같은 리포 폴더 | audit.py 작성·유지, 계산형 claim의 원천 셀 매핑 | 표현·디자인 의견 금지 |
-| PIPE | CLI, 같은 리포 폴더 | orchestrator.py, slack_bot.py 작성·유지 | 규칙 값 판단·표현 의견 금지 |
+| PIPE | opencode, 같은 리포 폴더 | orchestrator.py, slack_bot.py 작성·유지 | 규칙 값 판단·표현 의견 금지 |
 | audit.py | 로컬 | 결정적 판정 | |
 | orchestrator.py | 로컬 | 진행, 라우팅, 게이트 판정 | AI 아님 |
 | 사용자 | 폰 슬랙 | 구조 변경 승인, 최종 승인 | |
@@ -249,7 +249,11 @@ worktree를 나누지 않는다. 셋이 `/Users/shin/Desktop/agent` 한 폴더�
 
 ### 3.2 PIPE 세션 규칙
 
-`orchestrator.py`와 `slack_bot.py`를 맡는다. 2026-08-29에 BUILDER에서 넘겼다.
+**PIPE는 opencode다** (확인 2026-08-29). `orchestrator.py`와 `slack_bot.py`를 맡는다.
+2026-08-29에 BUILDER에서 넘겼다.
+
+opencode와 Codex CLI가 **둘 다 `AGENTS.md`를 읽는다.** 그래서 그 파일 머리에
+"너는 누구인가" 표를 뒀다. opencode는 자기를 PIPE로 판별하고 Codex 담당 파일을 건드리지 않는다.
 
 - **세션을 시작하면 `HANDOFF.md`에서 자기 앞 미완 항목을 먼저 처리한다.**
   처리하면 `[x]`로 바꾸고 커밋 해시를 적는다. `TO:USER` 항목은 건드리지 않는다.

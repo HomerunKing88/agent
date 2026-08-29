@@ -34,7 +34,7 @@ run_agent() {
   case "$1" in
     BUILDER) claude -p "$2" ;;
     CODEX)   codex exec "$2" ;;
-    PIPE)    gemini -p "$2" ;;
+    PIPE)    opencode run "$2" ;;
     *) echo "모르는 대상: $1" >&2; return 1 ;;
   esac
 }
