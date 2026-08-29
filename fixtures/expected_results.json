@@ -162,6 +162,33 @@
       "expected": "PASS",
       "static_expected": "PASS",
       "manifest": "shin_golden_manifest.json"
+    },
+    {
+      "id": "shin-s01",
+      "file": "shin_S01_table_too_small.pptx",
+      "expected": "FAIL",
+      "static_expected": "FAIL",
+      "rule": "sizes.body_min_pt",
+      "stage": 3,
+      "manifest": "shin_S01_table_too_small_manifest.json"
+    },
+    {
+      "id": "shin-s02",
+      "file": "shin_S02_third_font.pptx",
+      "expected": "FAIL",
+      "static_expected": "FAIL",
+      "rule": "forbidden.third_font",
+      "stage": 3,
+      "manifest": "shin_S02_third_font_manifest.json"
+    },
+    {
+      "id": "shin-s03",
+      "file": "shin_S03_negative_triangle.pptx",
+      "expected": "FAIL",
+      "static_expected": "FAIL",
+      "rule": "notation.negative_forbidden",
+      "stage": 3,
+      "manifest": "shin_S03_negative_triangle_manifest.json"
     }
   ]
 }

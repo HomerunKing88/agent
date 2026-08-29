@@ -12,6 +12,11 @@ from openpyxl import Workbook
 HERE = Path(__file__).resolve().parent
 GENERATOR = HERE / "golden_deck.js"
 SHIN_GENERATOR = HERE / "shin_deck.js"
+SHIN_DEFECTS = {
+    "S01": {"name": "table_too_small", "rule": "sizes.body_min_pt"},
+    "S02": {"name": "third_font", "rule": "forbidden.third_font"},
+    "S03": {"name": "negative_triangle", "rule": "notation.negative_forbidden"},
+}
 
 EXPECTED = {
     "01": {"name": "third_font", "rule": "forbidden.third_font", "stage": 3, "static_expected": "FAIL"},
@@ -39,9 +44,11 @@ def generate(output: Path, defect_id: str | None = None) -> None:
     subprocess.run(command, cwd=HERE.parent, check=True)
 
 
-def generate_shin() -> None:
+def generate_shin(defect: str | None = None) -> None:
+    stem = "shin_golden" if defect is None else f"shin_{defect}_{SHIN_DEFECTS[defect]['name']}"
     subprocess.run(
-        ["node", str(SHIN_GENERATOR), str(HERE / "shin_golden.pptx"), str(HERE / "shin_golden_manifest.json")],
+        ["node", str(SHIN_GENERATOR), str(HERE / f"{stem}.pptx"), str(HERE / f"{stem}_manifest.json")]
+        + ([defect] if defect else []),
         cwd=HERE.parent, check=True,
     )
 
@@ -131,6 +138,8 @@ def main() -> None:
     generate(HERE / "00_golden.pptx")
     make_claim_inputs("00")
     generate_shin()
+    for defect in SHIN_DEFECTS:
+        generate_shin(defect)
     for defect_id, expected in EXPECTED.items():
         generate(HERE / f"{defect_id}_{expected['name']}.pptx", defect_id)
         make_claim_inputs(defect_id)
@@ -153,7 +162,15 @@ def main() -> None:
             "expected": "PASS",
             "static_expected": "PASS",
             "manifest": "shin_golden_manifest.json",
-        }],
+        }, *[{
+            "id": f"shin-{defect.lower()}",
+            "file": f"shin_{defect}_{meta['name']}.pptx",
+            "expected": "FAIL",
+            "static_expected": "FAIL",
+            "rule": meta["rule"],
+            "stage": 3,
+            "manifest": f"shin_{defect}_{meta['name']}_manifest.json",
+        } for defect, meta in SHIN_DEFECTS.items()]],
     }
     (HERE / "expected_results.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
