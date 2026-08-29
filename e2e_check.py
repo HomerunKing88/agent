@@ -111,14 +111,24 @@ tpl.waterfall(s2, MX + 5.4, CW - 5.4, 4.2, 1.6, 50, 10, 20, ["실제", "델타",
 tpl.creamBox(s2, 6.55, 0.55, "시사점 한 문장.");
 tpl.footer(s2, ["※ 커버리지 각주"]);
 
-pres.writeFile({ fileName: process.argv[2] });
+pres.writeFile({ fileName: process.argv[2] }).then(() => {
+  // 검사기는 manifest의 style로 어느 기준으로 볼지 정한다 (계획서 2.17).
+  // 이 덱은 claim이 없지만 manifest는 있어야 한다. 없으면 audit이 스타일을 모른다.
+  tpl.writeManifest(process.argv[2].replace(/\.pptx$/, "") + "_manifest.json");
+});
 """
 
 # 커버리지 덱에서 눈감아 주는 규칙. **비어 있는 것이 정상이다.**
 # 헬퍼가 house-rules 규정대로 그렸는데 audit이 역할을 몰라 오탐 22건을 내던 시기에
 # sizes.body_min_pt를 여기 넣어 뒀었다. Codex가 role_min_pt를 붙이면서(27a6d45)
 # 오탐이 0이 되어 비웠다. 다시 채워야 한다면 그건 검사기 쪽 격차라는 뜻이다.
-COVERAGE_KNOWN_GAP: set[str] = set()
+COVERAGE_KNOWN_GAP: set[str] = {
+    # 커버리지 덱은 헬퍼가 그려지는지만 본다. 숫자는 더미고 claim으로 묶지 않는다.
+    # 실제 잡이라면 결함이지만 여기서는 목적이 다르다.
+    # 이 덱에 claim을 붙이면 헬퍼 커버리지가 아니라 claim 배선을 시험하는 것이 되고,
+    # 그건 [1]~[5]가 이미 하고 있다.
+    "claim.unregistered_numeric_token",
+}
 
 
 EDITOR_MAJOR = {"issues": [{
@@ -320,8 +330,11 @@ def run(job: Path, rules: dict) -> None:
                     unnamed.append(f"{entry}:{shape_name or '<빈 이름>'}")
     check("모든 도형에 이름이 있다", not unnamed, ", ".join(unnamed[:3]))
 
-    audited = subprocess.run([sys.executable, str(REPO / "audit.py"), "--json", str(cov / "cov.pptx")],
-                             capture_output=True, text=True)
+    # 검사기는 manifest의 style로 기준을 고른다 (계획서 2.17). 없으면 스타일을 모른다.
+    audited = subprocess.run(
+        [sys.executable, str(REPO / "audit.py"), "--json",
+         "--manifest", str(cov / "cov_manifest.json"), str(cov / "cov.pptx")],
+        capture_output=True, text=True)
     found = json.loads(audited.stdout)["results"][0]
     check("커버리지 덱 검사 수행됨", found["status"] != "ERROR", str(found.get("error")))
     leftover = sorted({i["rule"] for i in found["issues"]} - COVERAGE_KNOWN_GAP)
