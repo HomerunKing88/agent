@@ -368,6 +368,14 @@ SOURCE에 합친 설계면 계획서 8절 게이트 표를 고쳐야 하고,
 
 자세한 내용과 rule 전수 매핑 표는 `BUILDER_TO_PIPE.md` 1절에 있다.
 
+## house-rules.yaml 변경 알림 (2026-08-29 6차, BUILDER)
+`issues` 절에 `decision_action: [ACC, REJ]` 한 줄 추가. **추가만 했다.**
+`slack_bot.py`가 코드에 들고 있던 값이고 게이트가 읽는다. 어휘를 한 곳에 모았다.
+
+`schemas/`에 `issue.py` `decision.py` `metadata.py`를 더 만들었다 (계획서 5절 목록).
+audit 이슈 형식(`rule`/`slide`/`shape`/`evidence`)은 `schemas/issue.py`의
+`AuditIssue`가 정본으로 잡아 뒀다. 필드를 늘리면 알려 달라.
+
 ## 하지 말 것 (계획서 11절)
 - 오케스트레이션 프레임워크를 먼저 깔고 시작하기
 - 문장 단위 사실성 스캔

@@ -118,6 +118,56 @@ manifest에 `template_version`이 박혀 추적된다.
 `route`가 `AUTO_FIX 0 / USER_DECISION 1 / REVIEW_ONLY 1`로 갈랐고,
 사용자에게 올라가는 건 `USER_DECISION` 하나다. 2.7 그대로다.
 
+## 4-1. run_metadata.json이 재현성 필드를 하나도 안 담는다
+
+계획서 6.4가 이 파일을 둔 이유는 재현성이다. 지금 실제로 쓰이는 값은 이렇다.
+
+```json
+{ "stage": "FINAL", "deck_version": 1, "built_at": "2026-08-29 10:27:10", "audit_round": 1 }
+```
+
+6.4가 요구하는 일곱 개가 **전부 없다.**
+
+```
+job_id  audit_version  audit_git_commit  house_rule_version
+template_version  editor_prompt_version  source_hashes
+```
+
+`house_rule_version`과 `template_version`은 manifest.json에 이미 있으니 옮겨 적으면 된다.
+`editor_prompt_version`은 `prompts/EDITOR.md` 머리에 `버전: 1.0`으로 박아 뒀다.
+`audit_git_commit`은 `git rev-parse --short HEAD`면 된다.
+`source_hashes`는 manifest의 `claims[].source.file_hash`에 이미 있다.
+
+없으면 나중에 "왜 그때는 통과했나"를 답할 수 없다. 규칙이 늘어난 뒤 과거 잡을 다시 볼 때
+기준이 무엇이었는지가 남지 않는다.
+
+```python
+from schemas.metadata import validate, missing_for_reproducibility
+```
+
+`missing_for_reproducibility()`가 빠진 필드를 이름으로 돌려준다.
+버전 필드를 필수로 걸지는 않았다 — 지금 전부 FAIL이 되면 판정이 무의미해진다.
+
+## 4-2. 검증기 셋을 더 만들었다 (선택 적용)
+
+```
+schemas/issue.py     issue_register.json
+schemas/decision.py  user_decision.json
+schemas/metadata.py  run_metadata.json
+```
+
+전부 `validate(payload, rules) -> list[str]`이고 빈 목록이면 통과다. 예외를 던지지 않는다.
+
+`issue.py`가 1절의 게이트 문제와 직결된다. 합쳐진 이슈가 모양이 두 갈래라
+(audit은 `rule/slide/shape/evidence`, editor는 `id/type/severity/action/...`)
+어느 쪽도 아닌 이슈가 섞이면 라우터가 기본값으로 처리한다.
+`classify()`가 그걸 잡아 "audit도 editor도 아닌 모양이다"로 낸다.
+
+`decision.py`는 `choice`와 `items[].action`이 어긋나는 경우를 본다.
+어긋나면 어느 쪽이 정본인지 알 수 없는데, 게이트는 `items`를 읽는다.
+
+실제 잡 파일 셋 다 PASS다. 주입 11건 전부 검출된다.
+
 ## 5. 담당 경계
 
 `orchestrator.py`는 PIPE 담당이라 고치지 않았다. 위 넷 다 보고만 한다.

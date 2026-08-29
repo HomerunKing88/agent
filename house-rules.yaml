@@ -169,6 +169,8 @@ issues:
   # 숫자 없는 외부 주장은 한 카테고리로 묶고 등급을 고정한다 (2.6)
   unsourced_severity: MINOR
   id_prefix: { editor: "E-", audit: "A-" }
+  # 사용자 결정 어휘 (user_decision.json). slack_bot이 쓰고 게이트가 읽는다
+  decision_action: [ACC, REJ]
 
 # ── 표 ──────────────────────────────────────────────────────────────
 table:

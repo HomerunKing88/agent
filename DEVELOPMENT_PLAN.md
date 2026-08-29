@@ -301,10 +301,13 @@ C:\dev\deck-qa\                    git 리포. 실적 수치 없음
   AGENTS.md                        세션 규칙 (Codex CLI)
   house-rules.yaml                 규칙 단일 원천
   schemas/
-    manifest.py                    pydantic 모델
-    issue.py
-    decision.py
-    metadata.py
+    manifest.py                    manifest.json 형식 판정
+    issue.py                       issue_register.json
+    decision.py                    user_decision.json
+    metadata.py                    run_metadata.json + 재현성 격차
+    editor.py                      EDITOR 응답 (6.3)
+  prompts/
+    EDITOR.md                      8단계 프롬프트. 버전을 run_metadata에 기록한다
   audit.py                         정적 검사
   render_check.py                  PowerPoint COM 검사
   lint_deck.js                     raw 호출 검출
@@ -544,6 +547,12 @@ EDITOR는 자유 서술로 답하지 않는다. pydantic 모델로 검증하고,
   "stage": "awaiting_user_decision"
 }
 ```
+
+이 파일이 있는 이유는 **재현성**이다. 어떤 규칙·생성기·검사기·프롬프트로 만든 결과인지
+남아야 나중에 "왜 그때는 통과했나"를 답할 수 있다.
+`schemas/metadata.py`의 `missing_for_reproducibility()`가 빠진 필드를 이름으로 돌려준다.
+버전 필드를 필수로 걸지는 않았다 — 지금 orchestrator가 채우지 않아 전부 FAIL이 되면
+판정이 무의미해진다. 격차를 보이게 두고 채우는 것은 orchestrator 쪽 일이다.
 
 과거 잡을 새 audit 버전으로 다시 돌리는 기능은 기본값으로 두지 않는다.
 규칙이 늘어날수록 과거 통과분이 무더기로 FAIL로 뒤집힌다.
