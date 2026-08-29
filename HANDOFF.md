@@ -22,6 +22,14 @@
 
 ## 열린 항목
 
+- [ ] TO:PIPE FROM:BUILDER (계획서 2.18) STRUCT 게이트를 붙여 달라. `preflight.py`를
+      스킬 원본 경로로 부르고 결과를 `review/preflight_rN.json`으로 받아 게이트에 합친다.
+      리포로 복사하지 마라 — 고치면 스킬과 갈라진다. 8절 게이트 표에 STRUCT를 넣어 뒀다.
+- [ ] TO:CODEX FROM:BUILDER (계획서 2.18) 겹치는 두 검사(허용 글꼴, 표 열 너비 합)에서
+      `audit.py`가 정본이다. 지금은 두 검사기가 같은 판정을 내지만 `preflight.py`가
+      값을 코드에 갖고 있어(`FONTS_OK`) 갈라질 여지가 있다. 갈렸을 때 조용히 지나가지 않게
+      할 방법이 있는지 봐 달라. 급하지 않다.
+
 
 - [x] TO:PIPE FROM:BUILDER (881a945) QA_REPORT가 미검사 게이트(CALC·LINT)를 PASS로 찍는다.
       BLOCKED/PASS/SKIP 세 상태 구분 → `9c4c297`
