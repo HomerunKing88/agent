@@ -530,8 +530,9 @@ PREFIX_GATE = {
     "table.": "HOUSE", "zones.": "HOUSE", "notation.": "HOUSE",
     "lint.": "LINT", "editor.": "ISSUE",
     "pipeline.": "ISSUE",  # 파이프라인 산출물의 스키마 위반(생성기·검사기 버그)
+    "contract.": "STRUCT",  # preflight.py와 house-rules의 드리프트 감지 (2.18)
 }
-GATES = ("SOURCE", "CALC", "XREF", "TOKEN", "LAYOUT", "HOUSE", "LINT", "ISSUE")
+GATES = ("SOURCE", "CALC", "XREF", "TOKEN", "LAYOUT", "HOUSE", "LINT", "ISSUE", "STRUCT")
 
 # 어떤 검사 규칙도 도달하지 못하는 게이트는 PASS가 아니라 SKIP으로 적는다 (2.16-7,
 # BUILDER_TO_PIPE.md 8절). "검사했고 통과"와 "검사한 적 없음"이 구분되지 않으면
@@ -539,6 +540,8 @@ GATES = ("SOURCE", "CALC", "XREF", "TOKEN", "LAYOUT", "HOUSE", "LINT", "ISSUE")
 # CALC는 CODEX e5eb0c9(`calc.source_manifest`)가 실제 배선해서 정적 SKIP이 아니다.
 SKIP_REASONS = {
     "LINT": "lint_deck.js 미구현 (계획서 9절 보류)",
+    # STRUCT: 파일이 없으면(아직 안 돌면) SKIP. 돌았으면 cmd_gates가 struct 건수로 결정한다.
+    "STRUCT": "preflight가 아직 안 돌았다 (orchestrator.py <잡> preflight)",
 }
 
 
@@ -586,6 +589,26 @@ def cmd_gates(root: Path) -> None:
         # 빠지거나(HOUSE 차단 표시) 모두 통과로 새치기 못 한다 (2.16.7).
         blocked.append("UNMAPPED")
 
+    # STRUCT: preflight 결과로 판정한다. status(종료 코드)가 아니라 counts.ownership.struct 건수로 본다 (2.18).
+    try:
+        preflight = read_json(root / "review" / f"preflight_r{register.get('round', 1)}.json")
+        pf_status = preflight.get("status")
+        ownership = preflight.get("counts")
+        struct_owner = (ownership or {}).get("ownership", {}).get("struct") if isinstance(ownership, dict) else None
+    except (json.JSONDecodeError, OSError):
+        preflight, pf_status, struct_owner = {}, "ERROR", None
+    if pf_status is None:
+        pass  # 파일이 없다 → 상태 루프가 SKIP을 정한다
+    elif pf_status == "ERROR":
+        blocked.append("STRUCT")
+        violations["STRUCT"].append("preflight 실행 불가: " + str(preflight.get("error", "?")))
+    elif not isinstance(struct_owner, int):
+        blocked.append("STRUCT")
+        violations["STRUCT"].append("preflight 결과 형식 이상")
+    elif struct_owner > 0:
+        blocked.append("STRUCT")
+        violations["STRUCT"].append(f"구조 오류 {struct_owner}건")
+
     # 세 상태: BLOCKED(위반 있음) / PASS(검사했고 위반 0) / SKIP(검사기가 없거나
     # 이 환경에서 안 돎). 정적 미도달(CALC·LINT)과 맥의 render SKIP(LAYOUT의 진짜
     # 넘침 검사가 안 돎)이 PASS로 오인되어서는 안 된다 (계약 7, BUILDER_TO_PIPE.md 8절).
@@ -594,6 +617,8 @@ def cmd_gates(root: Path) -> None:
     for gate in GATES:
         if gate in blocked:
             status[gate] = "BLOCKED"
+        elif gate == "STRUCT":
+            status[gate] = "PASS" if pf_status in ("PASS", "FAIL") else "SKIP"
         elif gate in SKIP_REASONS:
             status[gate] = "SKIP"
         elif gate == "LAYOUT" and render_status == "SKIP":
