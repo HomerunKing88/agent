@@ -2,13 +2,15 @@
 """e2e_check.py — 잡 한 바퀴 회귀 검사 (생성기 ↔ 검사기 ↔ 오케스트레이터).
 
 `fixtures/`는 pptx 한 장을 audit.py에 물리는 검사다. 이 파일은 그 위의 이음매를 본다.
-잡 폴더를 만들고 `orchestrator.py build → review → route → gates → report`를 돌린 뒤
-결과 파일을 확인한다. 오늘까지 나온 통합 버그는 전부 이 경로에서만 보였다.
+잡 폴더를 만들고 `orchestrator.py`를 build부터 report까지 돌린 뒤 결과 파일을 확인한다.
+Slack 결정 분기는 `slack_bot.run_orchestrator`를 stub으로 불러 본다.
+지금까지 나온 통합 버그는 전부 이 경로에서만 보였다.
 
   manifest valign 기본값        생성기가 pptxgenjs와 다른 값을 적었다
   칩 보조설명 캔버스 이탈         고정 폭이 우측 칼럼에서 판형을 넘었다
   게이트 오배선                  EDITOR 지적이 HOUSE로 떨어졌다
   미등록 숫자 토큰 오탐           더미 문구의 맨숫자가 잡혔다
+  역할별 최소 pt 누락            헬퍼 여섯이 규정대로 그렸는데 오탐 22건이 났다
 
 실적 수치를 쓰지 않는다. 원천은 더미(0과 10)로 만들고 임시 폴더에서만 돈다.
 
@@ -19,12 +21,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import importlib
 import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import types
 import zipfile
 from pathlib import Path
 
@@ -110,16 +114,37 @@ tpl.footer(s2, ["※ 커버리지 각주"]);
 pres.writeFile({ fileName: process.argv[2] });
 """
 
-# audit.py의 minimum_font_size()가 아는 역할이 넷뿐이라, 나머지 헬퍼가
-# house-rules가 규정한 크기로 그려도 body_min_pt(10) 하한에 걸려 오탐이 난다.
-# house-rules에 role_min_pt 표를 넣어 뒀고 audit.py가 그걸 읽으면 사라진다.
-# 그때 이 목록을 비운다. (AGENTS.md "역할별 최소 pt" 절 참조)
-COVERAGE_KNOWN_GAP = {"sizes.body_min_pt"}
+# 커버리지 덱에서 눈감아 주는 규칙. **비어 있는 것이 정상이다.**
+# 헬퍼가 house-rules 규정대로 그렸는데 audit이 역할을 몰라 오탐 22건을 내던 시기에
+# sizes.body_min_pt를 여기 넣어 뒀었다. Codex가 role_min_pt를 붙이면서(27a6d45)
+# 오탐이 0이 되어 비웠다. 다시 채워야 한다면 그건 검사기 쪽 격차라는 뜻이다.
+COVERAGE_KNOWN_GAP: set[str] = set()
 
 
 EDITOR_MAJOR = {"issues": [{
     "id": "E-001", "slide": 1, "type": "STRUCTURE", "severity": "MAJOR", "action": "USER_DECISION",
     "finding": "e2e 회귀용 지적", "evidence": "p1", "proposal": "사용자가 정한다"}]}
+
+
+def slack_run(job: Path) -> tuple[str, str]:
+    """`slack_bot.run_orchestrator`를 불러 결정 완료 경로를 확인한다 (6단계).
+
+    이 경로는 Slack API를 타지 않는다. 디스크 상태만 보고 다음 행동을 정한다.
+    그래서 `slack_bolt`가 깔려 있지 않아도 stub으로 부를 수 있다 — 맥에서도 돈다.
+    실제 봇 기동은 집 Windows PC 몫이고, 여기서 고정하려는 것은
+    "결정이 이미 있으면 버튼을 다시 요구하지 않는다"는 분기 하나다.
+    """
+    bolt = types.ModuleType("slack_bolt")
+    decorator = lambda *_a, **_k: (lambda fn: fn)  # noqa: E731
+    bolt.App = lambda *_a, **_k: types.SimpleNamespace(event=decorator, action=decorator)
+    adapter = types.ModuleType("slack_bolt.adapter")
+    socket = types.ModuleType("slack_bolt.adapter.socket_mode")
+    socket.SocketModeHandler = object
+    sys.modules.setdefault("slack_bolt", bolt)
+    sys.modules.setdefault("slack_bolt.adapter", adapter)
+    sys.modules.setdefault("slack_bolt.adapter.socket_mode", socket)
+    os.environ.setdefault("SLACK_BOT_TOKEN", "e2e-stub")
+    return importlib.import_module("slack_bot").run_orchestrator(job, 1)
 
 
 CODE_FILES = ("template.js", "deck.js", "audit.py", "render_check.py",
@@ -206,7 +231,14 @@ def run(job: Path, rules: dict) -> None:
     gates = read(job / "review" / "gates.json")
     check("기각 후 게이트가 열린다", not gates.get("blocked"), str(gates.get("blocked")))
 
-    print("\n[4] manifest 변조 — 감사 필드를 뭉개면 ERROR")
+    print("\n[4] Slack 결정 완료 — 버튼을 다시 요구하지 않는다 (6단계)")
+    # 결정이 이미 디스크에 있으면 DECISION(버튼)이 아니라 DONE(FINAL)으로 가야 한다.
+    # 사용자가 폰에서 버튼을 눌렀는데 봇이 같은 버튼을 또 띄우면 잡이 거기서 멈춘다.
+    kind, message = slack_run(job)
+    check("run_orchestrator가 DONE", kind == "DONE", f"{kind}: {message}")
+    check("결정을 다시 묻지 않는다", kind != "DECISION", message)
+
+    print("\n[5] manifest 변조 — 감사 필드를 뭉개면 ERROR이고 게이트가 막힌다")
     path = job / "builder" / "manifest.json"
     tampered = read(path)
     claim = tampered["claims"][0]
@@ -217,8 +249,16 @@ def run(job: Path, rules: dict) -> None:
     register = read(job / "review" / "issue_register.json")
     check("audit이 ERROR를 낸다", register.get("audit_status") == "ERROR",
           str(register.get("audit_status")))
+    # 이슈가 0건이어도 ALL PASS가 되면 안 된다 (2.16-7 조용한 PASS 금지).
+    # [3]에서 REJ 결정을 이미 써 뒀으므로, 검사 불가가 기각으로 우회되지 않는 것도 같이 본다.
+    orch(job, "gates")
+    gates = read(job / "review" / "gates.json")
+    check("ERROR가 게이트를 막는다 (ISSUE)", "ISSUE" in (gates.get("blocked") or []),
+          f"blocked={gates.get('blocked')}")
+    check("기각으로 우회되지 않는다", (job / "review" / "user_decision.json").exists()
+          and "ISSUE" in (gates.get("blocked") or []))
 
-    print("\n[5] 헬퍼 전수 — 어떤 덱도 안 쓰는 헬퍼까지 그려 본다")
+    print("\n[6] 헬퍼 전수 — 어떤 덱도 안 쓰는 헬퍼까지 그려 본다")
     cov = job.parent / "coverage"
     cov.mkdir(exist_ok=True)
     (cov / "coverage_deck.js").write_text(COVERAGE_DECK, encoding="utf-8")
@@ -253,17 +293,17 @@ def run(job: Path, rules: dict) -> None:
     if gap:
         print(f"       (알려진 격차 {len(gap)}건: audit.py가 house-rules의 role_min_pt를 아직 안 읽는다)")
 
-    print("\n[6] 보고서가 나온다")
+    print("\n[7] 보고서가 나온다")
     orch(job, "report")
     check("QA_REPORT.md", (job / "final" / "QA_REPORT.md").exists())
     check("CHANGELOG.md", (job / "final" / "CHANGELOG.md").exists())
 
-    print("\n[7] 규칙이 강제되고 있나 — house-rules의 죽은 키를 센다")
+    print("\n[8] 규칙이 강제되고 있나 — house-rules의 죽은 키를 센다")
     dead, stale = unenforced_drift(rules)
     check("검사 없는 새 규칙 없음", not dead, ", ".join(dead))
     check("unenforced 목록이 최신", not stale, ", ".join(stale))
 
-    print("\n[8] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
+    print("\n[9] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
     plumbing = len((REPO / "orchestrator.py").read_text(encoding="utf-8").splitlines())
     checker = len((REPO / "audit.py").read_text(encoding="utf-8").splitlines())
     check(f"orchestrator({plumbing}) <= audit({checker})", plumbing <= checker,

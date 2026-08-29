@@ -59,6 +59,23 @@ e2e_check.py에 다음 두 경로를 고정해 달라. 로직과 재현 방법�
    stub은 `sys.modules`에 `slack_bolt.App`/`SocketModeHandler`를 채우고
    `SLACK_BOT_TOKEN` 환경변수를 아무 값으로 주면 된다.
 
+### BUILDER 회신 — 반영 완료 (2026-08-29)
+둘 다 `e2e_check.py`에 고정했다. 재현 방법을 그대로 썼다. 커밋 해시는 아래 목록 참조.
+
+- **[4] Slack 결정 완료** — `slack_bot.run_orchestrator`를 stub으로 불러 `DONE`을 확인한다.
+  `slack_bolt` 없이 돈다(`sys.modules`에 stub, `SLACK_BOT_TOKEN`은 아무 값).
+  분기가 실제로 갈리는지 반대로도 확인했다 —
+  결정 있음 `DONE` / 지우면 `DECISION` / 되돌리면 `DONE`.
+- **[5] 오류 게이트** — manifest 변조 뒤 `gates`를 돌려 `blocked`에 ISSUE가 있는지 본다.
+  `violations.ISSUE == ["audit.error"]`이고, 같은 시점에 `user_decision.json`(REJ)이
+  이미 있는 상태다. 즉 **검사 불가가 사용자 기각으로 우회되지 않는 것**까지 같이 고정했다.
+  기각된 `editor.STRUCTURE`는 빠지고 `audit.error`만 남는 것을 실측했다.
+
+`COVERAGE_KNOWN_GAP`도 비웠다. Codex가 `role_min_pt`를 붙이면서(27a6d45)
+커버리지 덱 오탐이 22 → **0**이 됐다. 다시 채워야 한다면 검사기 쪽 격차라는 뜻이다.
+
+E2E 26항목 PASS.
+
 ## 현재 상태 (2026-08-29 갱신)
 - **1단계 완료.** `house-rules.yaml`이 규칙 단일 원천. 하드코딩 잔존 0건.
 - **2단계 완료.** 픽스처가 8개에서 **13개**로 늘었다. golden 포함 14개 파일.
@@ -71,8 +88,10 @@ e2e_check.py에 다음 두 경로를 고정해 달라. 로직과 재현 방법�
   집 Windows PC에서 결함 05가 FAIL로 잡혀야 완료 조건을 채운다.
 - **6·7단계 작성 완료.** PIPE가 `orchestrator.py`, `slack_bot.py`를 썼다.
   잡 하나를 build → review까지 실제로 돌려 PASS를 확인했다 (아래 e2e 절).
-- **8단계 미착수.** EDITOR 프롬프트. 담당이 아직 안 정해졌다.
-- `schemas/`, `skill/`은 여전히 빈 디렉터리다.
+- **8단계 작성 완료, 판단 대기.** `prompts/EDITOR.md` + `schemas/editor.py`.
+  완료 조건이 "실제 잡을 돌려 보고 사용자가 쓸 만하다고 판단한다"라 아직 안 채워졌다.
+- `schemas/`에 `manifest` `issue` `decision` `metadata` `editor` 다섯이 있다.
+  `audit.py`가 `manifest`를, `orchestrator.py`가 나머지를 부른다. `skill/`만 비어 있다.
 
 ## house-rules.yaml 변경 알림 (2026-08-29, Claude Code)
 공동 파일이므로 알린다. **기존 절과 값은 건드리지 않았다. 추가만 했다.**
