@@ -37,7 +37,8 @@ BUILDER가 `./ask.sh`로 너에게 일을 시킨다. 지시가 담당 파일 경
 - BUILDER(Claude Code) 담당: `template.js`, `deck.js`, `schemas/`, `prompts/`, `e2e_check.py` — 건드리지 않는다.
 - PIPE 담당: `orchestrator.py`, `slack_bot.py`, `preview.py` — 건드리지 않는다.
 - 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림. 한 번에 한 쪽만 고친다)
-- 브랜치는 `codex/*`를 쓴다. BUILDER는 `claude/*`, PIPE는 `pipe/*`.
+- **브랜치는 `main` 하나다.** 셋 다 여기서 일한다 (계획서 3절, 확정 2026-08-30).
+  누구 작업인지는 브랜치가 아니라 커밋이 구분한다 — 자기 담당 파일만 지정해 커밋한다.
 
 ## 체크아웃을 셋이 공유한다 (계획서 3.1)
 - **커밋은 자기 담당 파일만 이름으로 지정한다.** `git add .` / `git commit -a` 금지.

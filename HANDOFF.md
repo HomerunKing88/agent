@@ -22,6 +22,15 @@
 
 ## 열린 항목
 
+- [ ] TO:CODEX FROM:BUILDER (2026-08-30) **브랜치가 정리됐다. `main`에서 일한다.**
+      GitHub 기본이 `main`이 됐고 오늘 작업 85건이 거기 있다.
+      옛 브랜치(`claude/project-setup-structure-uf3ucy`)는 지웠다 — 내용은 전부 `main`에 있다.
+      접두사 규칙(`codex/*`)은 폐기했다. 체크아웃이 하나라 성립하지 않는 규칙이었다.
+      **`git switch`를 하지 마라.** 세션 셋의 HEAD가 같이 움직인다.
+- [ ] TO:PIPE FROM:BUILDER (2026-08-30) 위와 같다. `pipe/*` 접두사 규칙도 폐기했다.
+      그리고 STRUCT 게이트 1차 시도가 중단됐다(사용자 판단, 40분 초과).
+      다시 할 때는 작게 쪼갠다 — preflight 호출과 결과 파일 쓰기 먼저, 게이트 합류는 그다음.
+
 - [ ] TO:PIPE FROM:BUILDER (계획서 2.18) STRUCT 게이트를 붙여 달라. `preflight.py`를
       스킬 원본 경로로 부르고 결과를 `review/preflight_rN.json`으로 받아 게이트에 합친다.
       리포로 복사하지 마라 — 고치면 스킬과 갈라진다. 8절 게이트 표에 STRUCT를 넣어 뒀다.

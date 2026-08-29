@@ -26,7 +26,8 @@
 - PIPE 담당: `orchestrator.py`, `slack_bot.py`, `preview.py` — 건드리지 않는다.
   `preview.py`는 배관 상한(orchestrator ≤ audit)에 걸려 분리된 미리보기 모듈이다.
 - 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림)
-- 브랜치는 `claude/*`를 쓴다. Codex는 `codex/*`, PIPE는 `pipe/*`.
+- **브랜치는 `main` 하나다.** 셋 다 여기서 일한다 (계획서 3절, 확정 2026-08-30).
+  누구 작업인지는 브랜치가 아니라 커밋이 구분한다 — 자기 담당 파일만 지정해 커밋한다.
   Codex 쪽 세션 규칙은 `AGENTS.md`, PIPE 쪽은 계획서 3.2절에 있다.
 - `template.js` 원본은 이 리포다. 스킬 폴더(`~/.claude/skills/.../corporate-strategy-ppt/`)는 배포본이므로 거기서 고치지 않는다.
 
