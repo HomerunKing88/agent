@@ -471,11 +471,11 @@ def check_numeric_tokens(prs, rules, manifest):
                     for col_index, cell in enumerate(row.cells):
                         containers.append((f"{shape.name}[{row_index},{col_index}]", cell.text.strip()))
         for location, full_text in containers:
-            if any(pattern.fullmatch(full_text) for pattern in context_patterns):
-                continue
             for match in token_re.finditer(full_text):
                 token = match.group(0)
                 if (page, token) in registered or (page, token) in job_allowed:
+                    continue
+                if any(pattern.fullmatch(token) for pattern in context_patterns):
                     continue
                 key = (page, location, token)
                 if key not in emitted:

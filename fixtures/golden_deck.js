@@ -58,8 +58,8 @@ function addPage(pres, defectId, metric = "1,000") {
     });
   }
   if (defectId === "09") {
-    slide.addText("미등록 지표 777", {
-      x: 7.6, y: 3.20, w: 1.8, h: 0.35,
+    slide.addText("FY26E 미등록 지표 777", {
+      x: 7.6, y: 3.20, w: 2.6, h: 0.35,
       objectName: "fixture/unregistered_token",
       fontFace: tpl.F, fontSize: R.sizes.body_min_pt,
       color: tpl.C.body, margin: 0,
