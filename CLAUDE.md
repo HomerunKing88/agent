@@ -23,7 +23,8 @@
   막힌 것을 내가 받아 폰으로 올리고, 답을 받아 다시 지시한다.
   `ask.sh`가 상한 시간에서 끊고 "사용자 입력 필요"로 돌려준다 (`ASK_TIMEOUT`, 기본 900초).
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
-- PIPE 담당: `orchestrator.py`, `slack_bot.py` — 건드리지 않는다. 2026-08-29에 넘겼다.
+- PIPE 담당: `orchestrator.py`, `slack_bot.py`, `preview.py` — 건드리지 않는다.
+  `preview.py`는 배관 상한(orchestrator ≤ audit)에 걸려 분리된 미리보기 모듈이다.
 - 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림)
 - 브랜치는 `claude/*`를 쓴다. Codex는 `codex/*`, PIPE는 `pipe/*`.
   Codex 쪽 세션 규칙은 `AGENTS.md`, PIPE 쪽은 계획서 3.2절에 있다.

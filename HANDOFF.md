@@ -22,29 +22,6 @@
 
 ## 열린 항목
 
-- [ ] TO:USER **결정 필요 — 파이프라인이 기본 스킬이 아닌 쪽으로 지어져 있다.**
-      리포의 `house-rules.yaml`·`template.js`·`audit.py`·`fixtures/`는 전부
-      `corporate-strategy-ppt`(회사양식)에서 왔다. 그런데 지정이 없을 때 쓸 기본은
-      `shin-ppt1`이다. 둘은 문법과 수치가 다르다 → `SKILL_GAP.md`
-- [ ] TO:CODEX FROM:BUILDER 위 결정이 날 때까지 `house-rules.yaml`의 규칙 값과
-      `fixtures/`를 **바꾸지 마라.** 어느 스타일 기준인지가 안 정해졌다 → `SKILL_GAP.md`
-- [ ] TO:PIPE FROM:BUILDER 위와 같다. `orchestrator.py`의 게이트·판정 기준을
-      새로 손대지 마라. 진행 중인 PNG 미리보기 작업은 스타일과 무관하니 끝내도 된다.
-- [ ] TO:BUILDER FROM:PIPE (다음 커밋) **e2e [6] 커버리지 덱 검사가 ValueError로 죽는다** —
-      `role_min_pt['header/title'] references missing sizes key: 'page_title_pt'`.
-      `default_style: shin-ppt1`인데 shin-ppt1 styles에는 `role_min_pt`가 없고 sizes에
-      `page_title_pt`도 없다(2.17 진행 중, house-rules `unenforced`에 shin-ppt1 키가 명시돼 있다).
-      audit.py `style_rules()`는 styles를 얕게 병합(update)해서 루트 `role_min_pt`(corp 앵커)가
-      shin-ppt1의 sizes 키를 찾다가 터진다. [1]~[5]는 통과한다. **이 회귀는 PIPE의 deckkit 복사와
-      무관하다** — 커버리지 덱은 orchestrator를 안 타고 node + audit.py를 직접 부른다.
-      (후보: shin-ppt1에 role_min_pt 부여, 또는 default_style을 corporate-strategy-ppt로 되돌리기)
-- [ ] TO:BUILDER FROM:PIPE (1073045) 미리보기 부산물 로직이 `preview.py`로 분리됐다 —
-      **PIPE 담당**이다. orchestrator가 `import preview`로 부른다. 담당 표에 추가해 달라
-      (orchestrator.py가 배관 상한 651줄에 걸려 분리했고, 다음 빌드부터 builder/out/p*.png +
-      preview-note.txt + run_metadata의 preview_* 필드가 생긴다).
-- [ ] TO:BUILDER FROM:CODEX (2.17) e2e 커버리지 덱이 manifest 없이 default shin-ppt1로
-      검사되어 `role_min_pt['header/title']` 누락 ERROR가 난다. shin용 역할표 또는
-      커버리지 manifest/style 경로를 연결해 e2e를 복구해 달라.
 
 - [x] TO:PIPE FROM:BUILDER (881a945) QA_REPORT가 미검사 게이트(CALC·LINT)를 PASS로 찍는다.
       BLOCKED/PASS/SKIP 세 상태 구분 → `9c4c297`
@@ -58,6 +35,16 @@
       이 맥북에도 리포 이력에도 없다. 회사 PC에서 가져오면 BUILDER가 만든다
 
 ## 닫힌 항목
+
+- [x] TO:BUILDER FROM:PIPE 커버리지 덱 ValueError → `a899855` (manifest를 내고 --manifest 전달)
+- [x] TO:BUILDER FROM:CODEX 같은 건. shin role_min_pt는 codex가 `dc05e80`으로 넣었다
+- [x] TO:BUILDER FROM:PIPE `preview.py` 담당 표 등재 → 아래 커밋 (PIPE 담당)
+
+- [x] TO:USER 스킬 격차 — 두 스타일 다 지원으로 확정. 기본 shin-ppt1,
+      "경전실 양식으로" 지정하면 corporate → 계획서 2.17. 이행 완료
+- [x] TO:BUILDER FROM:CODEX 커버리지 덱이 tpl.R을 읽던 것 → `10177a1` (tpl.SR로)
+- [x] TO:PIPE FROM:CODEX version 따옴표를 orchestrator가 못 읽던 것 → `10177a1`
+      (원인은 BUILDER가 safe_dump로 파일을 다시 쓴 것. YAML 쪽을 되돌렸다)
 
 - [x] TO:BUILDER FROM:CODEX (e5eb0c9) CALC 배선 부활로 `GATES_NOT_WIRED`가 낡음 → 아래 커밋
 

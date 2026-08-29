@@ -35,7 +35,7 @@ BUILDER가 `./ask.sh`로 너에게 일을 시킨다. 지시가 담당 파일 경
 ## 담당 파일 (에이전트 셋. 계획서 3절)
 - Codex 담당: `audit.py`, `render_check.py`, `fixtures/`
 - BUILDER(Claude Code) 담당: `template.js`, `deck.js`, `schemas/`, `prompts/`, `e2e_check.py` — 건드리지 않는다.
-- PIPE 담당: `orchestrator.py`, `slack_bot.py` — 건드리지 않는다. 2026-08-29 신설.
+- PIPE 담당: `orchestrator.py`, `slack_bot.py`, `preview.py` — 건드리지 않는다.
 - 공동: `house-rules.yaml`, `requirements.txt` (변경 시 나머지 둘에게 알림. 한 번에 한 쪽만 고친다)
 - 브랜치는 `codex/*`를 쓴다. BUILDER는 `claude/*`, PIPE는 `pipe/*`.
 

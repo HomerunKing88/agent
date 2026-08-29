@@ -291,7 +291,7 @@ Codex(audit.py)와 Claude(template.js)가 병렬로 만들면 서로 다른 연�
 BUILDER (Claude Code)  template.js, deck.js, schemas/, prompts/, e2e_check.py,
                        relay.sh, ask.sh, opencode.json
 Codex                  audit.py, render_check.py, fixtures/
-PIPE                   orchestrator.py, slack_bot.py
+PIPE                   orchestrator.py, slack_bot.py, preview.py
 공동                    house-rules.yaml, requirements.txt (변경 시 나머지 둘에게 알림)
 인계                    HANDOFF.md (작업 큐. 누구나 자기 줄을 고친다)
 ```
