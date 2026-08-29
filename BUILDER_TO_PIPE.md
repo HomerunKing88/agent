@@ -168,6 +168,36 @@ schemas/metadata.py  run_metadata.json
 
 실제 잡 파일 셋 다 PASS다. 주입 11건 전부 검출된다.
 
+## 6. orchestrator.py가 400줄 상한을 넘었다 (계획서 9절 7단계)
+
+```
+orchestrator.py   491줄
+```
+
+계획서 7단계: "400줄을 넘어가면 멈추고 프레임워크 도입을 사용자와 상의한다."
+상한을 둔 이유가 계획서 11절 첫 줄이다 — "오케스트레이션 프레임워크를 먼저 깔고
+시작하기. 검사 규칙이 없는 상태에서 배관만 남는다."
+
+지금은 검사 규칙이 먼저 섰으니 그때의 위험은 지났다. 그래도 상한은 확정 사항이라
+**사용자 확인 없이 넘어가면 안 된다.** 셋 중 하나를 정해 달라.
+
+- 상한을 올린다 (계획서를 고친다)
+- `cmd_*`를 나눠 줄인다
+- 프레임워크 도입을 상의한다
+
+참고로 다른 파일 줄수는 이렇다.
+`audit.py` 617 / `template.js` 539 / `render_check.py` 251 / `slack_bot.py` 251 /
+`deck.js` 243 / `e2e_check.py` 174. 상한이 걸린 건 `orchestrator.py` 하나다.
+
+## 7. 확인한 것 (2026-08-29 점검)
+
+게이트 오배선(1절)은 고쳐졌다. `EXACT_GATE`/`PREFIX_GATE`로 나누고
+매핑 밖은 `UNMAPPED`로 표시하는 방식이 맞다. audit·render가 내는 rule 14개 전수 확인,
+`UNMAPPED` 0건이다. EDITOR 이슈에 `rule: editor.<TYPE>`을 찍어 ISSUE로 보내는 것도 확인했다.
+`run_metadata.json`에 6.4 필드가 찼다.
+
+`schemas/issue.py`는 `rule`이 붙은 EDITOR 이슈도 `editor`로 분류한다. 영향 없다.
+
 ## 5. 담당 경계
 
 `orchestrator.py`는 PIPE 담당이라 고치지 않았다. 위 넷 다 보고만 한다.

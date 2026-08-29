@@ -77,6 +77,38 @@ sizes:
   stat_card_number_pt: 15    # 범위 15~22. template.js 기본값 15
   stat_card_label_pt: 10     # 확정 2026-08-28. template.js는 9.5였다 -> 10으로 올림
 
+# ── 역할별 글자 크기 하한 (계획서 2.16-1의 이름 규약을 검사에 쓰는 표) ──────
+# 값은 위 sizes 절의 **키 이름**이다. 숫자를 두 벌로 두지 않는다.
+# body_min_pt는 본문 하한이지 전역 하한이 아니다. 차트 축 라벨은 7.5, 워터폴 값은 9.5가
+# 하우스 규칙이다. 역할을 모르면 본문으로 보고 10pt를 요구하게 되어 오탐이 난다.
+# 도형 이름의 "#2" 꼬리는 떼고 찾는다. 이름에 "/"가 없으면 claim 도형이다.
+role_min_pt:
+  "header/title":        page_title_pt
+  "header/draft_tag":    draft_tag_pt
+  "banner/text":         banner_pt
+  "chip/label":          chip_pt
+  "chip/desc":           chip_desc_pt
+  "panel/title":         card_title_pt
+  "bullets/marker":      bullet_marker_pt
+  "bullets/line":        body_min_pt
+  "cream_box/text":      cream_box_pt
+  "dark_card/text":      dark_card_body_pt
+  "stat_card/number":    stat_card_number_pt
+  "stat_card/label":     stat_card_label_pt
+  "icon_badge/glyph":    icon_badge_glyph_pt
+  "col_chart/value":     chart_value_label_pt
+  "col_chart/cat":       chart_value_label_pt
+  "col_chart/avg_label": chart_axis_label_pt   # charts.avg_line.label_pt와 같은 7.5
+  "stack100/seg_label":  chart_value_label_pt
+  "stack100/cat":        chart_value_label_pt
+  "waterfall/tick_label": chart_axis_label_pt
+  "waterfall/value":     waterfall_value_pt
+  "waterfall/cat":       chart_value_label_pt
+  "footer/notes":        footnote_pt
+  "table/caption":       table_caption_pt
+  _claim_shape:          chart_axis_label_pt   # 이름에 "/"가 없는 값 도형
+  _default:              body_min_pt
+
 # ── 팔레트 ──────────────────────────────────────────────────────────
 palette:
   navy:      "0D4D79"   # 제목선, 섹션 제목, 핵심 숫자, 배너/카드 배경, 표 헤더, 당사 막대

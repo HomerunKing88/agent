@@ -424,6 +424,68 @@ audit 이슈 형식(`rule`/`slide`/`shape`/`evidence`)은 `schemas/issue.py`의
 `e2e_check.py`가 직접 부르고 있어 회귀는 잡히지만, 파이프라인 안에서는 아직 안 쓴다.
 적용 여부는 PIPE 판단이다 (`BUILDER_TO_PIPE.md` 4-2).
 
+## Codex 조치 요청 — 역할별 최소 pt 표 (2026-08-29, BUILDER) **오탐 22건**
+
+`deck.js`와 `fixtures/golden_deck.js`가 안 쓰는 헬퍼 여섯 개
+(`statCard` `darkCard` `iconBadge` `stacked100` `waterfall` `panel`)를
+실제로 그려 봤다. `audit.py`가 **오탐 22건**을 낸다.
+
+```
+p1 sizes.body_min_pt: 9pt < 역할별 하한 10pt: '①'          ← icon_badge/glyph (규칙값 9)
+p2 sizes.body_min_pt: 8.5pt < 역할별 하한 10pt: '50%'       ← stack100/seg_label (규칙값 8.5)
+p2 sizes.body_min_pt: 7.5pt < 역할별 하한 10pt: '25%'       ← waterfall/tick_label (규칙값 7.5)
+p2 sizes.body_min_pt: 9.5pt < 역할별 하한 10pt: '+10.0%p'   ← waterfall/value (규칙값 9.5)
+```
+
+전부 house-rules가 **그 역할에 대해 규정한 크기로** 그린 것이다.
+`minimum_font_size()`가 아는 역할이 `header/draft_tag` `footer/notes` `table/caption`
+`col_chart/cat` 넷뿐이라 나머지가 전부 `body_min_pt: 10`으로 떨어진다.
+`body_min_pt`는 **본문 하한이지 전역 하한이 아니다.**
+
+지금 잡히지 않는 이유는 오늘 덱들이 그 여섯 헬퍼를 안 쓰기 때문이다.
+워터폴이나 100% 스택을 쓰는 잡이 오는 순간 22건이 뜬다.
+계획서가 가장 경계한 상태다 — "오탐이 쌓이면 검사가 조용히 꺼진다".
+
+**house-rules.yaml에 `role_min_pt` 표를 넣었다 (7차 알림. 추가만 했다).**
+값은 숫자가 아니라 `sizes` 절의 **키 이름**이다. 숫자를 두 벌로 두지 않는다.
+`minimum_font_size()`가 이 표를 읽으면 된다.
+
+```python
+base = shape_name.split("#", 1)[0]
+key = table.get(base) or (table["_claim_shape"] if "/" not in base else table["_default"])
+return float(sizes[key])
+```
+
+지금 코드의 넷은 이 표에 그대로 들어 있다. 역할표를 코드에 두는 것 자체가
+"규칙 값을 audit.py에 하드코딩하지 않는다"에 걸리기도 한다.
+
+확인한 것 — 이 표를 적용하면
+- 커버리지 덱 오탐 22건 → **0건**
+- 실제 잡 덱 위반 **0건 유지**
+- **결함 13(본문 글자 작음)은 그대로 잡힌다** (`fixture/body_too_small` 9pt < 10pt).
+  검사가 죽지 않는다.
+
+`e2e_check.py` [5]에 헬퍼 전수 커버리지를 넣었다. 지금은 이 22건을
+`COVERAGE_KNOWN_GAP`으로 명시해 두고 통과시킨다. 반영되면 그 집합을 비운다.
+
+## 점검에서 같이 나온 것 (2026-08-29, BUILDER)
+
+**아무도 안 읽는 규칙 6건.** house-rules.yaml에 있는데 코드 참조가 0이다.
+```
+palette_usage.red_scope / red_max_per_line / brand_swatch
+charts.grouped_bar.series_max
+limits.parallel_items_max / diagrams_per_page_max
+```
+1단계 완료 조건("두 문서의 수치 중 YAML에 안 들어간 것이 없다")은 채웠지만
+검사기가 안 본다. 규칙은 있는데 강제가 없는 상태다.
+빨강 사용 제한(`red_max_per_line`)은 실제 하우스 규칙이라 검사할 값어치가 있어 보인다.
+검사에 넣을지, 참고값으로 남길지 정해 달라. 판단은 검사기 저자 쪽이 맞다.
+
+**`CALC` 게이트가 여전히 안 울린다.** audit이 계산 불일치를
+`claim.source_manifest_pptx`로 내서 SOURCE에 합쳐진다.
+합친 설계면 계획서 8절 게이트 표를 고쳐야 하고, 나눌 거면 rule 이름을 나눠야 한다.
+`LINT`는 `lint_deck.js`가 보류 항목이라 정상이다.
+
 ## 하지 말 것 (계획서 11절)
 - 오케스트레이션 프레임워크를 먼저 깔고 시작하기
 - 문장 단위 사실성 스캔

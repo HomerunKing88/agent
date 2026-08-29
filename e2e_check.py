@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 import yaml
@@ -73,6 +76,45 @@ def make_job(root: Path) -> Path:
         peer[f"{col}12"] = 10
     book.save(job / "source" / "source.xlsx")
     return job
+
+
+# 모든 그리기 헬퍼를 한 번씩 부르는 덱. deck.js와 fixtures/golden_deck.js가
+# 쓰지 않는 헬퍼(statCard, iconBadge, darkCard, stacked100, waterfall, panel)는
+# 이것이 없으면 한 번도 그려지지 않는다. 좌표 버그가 있어도 아무도 모른다.
+COVERAGE_DECK = """
+const pptxgen = require("pptxgenjs");
+const tpl = require(process.env.TEMPLATE_JS);
+const R = tpl.R, MX = tpl.MX, CW = tpl.CW, C = tpl.C;
+const pres = tpl.newPres(pptxgen);
+
+const s1 = pres.addSlide();
+tpl.header(s1, "헬퍼 커버리지", "COVERAGE");
+tpl.banner2(s1, [{ text: "배너 런", options: { fontSize: R.sizes.banner_pt, bold: true, color: C.white } }]);
+tpl.sectionChip(s1, MX, 2.10, "① 카드", "(보조설명)");
+tpl.panel(s1, MX, 2.55, 4.8, 1.6, "패널 제목");
+tpl.statCard(s1, MX + 5.2, 2.55, 2.2, 1.0, "1,234", "스탯 라벨");
+tpl.statCard(s1, MX + 7.6, 2.55, 2.2, 1.0, "56.7", "다크 라벨", { dark: true });
+tpl.iconBadge(s1, MX + 5.2, 3.75, "①");
+tpl.darkCard(s1, MX + 5.8, 3.75, 4.0, 0.6,
+  [{ text: "다크카드 본문", options: { fontSize: R.sizes.dark_card_body_pt, bold: true, color: C.white } }]);
+tpl.footer(s1, ["※ 커버리지 각주"]);
+
+const s2 = pres.addSlide();
+tpl.header(s2, "차트 헬퍼", "COVERAGE");
+tpl.stacked100(s2, MX, 4.2, 1.6, ["당사", "A사", "B사"],
+  [[50, 30, 20], [40, 40, 20], [30, 30, 40]], [C.navy, C.steel, C.grayLt], [C.white, C.body, C.body]);
+tpl.waterfall(s2, MX + 5.4, CW - 5.4, 4.2, 1.6, 50, 10, 20, ["실제", "델타", "가상"], "+10.0%p");
+tpl.creamBox(s2, 6.55, 0.55, "시사점 한 문장.");
+tpl.footer(s2, ["※ 커버리지 각주"]);
+
+pres.writeFile({ fileName: process.argv[2] });
+"""
+
+# audit.py의 minimum_font_size()가 아는 역할이 넷뿐이라, 나머지 헬퍼가
+# house-rules가 규정한 크기로 그려도 body_min_pt(10) 하한에 걸려 오탐이 난다.
+# house-rules에 role_min_pt 표를 넣어 뒀고 audit.py가 그걸 읽으면 사라진다.
+# 그때 이 목록을 비운다. (AGENTS.md "역할별 최소 pt" 절 참조)
+COVERAGE_KNOWN_GAP = {"sizes.body_min_pt"}
 
 
 EDITOR_MAJOR = {"issues": [{
@@ -138,7 +180,42 @@ def run(job: Path, rules: dict) -> None:
     check("audit이 ERROR를 낸다", register.get("audit_status") == "ERROR",
           str(register.get("audit_status")))
 
-    print("\n[5] 보고서가 나온다")
+    print("\n[5] 헬퍼 전수 — 어떤 덱도 안 쓰는 헬퍼까지 그려 본다")
+    cov = job.parent / "coverage"
+    cov.mkdir(exist_ok=True)
+    (cov / "coverage_deck.js").write_text(COVERAGE_DECK, encoding="utf-8")
+    env = {**os.environ,
+           "NODE_PATH": str(REPO / "node_modules"),
+           "TEMPLATE_JS": str(REPO / "template.js"),
+           "HOUSE_RULES": str(REPO / "house-rules.yaml")}
+    built = subprocess.run(["node", str(cov / "coverage_deck.js"), str(cov / "cov.pptx")],
+                           cwd=cov, env=env, capture_output=True, text=True)
+    check("커버리지 덱 생성", built.returncode == 0, built.stderr.strip()[-200:])
+
+    unnamed = []
+    with zipfile.ZipFile(cov / "cov.pptx") as archive:
+        for entry in archive.namelist():
+            if not re.match(r"ppt/slides/slide\d+\.xml$", entry):
+                continue
+            for name in re.findall(r'<p:cNvPr id="(\d+)" name="([^"]*)"', archive.read(entry).decode()):
+                shape_id, shape_name = name
+                # id=1은 슬라이드 자신이다
+                if shape_id != "1" and (not shape_name or shape_name.startswith(
+                        ("Object ", "Text ", "Shape ", "Table "))):
+                    unnamed.append(f"{entry}:{shape_name or '<빈 이름>'}")
+    check("모든 도형에 이름이 있다", not unnamed, ", ".join(unnamed[:3]))
+
+    audited = subprocess.run([sys.executable, str(REPO / "audit.py"), "--json", str(cov / "cov.pptx")],
+                             capture_output=True, text=True)
+    found = json.loads(audited.stdout)["results"][0]
+    check("커버리지 덱 검사 수행됨", found["status"] != "ERROR", str(found.get("error")))
+    leftover = sorted({i["rule"] for i in found["issues"]} - COVERAGE_KNOWN_GAP)
+    check("알려진 격차 외 이슈 없음", not leftover, ", ".join(leftover))
+    gap = [i for i in found["issues"] if i["rule"] in COVERAGE_KNOWN_GAP]
+    if gap:
+        print(f"       (알려진 격차 {len(gap)}건: audit.py가 house-rules의 role_min_pt를 아직 안 읽는다)")
+
+    print("\n[6] 보고서가 나온다")
     orch(job, "report")
     check("QA_REPORT.md", (job / "final" / "QA_REPORT.md").exists())
     check("CHANGELOG.md", (job / "final" / "CHANGELOG.md").exists())
