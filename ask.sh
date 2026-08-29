@@ -10,8 +10,9 @@
 #   ./ask.sh CODEX --dry "..."      # 보낼 명령만 보여준다
 #
 # 승인 수위
-#   CODEX  --sandbox workspace-write --approve-for-me
-#          리포 밖으로 못 나간다. 승인은 자동 심사로 흐른다.
+#   CODEX  --approve-for-me
+#          승인을 자동 심사로 흘리고 workspace-write 샌드박스에서 돈다 (리포 밖으로 못 나간다).
+#          --sandbox와는 배타적이다. 같이 주면 codex가 거부한다.
 #   PIPE   opencode.json의 permission이 담당 파일 경계를 강제한다.
 #          orchestrator.py / slack_bot.py 외 편집은 ask, push·switch·rm은 deny.
 #          --auto는 쓰지 않는다. 그걸 켜면 permission이 무의미해진다.
@@ -49,14 +50,14 @@ LIMIT="${ASK_TIMEOUT:-900}"   # 초. ASK_TIMEOUT으로 바꾼다
 with_limit() { perl -e 'alarm shift @ARGV; exec @ARGV' "$LIMIT" "$@"; }
 
 run_codex() {
-  with_limit codex exec --sandbox workspace-write --approve-for-me "$1"
+  with_limit codex exec --approve-for-me "$1"
 }
 run_pipe() {
   with_limit opencode run "$1"
 }
 
 case "$WHO" in
-  CODEX) CMD="codex exec --sandbox workspace-write --approve-for-me" ;;
+  CODEX) CMD="codex exec --approve-for-me" ;;
   PIPE)  CMD="opencode run" ;;
   BUILDER)
     echo "BUILDER는 나다. 남에게 시키지 말고 직접 해라." >&2; exit 2 ;;
