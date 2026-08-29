@@ -27,7 +27,17 @@
       "git checkout*": "deny",
       "git reset*": "deny",
       "rm *": "deny",
-      "*": "ask"
+      "*": "ask",
+      "grep *": "allow",
+      "sed -n *": "allow",
+      "cat *": "allow",
+      "head *": "allow",
+      "tail *": "allow",
+      "wc *": "allow",
+      "ls *": "allow",
+      "git branch*": "allow",
+      "git rev-parse*": "allow",
+      "node --check *": "allow"
     }
   }
 }
