@@ -228,6 +228,7 @@ BUILDER (Claude Code)  template.js, deck.js, schemas/, prompts/, e2e_check.py
 Codex                  audit.py, render_check.py, fixtures/
 PIPE                   orchestrator.py, slack_bot.py
 공동                    house-rules.yaml, requirements.txt (변경 시 나머지 둘에게 알림)
+인계                    HANDOFF.md (작업 큐. 누구나 자기 줄을 고친다)
 ```
 
 브랜치 접두사로 누구의 작업인지 구분한다. BUILDER `claude/*`, Codex `codex/*`, PIPE `pipe/*`.
@@ -249,6 +250,9 @@ worktree를 나누지 않는다. 셋이 `/Users/shin/Desktop/agent` 한 폴더�
 ### 3.2 PIPE 세션 규칙
 
 `orchestrator.py`와 `slack_bot.py`를 맡는다. 2026-08-29에 BUILDER에서 넘겼다.
+
+- **세션을 시작하면 `HANDOFF.md`에서 자기 앞 미완 항목을 먼저 처리한다.**
+  처리하면 `[x]`로 바꾸고 커밋 해시를 적는다. `TO:USER` 항목은 건드리지 않는다.
 
 - `template.js`, `deck.js`, `audit.py`, `render_check.py`, `fixtures/`를 건드리지 않는다.
 - `house-rules.yaml`은 공동 파일이다. 고치면 나머지 둘에게 알린다. 한 번에 한 쪽만 고친다.
