@@ -23,8 +23,10 @@ USER_DECISION인 항목만이다 (2.7). 게이트 판정은 exit code가 아니�
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -115,6 +117,38 @@ def banner(root: Path) -> None:
 
 
 # ── 단계 ────────────────────────────────────────────────────────────
+def repo_versions() -> dict:
+    """리포의 결정값을 읽는다: template.js TEMPLATE_VERSION, house-rules version.
+
+    JSON 6.4 스키마의 house_rule_version/template_version/audit_version을
+    채운다. YAML 파서 없이 정규식 한 줄로 읽는다 (의존성 추가 회피).
+    """
+    repo = Path(__file__).resolve().parent
+    versions = {}
+    tpl = repo / "template.js"
+    if tpl.exists():
+        m = re.search(r'TEMPLATE_VERSION\s*=\s*"([^"]+)"', tpl.read_text(encoding="utf-8"))
+        versions["template_version"] = m.group(1) if m else "unknown"
+    rules = repo / "house-rules.yaml"
+    if rules.exists():
+        m = re.search(r'^version:\s*"([^"]+)"', rules.read_text(encoding="utf-8"), re.M)
+        versions["house_rule_version"] = m.group(1) if m else "unknown"
+    return versions
+
+
+def source_hashes(root: Path) -> dict:
+    """잡 폴더의 입력 파일 해시 (6.4): source/*, builder/deck_v1.js."""
+    p = job_paths(root)
+    hashes = {}
+    targets = list(p["source"].glob("*.xlsx")) if p["source"].exists() else []
+    targets.append(p["deck_js"])
+    for f in targets:
+        if f.exists():
+            hashes[str(f.relative_to(root))] = "sha256:" + hashlib.sha256(
+                f.read_bytes()).hexdigest()
+    return hashes
+
+
 def meta_update(root: Path, **fields) -> None:
     path = root / "run_metadata.json"
     payload = read_json(path)
@@ -144,8 +178,13 @@ def cmd_build(root: Path, version: int = 1) -> None:
     p["builder"].mkdir(parents=True, exist_ok=True)
     subprocess.run(["node", str(p["deck_js"]), str(p["pptx"])],
                    cwd=p["builder"], env=env, check=True)
-    meta_update(root, stage="BUILT", deck_version=version,
-                built_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    # 6.4 실행 정보. 소스 해시는 이 잡의 입력이므로 매 build에 다시 계산한다
+    meta = dict(repo_versions())
+    meta["source_hashes"] = source_hashes(root)
+    meta["stage"] = "BUILT"
+    meta["deck_version"] = version
+    meta["built_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    meta_update(root, **meta)
 
 
 def cmd_review(root: Path, version: int = 1) -> None:
