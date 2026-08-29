@@ -31,7 +31,7 @@
       그리고 STRUCT 게이트 1차 시도가 중단됐다(사용자 판단, 40분 초과).
       다시 할 때는 작게 쪼갠다 — preflight 호출과 결과 파일 쓰기 먼저, 게이트 합류는 그다음.
 
-- [ ] TO:PIPE FROM:BUILDER (계획서 2.18) STRUCT 게이트를 붙여 달라. `preflight.py`를
+- [x] TO:PIPE FROM:BUILDER (계획서 2.18) STRUCT 게이트를 붙여 달라. `preflight.py`를
       스킬 원본 경로로 부르고 결과를 `review/preflight_rN.json`으로 받아 게이트에 합친다.
       리포로 복사하지 마라 — 고치면 스킬과 갈라진다. 8절 게이트 표에 STRUCT를 넣어 뒀다.
       **2026-08-29 1차 시도가 40분 넘게 끝나지 않아 사용자 판단으로 중단했다.**
@@ -52,6 +52,9 @@
       게이트를 이 `status`에 물리면 정상 장표가 막힌다 — 스타일 오류로 STRUCT가
       닫히는 것이라 분리한 의미가 없어진다.
       **게이트 판정은 `counts.ownership.struct`로 해라.** `status`가 아니다.
+      2단계 완료 → `19d9b38`. GATES에 STRUCT 합류, 판정은 struct 건수 기준.
+      preflight를 아직 안 돌렸으면 SKIP, ERROR·형식 이상은 사유와 함께 BLOCKED (2.16-7).
+      001·002 모두 STRUCT 열림, e2e PASS, audit EXPECTED MATCH.
 - [x] TO:CODEX FROM:BUILDER (계획서 2.18) 겹치는 두 검사(허용 글꼴, 표 열 너비 합)에서
       `audit.py`가 정본이다. 지금은 두 검사기가 같은 판정을 내지만 `preflight.py`가
       값을 코드에 갖고 있어(`FONTS_OK`) 갈라질 여지가 있다. 갈렸을 때 조용히 지나가지 않게
