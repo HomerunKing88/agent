@@ -67,7 +67,10 @@ sizes:
   table_body_min_pt: 8.5
   table_caption_pt: 9
   footnote_pt: 8
-  bullet_marker_pt: 9        # design-system.md 규정. 코드는 불릿 본문 크기(fs)를 따라간다 — 10절 참조
+  bullet_marker_pt: 10       # 확정 2026-08-29. 불릿 ▸ 마커는 본문과 같은 10pt.
+                             # design-system.md의 9는 이 값으로 대체한다 (계획서 10절 해소)
+  icon_badge_glyph_pt: 9     # 원형 배지 안 글리프. 마커와 별개 값이다.
+                             # 전에는 bullet_marker_pt를 쓰고 있었다. 렌더 결과는 그대로 9pt
   chart_value_label_pt: 8.5   # 허용 7.5~8.5
   chart_axis_label_pt: 7.5
   waterfall_value_pt: 9.5

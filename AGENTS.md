@@ -112,6 +112,13 @@ manifest.json 형식은 계획서 6.2에 적어 뒀다. 결정적이다(타임�
    계약 5는 게이트를 **결과 파일**로 판정하라고 한다. 필드 이름을 나누거나
    (`fixture_match` / `status`) 최상위를 results에서 유도해 주면 좋겠다.
 
+   → `orchestrator.py cmd_review`는 이 문제를 이미 우회한다. 최상위 `status`는
+   보지 않고 `results[0]`의 파일별 `status`/`issues`/`error`를 읽는다 (schema 기준
+   단일 대상이므로 첫 results 항목). `ERROR`일 땐 이슈 없이도 `audit.error` 블로킹
+   이슈를 만들어 조용한 PASS를 막는다 (2026-08-29 검증: 시트 부재·셀 None을 ERROR로
+   잡아 HOUSE 게이트 차단 확인). audit.py가 최상위 status를 results에서 유도하도록
+   바뀌면 검사기가 정본이 되고 orchestrator 쪽은 필드 이름만 바꾸면 된다.
+
 2. **숫자 토큰 화이트리스트 (계획서 10절 미결)**
    `claim.unregistered_numeric_token`이 불릿 본문의 "관찰 1", "관찰 2"에서
    맨숫자 `1`, `2`를 잡았다. 내 더미 문구를 "관찰 가/나"로 바꿔 당장은 없앴지만
@@ -121,6 +128,18 @@ manifest.json 형식은 계획서 6.2에 적어 뒀다. 결정적이다(타임�
 
 각주 검사를 `shape.name.startswith("footer/")`로 좁힌 건 확인했다.
 `table/caption`이 `* `로 시작해 각주로 잡히던 오탐이 사라졌다. 계약 1이 노린 게 그거다.
+
+## 잡 e2e 재현 (orchestrator, 2026-08-29)
+중복으로 한 번 더 돌리지 않아도 되게 남긴다. 잡 폴더 구조는 계획서 5절 그대로다.
+`deck.js`를 `builder/deck_v1.js`로 복사하고, `source/source.xlsx`에 deck.js가 참조하는
+시트·셀이 있어야 빌드가 전사적으로 PASS까지 간다.
+- `pageData()`가 쓰는 시트: `source.xlsx`의 `실적`(항목 C5~E8, 합계 D9/E9), `동종`(C12~G12=10).
+- `claim[ROE_*]` 등은 `src/sheet/ref`를 manifest에 남기므로 audit.py가 그 셀까지 재계산한다.
+  시트가 없으면 `audit.error`(FileNotFoundError) → HOUSE 차단. 셀이 None이면 ERROR(TypeError).
+- 명령: `orchestrator.py <잡> build` → `review` → `route` → `gates` → `report`.
+- `cmd_build`는 리포의 `template.js`를 잡에 복사하고 `NODE_PATH`/`HOUSE_RULES`를 리포로
+  가리킨다(2.16-6 규칙 단일 원천). `cmd_review`는 `--source-root <잡>/source`를 넘긴다.
+- 검증 결과: `audit_status=PASS, 이슈 0건` (2026-08-29, 2195d1f 이후 상태).
 
 ## 픽스처 재생성이 필요하다
 `template.js` 헬퍼가 도형에 이름을 붙이면서 출력 XML이 바뀐다.
@@ -147,10 +166,18 @@ manifest.json 형식은 계획서 6.2에 적어 뒀다. 결정적이다(타임�
   완료 조건: `python audit.py fixtures/`가 expected와 일치.
 - 5단계 `render_check.py`는 pywin32 + PowerPoint COM이 필요하다. 집 Windows PC에서만 돌아간다.
 
-## 미결 — 착수 전 확인
-- `sizes.bullet_marker_pt: 9`는 아직 아무도 읽지 않는다. `template.js`는 불릿 ▸ 마커에
-  본문 크기(기본 10pt)를 쓴다. 이 값으로 검사하면 현행 장표가 전부 FAIL 난다.
-  검사 대상에서 빼거나 값을 먼저 확정한다. 계획서 10절 참조.
+## 해소 — 불릿 마커 크기 (확정 2026-08-29, 사용자)
+`sizes.bullet_marker_pt: 9`가 아무도 안 읽던 값이었다. **10pt로 확정했다.**
+현행(본문과 동일)을 규칙으로 승격한 것이고, design-system.md의 9pt는 이 값으로 대체한다.
+**이제 이 값으로 검사를 켜도 된다.** 현행 장표가 FAIL 나지 않는다.
+
+house-rules.yaml 변경 알림 — `sizes`에 한 줄 추가, 한 줄 수정.
+- `bullet_marker_pt: 9` → `10` (수정)
+- `icon_badge_glyph_pt: 9` (추가) — 9를 실제로 쓰던 유일한 곳이 `iconBadge` 글리프였다.
+  마커와 별개 값으로 분리했다. 배지 렌더 결과는 그대로 9pt다.
+
+`template.js`는 마커에 호출부가 넘긴 `fs`가 아니라 `bullet_marker_pt`를 쓴다.
+호출부가 본문을 9pt로 낮춰도 마커는 10pt로 고정이라 결정적으로 검사할 수 있다.
 
 ## 하지 말 것 (계획서 11절)
 - 오케스트레이션 프레임워크를 먼저 깔고 시작하기

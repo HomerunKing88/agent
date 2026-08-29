@@ -151,7 +151,9 @@ function bullets(s, items, x, y, w, fs = SZ.body_min_pt, step = CM.bullet_step) 
   items.forEach((runs, i) => {
     const yy = y + i * step;
     const isConcl = runs.length && typeof runs[0].t === "string" && runs[0].t.trim().startsWith(CM.conclusion_prefix);
-    if (!isConcl) _text(s, CM.bullet_marker, nameOf("bullets", "marker"), { x, y: yy, w: 0.18, h: 0.26, fontFace: F, fontSize: fs, bold: true, color: C.navy, margin: 0 });
+    // 마커 크기는 본문 크기(fs)를 따라가지 않고 규칙 값으로 고정한다.
+    // 호출부가 fs를 낮춰도 마커는 10pt다 — 검사기가 결정적으로 볼 수 있어야 한다
+    if (!isConcl) _text(s, CM.bullet_marker, nameOf("bullets", "marker"), { x, y: yy, w: 0.18, h: 0.26, fontFace: F, fontSize: SZ.bullet_marker_pt, bold: true, color: C.navy, margin: 0 });
     _text(s, runs.map(r => ({ text: r.t, options: { fontSize: fs, color: r.c || C.body, bold: !!r.b } })),
       nameOf("bullets", "line"), { x: x + 0.2, y: yy, w: w - 0.2, h: step + 0.08, fontFace: F, margin: 0, valign: "top", lineSpacingMultiple: CM.bullet_line_spacing });
   });
@@ -187,7 +189,7 @@ function iconBadge(s, x, y, glyph, opts = {}) {
   const b = CM.icon_badge, d = b.diameter;
   const dark = opts.fill !== "tint";
   _shape(s, "ellipse", nameOf("icon_badge", "bg"), { x, y, w: d, h: d, fill: { color: dark ? C.navy : C.tint } });
-  _text(s, glyph, nameOf("icon_badge", "glyph"), { x, y, w: d, h: d, fontFace: F, fontSize: SZ.bullet_marker_pt, bold: true, color: dark ? C.white : C.navy, align: "center", valign: "middle", margin: 0 });
+  _text(s, glyph, nameOf("icon_badge", "glyph"), { x, y, w: d, h: d, fontFace: F, fontSize: SZ.icon_badge_glyph_pt, bold: true, color: dark ? C.white : C.navy, align: "center", valign: "middle", margin: 0 });
 }
 
 // 세로 막대 5개 내외 + 평균 점선. vals 순서대로, i===0(당사)은 navy+tint 밴드
