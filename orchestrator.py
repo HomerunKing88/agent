@@ -33,6 +33,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import preview
+
 # ── 계획서 5절 잡 폴더 구조 ─────────────────────────────────────────
 DIRS = ("source", "builder", "review", "revision", "final")
 
@@ -190,6 +192,10 @@ def cmd_build(root: Path, version: int = 1) -> None:
         print("schema: run_metadata.json 스키마 위반:")
         for problem in meta_problems:
             print("        " + problem)
+
+    # 미리보기 부산물 (계획서 5절 builder/out/p*.png). 실패해도 build는 성공이다.
+    # 로직은 preview.py에 있다 (PIPE 담당). 렌더 판정은 render_check.py가 정본이다.
+    meta_update(root, **{k: v for k, v in preview.render_preview(p, version).items() if v})
 
 
 def cmd_review(root: Path, version: int = 1) -> None:
