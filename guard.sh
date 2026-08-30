@@ -48,6 +48,24 @@ if [ -n "$LEAK" ]; then bad "실적 수치가 든 것이 리포에 들어왔다:
 else say "  없음"; fi
 
 say ""
+say "── 검토 산출물 (에이전트가 낸 것) ─────────"
+# 시켜 놓고 안 읽으면 소용없다. 2026-08-30 VERIFY가 파이프라인 구멍 8건을
+# 파일로 냈는데 네 시간 묵혔다. 그중 하나는 게이트 전체를 무효로 만드는 것이었다.
+# 여기서 매번 눈에 띄게 한다 — 새 파일이 있으면 읽고 나서 보고한다.
+FOUND=0
+for f in "$HOME"/deck-qa-jobs/*/review/review_r*.json \
+         "$HOME"/deck-qa-jobs/*/review/critic_r*.json \
+         "$HOME"/deck-qa-jobs/*/review/verify_*.md; do
+  [ -f "$f" ] || continue
+  FOUND=1
+  n=$(python3 -c "import json,sys
+try: print(len(json.load(open(sys.argv[1])).get('issues',[])), '건')
+except Exception: print('(문서)')" "$f" 2>/dev/null || echo "(문서)")
+  printf '  %s  %s  %s\n' "$(date -r "$f" '+%m-%d %H:%M')" "$n" "${f#$HOME/deck-qa-jobs/}"
+done
+[ "$FOUND" -eq 0 ] && say "  없음"
+
+say ""
 say "── 회귀 ─────────────────────────────────"
 if OUT="$(python3 e2e_check.py 2>&1)"; then
   printf '%s\n' "$OUT" | tail -1 | sed 's/^/  /'

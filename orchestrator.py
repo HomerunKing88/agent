@@ -48,6 +48,13 @@ GENERATOR_STYLE = {
 DECKKIT_NAME = "deckkit.js"
 
 
+def deck_hash(path: Path) -> str | None:
+    """검사한 덱을 특정하는 해시. 게이트가 '지금 그 파일'을 봤는지 대조하는 데 쓴다."""
+    if not path.is_file():
+        return None
+    return "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def job_paths(root: Path, version: int = 1) -> dict[str, Path]:
     """잡 폴더의 확정 경로. 계획서 5절의 구조 그대로다."""
     build_dir = root / "builder" if version == 1 else root / "revision"
@@ -263,6 +270,10 @@ def cmd_review(root: Path, version: int = 1) -> None:
     register = {
         "job": root.name,
         "round": version,
+        # 무엇을 검사했는지 남긴다. 이게 없으면 게이트가 낡은 판정으로 열린다.
+        # 2026-08-30 VERIFY가 찾았다 — 덱을 빈 파일로 바꿔도 gates가 ALL PASS였다.
+        "deck": p["pptx"].name,
+        "deck_hash": deck_hash(p["pptx"]),
         "audit_status": audit_status,
         "audit_error": audit_error,
         "editor_kept": len(editor_issues),
@@ -661,6 +672,22 @@ def cmd_gates(root: Path) -> None:
     # 세 상태: BLOCKED(위반 있음) / PASS(검사했고 위반 0) / SKIP(검사기가 없거나
     # 이 환경에서 안 돎). 정적 미도달(CALC·LINT)과 맥의 render SKIP(LAYOUT의 진짜
     # 넘침 검사가 안 돎)이 PASS로 오인되어서는 안 된다 (계약 7, BUILDER_TO_PIPE.md 8절).
+    # 이 판정이 **지금 이 덱**을 본 것인가.
+    #
+    # 2026-08-30 VERIFY가 찾은 것 중 제일 무거웠다. cmd_gates는 issue_register만
+    # 읽고 그게 어느 파일에서 나왔는지 대조하지 않았다. 표를 6pt로 부숴도,
+    # 다른 덱으로 바꿔치기해도, **빈 파일로 만들어도** ALL PASS가 나왔다.
+    # 다른 게이트가 아무리 촘촘해도 이 구멍 하나면 전부 무의미해진다.
+    now_hash = deck_hash(job_paths(root, register.get("round", 1))["pptx"])
+    seen_hash = register.get("deck_hash")
+    stale = None
+    if now_hash is None:
+        stale = "덱 파일이 없다"
+    elif not seen_hash:
+        stale = "검사 기록에 덱 해시가 없다 (review를 다시 돌려라)"
+    elif seen_hash != now_hash:
+        stale = "검사한 뒤 덱이 바뀌었다 (review를 다시 돌려라)"
+
     render_status = (register.get("render_status") or "").upper()
     # 판단(EDITOR·CRITIC)이 돌았나. 안 돌았으면 ISSUE는 PASS가 아니다.
     #
@@ -670,6 +697,14 @@ def cmd_gates(root: Path) -> None:
     # 사용자가 눈으로 보고 결함 넷을 바로 짚었는데 게이트는 전부 열려 있었다.
     # LAYOUT에서 고친 것과 같은 버그가 제일 중요한 게이트에 있었다 (2.16-7).
     judged, judge_gap = review_lens_cover(root, register.get("round", 1))
+    if stale:
+        # 낡은 판정으로는 어느 게이트도 열지 않는다. 하나만 막으면 나머지가
+        # "검사했고 통과"로 남아 사용자를 오도한다 (2.16-7).
+        for gate in GATES:
+            if gate not in blocked:
+                blocked.append(gate)
+            violations[gate].append(f"판정이 지금 덱을 본 것이 아니다: {stale}")
+
     status = {}
     for gate in GATES:
         if gate in blocked:
