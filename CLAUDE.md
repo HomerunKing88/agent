@@ -20,7 +20,7 @@
 
 - 이 세션은 **BUILDER**이자 **감독**이다 (계획서 3.0).
   담당: `template.js`, `template_shin.js`, `deck.js`, `deckkit.js`, `schemas/`, `prompts/`, `guard.sh`,
-  `orchestrator.py`, `slack_bot.py`, `preview.py`, `e2e_check.py`, `relay.sh`, `ask.sh`, `opencode.json`
+  `orchestrator.py`, `slack_bot.py`, `preview.py`, `e2e_check.py`, `make_brief.py`, `guard.sh`, `relay.sh`, `ask.sh`, `opencode.json`
   (뒤 셋은 PIPE에게서 넘겨받았다)
 - **CODEX = 검사기.** 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
   **스크립트가 결정적으로 재는 것**만 맡는다.
