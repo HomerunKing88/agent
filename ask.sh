@@ -3,11 +3,11 @@
 #
 # relay.sh는 "네 큐를 처리해라"라는 고정 프롬프트만 보내는 배치다.
 # 이 파일은 그때그때 다른 지시를 보낼 때 쓴다. BUILDER가 폰 지시를 받아
-# CODEX·VERIFY에게 일을 시키는 경로다 (계획서 3.3).
+# CODEX·REVIEW에게 일을 시키는 경로다 (계획서 3.3).
 # PIPE(opencode)는 2026-08-30에 실행에서 뺐다 — 속도가 맞지 않았다.
 #
 #   ./ask.sh CODEX "audit.py의 render.* 규칙을 별도 게이트로 나눠라"
-#   ./ask.sh VERIFY "잡 003의 PASS가 진짜인지 깨 봐라"
+#   ./ask.sh REVIEW "잡 003 장표를 두 렌즈로 봐라"
 #   ./ask.sh CODEX --dry "..."      # 보낼 명령만 보여준다
 #
 # **띄워 둔 herdr 창에 넣는다.** `codex exec` / `opencode run`으로 헤드리스를 새로 띄우지 않는다.
@@ -15,7 +15,7 @@
 # 사람이 창을 보고 있으면 승인 프롬프트도 눈에 보이고 직접 답할 수 있다.
 #
 # 대상은 herdr pane id다. `herdr agent list`로 확인한다. 이름이 아니라 pane id여야 한다.
-#   CODEX  codex 창    VERIFY  claude 창(name=verify)
+#   CODEX  codex 창    REVIEW  claude 창(name=review)
 #
 # 승인 수위
 #   창에서 도는 세션은 각 CLI가 이미 켜 둔 설정을 따른다.
@@ -33,7 +33,7 @@ if [ "${1:-}" = "--dry" ]; then DRY=1; shift; fi
 TASK="${*:-}"
 
 if [ -z "$WHO" ] || [ -z "$TASK" ]; then
-  echo "사용: ./ask.sh <CODEX|VERIFY> [--dry] \"지시\"" >&2
+  echo "사용: ./ask.sh <CODEX|REVIEW> [--dry] \"지시\"" >&2
   exit 2
 fi
 
@@ -76,13 +76,13 @@ print(json.load(sys.stdin)['result']['agent']['agent_status'])
 
 case "$WHO" in
   CODEX)  AGENT="codex" ;;
-  VERIFY) AGENT="verify" ;;
+  REVIEW|REVIEWER|VERIFY|CRITIC) AGENT="review" ;;   # 이름은 여럿, 창은 하나
   PIPE)
     echo "PIPE는 실행에서 뺐다 (2026-08-30). 속도가 맞지 않았다." >&2
     echo "검증은 VERIFY, 검사기는 CODEX에게 시킨다." >&2; exit 2 ;;
   BUILDER)
     echo "BUILDER는 나다. 남에게 시키지 말고 직접 해라." >&2; exit 2 ;;
-  *) echo "모르는 대상: $WHO  (CODEX | VERIFY)" >&2; exit 2 ;;
+  *) echo "모르는 대상: $WHO  (CODEX | REVIEW)" >&2; exit 2 ;;
 esac
 
 PANE="$(pane_of "$AGENT")"

@@ -203,6 +203,8 @@ issues:
   - DENSITY
   - STRUCTURE
   - UNSOURCED
+  - DESIGN
+  - READABILITY
   - SOURCE
   - CALC
   - LAYOUT
@@ -213,6 +215,26 @@ issues:
   - DENSITY
   - STRUCTURE
   - UNSOURCED
+  - DESIGN
+  - READABILITY
+
+  # 검토는 한 사람(REVIEWER)이 하되 렌즈 두 개를 각각 보고해야 한다.
+  #
+  # 2026-08-30 신설. 그전에는 내용 렌즈만 있었고 디자인은 "스크립트가 판정한다"고
+  # 프롬프트에 적어 두었다. 그 전제가 틀려서 결함 넷이 그대로 나갔다.
+  # 사람을 둘로 늘리는 대신 출력 형식으로 강제한다 — 렌즈 하나라도 안 적으면
+  # orchestrator가 ISSUE 게이트를 안 열어 준다.
+  # "안 봤다"가 "봤는데 없다"로 둔갑하지 못하게 하는 것이 요점이다 (2.16-7).
+  review_lenses:
+    CONTENT:
+    - MESSAGE
+    - LOGIC
+    - DENSITY
+    - STRUCTURE
+    - UNSOURCED
+    DESIGN:
+    - DESIGN
+    - READABILITY
   editor_caps:
     CRITICAL: 3
     MAJOR: 5

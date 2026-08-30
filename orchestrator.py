@@ -542,7 +542,6 @@ SKIP_REASONS = {
     "LINT": "lint_deck.js 미구현 (계획서 9절 보류)",
     # STRUCT: 파일이 없으면(아직 안 돌면) SKIP. 돌았으면 cmd_gates가 struct 건수로 결정한다.
     "STRUCT": "preflight가 아직 안 돌았다 (orchestrator.py <잡> preflight)",
-    "ISSUE": "EDITOR·CRITIC 판단이 안 돌았다 — 규칙 검사만으로는 통과라고 못 적는다",
 }
 
 
@@ -572,6 +571,42 @@ def gate_of(rule: str) -> str:
             return gate
     # 매핑에 없는 새 검사 규칙은 조용히 HOUSE로 새지 않게 표시한다.
     return "UNMAPPED"
+
+
+def review_lens_cover(root: Path, version: int) -> tuple[bool, str]:
+    """검토가 렌즈 두 개(CONTENT·DESIGN)를 다 보고했나. (통과, 사유)를 돌려준다.
+
+    검토자는 한 명이다. 사람을 늘리는 대신 **출력 형식으로 사각을 막는다.**
+    2026-08-30 실전 잡 003에서 규칙 검사는 전부 통과했는데 사용자가 그림을 보고
+    결함 넷을 짚었다. 내용 렌즈만 있었고 디자인은 "스크립트가 판정한다"는
+    틀린 전제로 아무도 안 봤기 때문이다.
+
+    파일이 없으면 물론이고, **한 렌즈만 적혀 있어도 열어 주지 않는다.**
+    지적이 0건인 것과 그 렌즈로 안 본 것은 다르다. 전자는 lenses_covered에
+    이름을 적어 "봤고 없다"를 밝히면 된다 (2.16-7).
+    """
+    for name in ("review", "editor", "critic"):
+        path = root / "review" / f"{name}_r{version}.json"
+        if path.exists():
+            break
+    else:
+        return False, "검토가 안 돌았다 — REVIEWER에게 장표 그림을 보여야 한다"
+    try:
+        payload = read_json(path)
+    except (json.JSONDecodeError, OSError) as error:
+        return False, f"{path.name}을 읽지 못했다: {error}"
+
+    import yaml as _yaml
+    rules = _yaml.safe_load(Path(__file__).resolve().parent
+                            .joinpath("house-rules.yaml").read_text(encoding="utf-8"))
+    want = set(rules["issues"]["review_lenses"])
+    seen = set(payload.get("lenses_covered") or [])
+    missing = sorted(want - seen)
+    if missing:
+        return False, (f"{'·'.join(missing)} 렌즈를 안 봤다 "
+                       f"(본 렌즈: {'·'.join(sorted(seen)) or '없음'}) — "
+                       "지적 0건이면 lenses_covered에 이름을 적어 밝힌다")
+    return True, ""
 
 
 def cmd_gates(root: Path) -> None:
@@ -634,20 +669,21 @@ def cmd_gates(root: Path) -> None:
     # 그 PASS는 "봤더니 좋다"가 아니라 "아무도 안 봤다"였다.
     # 사용자가 눈으로 보고 결함 넷을 바로 짚었는데 게이트는 전부 열려 있었다.
     # LAYOUT에서 고친 것과 같은 버그가 제일 중요한 게이트에 있었다 (2.16-7).
-    judged = any((root / "review" / f"{who}_r{register.get('round', 1)}.json").exists()
-                 for who in ("editor", "critic"))
+    judged, judge_gap = review_lens_cover(root, register.get("round", 1))
     status = {}
     for gate in GATES:
         if gate in blocked:
             status[gate] = "BLOCKED"
         elif gate == "STRUCT":
             status[gate] = "PASS" if pf_status in ("PASS", "FAIL") else "SKIP"
-        elif gate in SKIP_REASONS:
-            status[gate] = "SKIP"
         elif gate == "ISSUE" and not judged:
-            # 사람(모델)의 판단이 한 번도 안 들어왔다. 규칙 검사만으로 통과라고
+            # 검토가 안 돌았거나 렌즈 하나를 안 봤다. 규칙 검사만으로 통과라고
             # 적을 수 없다. house-rules는 바닥이지 기준이 아니다 —
             # 팔레트 안의 색인지는 보지만 두 선이 구분되는지는 못 본다.
+            # 사유는 어느 렌즈가 빠졌는지까지 적는다 (review_lens_cover).
+            SKIP_REASONS["ISSUE"] = judge_gap
+            status[gate] = "SKIP"
+        elif gate in SKIP_REASONS:
             status[gate] = "SKIP"
         elif gate == "LAYOUT" and render_status in ("", "SKIP"):
             # 빈 값 = render를 아예 안 돌렸다. 돌려서 SKIP이 나오면 SKIP인데
