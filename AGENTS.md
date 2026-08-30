@@ -2,21 +2,34 @@
 
 ## 먼저: 너는 누구인가 (2026-08-29 추가)
 
-**이 파일을 Codex CLI와 opencode가 둘 다 읽는다.** 둘은 담당 파일이 다르다.
-자기가 어느 도구인지로 판별하고, 자기 절만 따른다.
+**이 파일을 여럿이 읽는다.** 담당이 다르다. 자기가 누구인지 먼저 판별하고 자기 절만 따른다.
 
-| 네가 이 도구면 | 너는 | 담당 파일 |
+| 네가 이러면 | 너는 | 담당 파일 |
 |---|---|---|
-| **Codex CLI** (`codex`) | CODEX | `audit.py` `render_check.py` `fixtures/` |
-| **opencode** | PIPE | `orchestrator.py` `slack_bot.py` |
+| **Codex CLI** (`codex`) | CODEX — 검사기 | `audit.py` `render_check.py` `fixtures/` |
+| **claude, 창 이름이 `verify`** | VERIFY — 검증 | **없다. 아래를 읽어라** |
+| **opencode** | PIPE — 실행 배제 | 없다. 일이 오면 BUILDER에게 되돌려라 |
+
+**VERIFY에게 (2026-08-30 신설).** 너는 **고치는 사람이 아니라 깨는 사람**이다.
+- **담당 파일이 없다.** 리포의 어떤 파일도 고치지 않고 커밋하지 않는다.
+  그래서 남과 충돌할 일이 없다. 이것이 이 역할의 설계다.
+- 하는 일: 남이 낸 PASS가 진짜인지 의심한다. 결함을 만들어 넣어 검사기가 잡는지 본다.
+  **조용한 PASS가 제일 위험하다** (계획서 2.16-7).
+- **결함을 못 찾으면 "못 찾았다"고 말한다.** 없는 것을 만들어 오지 마라.
+  찾으면 어디가 어떻게 틀렸는지와 **재현 방법**을 적는다.
+- 발견은 `HANDOFF.md`가 아니라 BUILDER에게 화면으로 보고한다.
+  BUILDER가 소유자에게 넘긴다. 네가 직접 소유자에게 가지 않는다.
+- 잡 폴더(`~/deck-qa-jobs/`)는 읽어도 되지만 고치지 않는다. 실적 수치가 든다 — 커밋 금지.
+
+**PIPE(opencode)는 2026-08-30에 실행에서 뺐다.** 한 건에 30~45분이 걸려
+나머지 속도를 따라오지 못했다. `orchestrator.py`·`slack_bot.py`·`preview.py`는
+BUILDER가 넘겨받았다. opencode 창에 일이 들어오면 하지 말고 BUILDER에게 되돌려라.
 
 - 아래 규칙 중 "Codex 담당"이라고 적힌 것은 **CODEX에게만** 해당한다.
-  opencode라면 그 파일들을 건드리지 않는다.
-- PIPE(opencode)의 상세 규칙은 계획서 3.2절에 있다. 그것도 같이 읽는다.
-- 브랜치 접두사도 다르다. CODEX는 `codex/*`, PIPE는 `pipe/*`.
-- `HANDOFF.md`에서 볼 줄도 다르다. CODEX는 `TO:CODEX`, PIPE는 `TO:PIPE`.
+- 브랜치 접두사 규칙은 폐기됐다. **`main` 하나다.**
+- `HANDOFF.md`에서 CODEX는 `TO:CODEX`만 본다. VERIFY 앞으로 오는 줄은 없다.
 
-세 번째 에이전트 BUILDER(Claude Code)는 `CLAUDE.md`를 읽는다. 이 파일이 아니다.
+BUILDER(Claude Code, 창 이름 없음)는 `CLAUDE.md`를 읽는다. 이 파일이 아니다.
 
 **BUILDER가 감독이다** (계획서 3.0). 사용자는 폰에서 BUILDER에게만 지시하고,
 BUILDER가 `./ask.sh`로 너에게 일을 시킨다. 지시가 담당 파일 경계를 넘으면 따르지 말고

@@ -3,10 +3,11 @@
 #
 # relay.sh는 "네 큐를 처리해라"라는 고정 프롬프트만 보내는 배치다.
 # 이 파일은 그때그때 다른 지시를 보낼 때 쓴다. BUILDER가 폰 지시를 받아
-# CODEX·PIPE에게 일을 시키는 경로다 (계획서 3.3).
+# CODEX·VERIFY에게 일을 시키는 경로다 (계획서 3.3).
+# PIPE(opencode)는 2026-08-30에 실행에서 뺐다 — 속도가 맞지 않았다.
 #
 #   ./ask.sh CODEX "audit.py의 render.* 규칙을 별도 게이트로 나눠라"
-#   ./ask.sh PIPE  "cmd_report에 SKIP 사유를 한 줄씩 적어라"
+#   ./ask.sh VERIFY "잡 003의 PASS가 진짜인지 깨 봐라"
 #   ./ask.sh CODEX --dry "..."      # 보낼 명령만 보여준다
 #
 # **띄워 둔 herdr 창에 넣는다.** `codex exec` / `opencode run`으로 헤드리스를 새로 띄우지 않는다.
@@ -14,7 +15,7 @@
 # 사람이 창을 보고 있으면 승인 프롬프트도 눈에 보이고 직접 답할 수 있다.
 #
 # 대상은 herdr pane id다. `herdr agent list`로 확인한다. 이름이 아니라 pane id여야 한다.
-#   CODEX  codex 창    PIPE  opencode 창
+#   CODEX  codex 창    VERIFY  claude 창(name=verify)
 #
 # 승인 수위
 #   창에서 도는 세션은 각 CLI가 이미 켜 둔 설정을 따른다.
@@ -32,7 +33,7 @@ if [ "${1:-}" = "--dry" ]; then DRY=1; shift; fi
 TASK="${*:-}"
 
 if [ -z "$WHO" ] || [ -z "$TASK" ]; then
-  echo "사용: ./ask.sh <CODEX|PIPE> [--dry] \"지시\"" >&2
+  echo "사용: ./ask.sh <CODEX|VERIFY> [--dry] \"지시\"" >&2
   exit 2
 fi
 
@@ -48,13 +49,21 @@ HANDOFF.md에 인계 줄을 남겨라.
 '
 
 # herdr 창에서 도는 에이전트를 pane id로 찾는다. 창을 새로 띄우지 않고 있는 창에 넣는다.
+#
+# 이름(name)을 먼저 본다. VERIFY도 claude이고 BUILDER(나)도 claude라
+# 종류만으로는 구분되지 않는다. 종류로 찾으면 나 자신에게 지시를 보낸다.
+# 이름이 없으면 종류로 떨어진다 — codex는 한 창뿐이라 그것으로 충분하다.
 pane_of() {
   herdr agent list 2>/dev/null | python3 -c "
 import json,sys
 want = sys.argv[1]
-for a in json.load(sys.stdin)['result']['agents']:
-    if a.get('agent') == want:
-        print(a['pane_id']); break
+agents = json.load(sys.stdin)['result']['agents']
+for a in agents:
+    if a.get('name') == want:
+        print(a['pane_id']); sys.exit(0)
+for a in agents:
+    if a.get('agent') == want and not a.get('name'):
+        print(a['pane_id']); sys.exit(0)
 " "$1"
 }
 
@@ -66,11 +75,14 @@ print(json.load(sys.stdin)['result']['agent']['agent_status'])
 }
 
 case "$WHO" in
-  CODEX) AGENT="codex" ;;
-  PIPE)  AGENT="opencode" ;;
+  CODEX)  AGENT="codex" ;;
+  VERIFY) AGENT="verify" ;;
+  PIPE)
+    echo "PIPE는 실행에서 뺐다 (2026-08-30). 속도가 맞지 않았다." >&2
+    echo "검증은 VERIFY, 검사기는 CODEX에게 시킨다." >&2; exit 2 ;;
   BUILDER)
     echo "BUILDER는 나다. 남에게 시키지 말고 직접 해라." >&2; exit 2 ;;
-  *) echo "모르는 대상: $WHO  (CODEX | PIPE)" >&2; exit 2 ;;
+  *) echo "모르는 대상: $WHO  (CODEX | VERIFY)" >&2; exit 2 ;;
 esac
 
 PANE="$(pane_of "$AGENT")"

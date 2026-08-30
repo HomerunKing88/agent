@@ -621,7 +621,11 @@ def cmd_gates(root: Path) -> None:
             status[gate] = "PASS" if pf_status in ("PASS", "FAIL") else "SKIP"
         elif gate in SKIP_REASONS:
             status[gate] = "SKIP"
-        elif gate == "LAYOUT" and render_status == "SKIP":
+        elif gate == "LAYOUT" and render_status in ("", "SKIP"):
+            # 빈 값 = render를 아예 안 돌렸다. 돌려서 SKIP이 나오면 SKIP인데
+            # 안 돌리면 PASS가 되던 구멍이 있었다 — 거꾸로다 (2026-08-30, 실전 잡 003).
+            # 넘침 판정의 정본은 render_check.py다. 그것을 안 돌린 채로 LAYOUT을
+            # 통과라고 적으면 "검사했고 통과"와 "검사한 적 없음"이 섞인다 (2.16-7).
             status[gate] = "SKIP"
         else:
             status[gate] = "PASS"
