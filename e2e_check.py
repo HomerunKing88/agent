@@ -199,6 +199,66 @@ def struct_fixtures(rules: dict) -> None:
               f"오류 {len(errs)}건 전부 style로 분류됐다: {errs[:1]}")
 
 
+def lessons_guarded() -> list[str]:
+    """LESSONS.md의 각 줄이 실제로 있는 가드를 가리키나. 못 가리키는 줄을 돌려준다.
+
+    **가드 없는 교훈은 반드시 다시 난다.** 2026-08-30 하루에 "값이 두 군데"
+    부류만 아홉 번 고쳤다. 매번 커밋 메시지에는 적었는데 목록이 없어 아무도
+    다시 읽지 않았다 — 나 자신도.
+
+    가드는 둘 중 하나다.
+      스크립트  파일:심볼 또는 파일명. 그 파일이 있고 심볼이 그 안에 있어야 한다
+      판단      REVIEWER가 본다. `prompts/REVIEW.md`가 그 말을 담아야 한다
+    적어 놓고 실제로 없으면 여기서 걸린다. 문서만 늘어나는 것을 막는다.
+    """
+    text = (REPO / "LESSONS.md").read_text(encoding="utf-8")
+    bad: list[str] = []
+    review = (REPO / "prompts" / "REVIEW.md").read_text(encoding="utf-8")
+    for line in text.splitlines():
+        if not re.match(r"^\| L\d+ ", line):
+            continue
+        cols = [c.strip() for c in line.strip("|").split("|")]
+        if len(cols) < 6:
+            continue
+        num, guard, kind = cols[0], cols[4], cols[5]
+        if kind == "판단":
+            # 판단 가드는 REVIEW.md가 실제로 그 얘기를 해야 한다. 렌즈 이름으로 확인한다.
+            lens = "DESIGN" if "DESIGN" in guard else ("CONTENT" if "CONTENT" in guard else None)
+            if guard.startswith("**없다**"):
+                continue                                  # 가드 없음을 명시한 줄은 통과시킨다
+            if lens and lens not in review:
+                bad.append(f"{num}: REVIEW.md에 {lens} 렌즈가 없다")
+            elif not lens and "prompts/REVIEW.md" not in guard and "house-rules" not in guard:
+                bad.append(f"{num}: 판단 가드인데 REVIEW.md도 house-rules도 안 가리킨다")
+            continue
+        # 스크립트 가드 — 백틱 안을 파일과 심볼로 나눈다.
+        # 확장자가 있으면 파일, 없으면 심볼이다. 심볼은 같은 칸에 적힌 파일 중
+        # 하나에 있으면 된다 (규칙 이름을 파일명으로 읽어 오탐이 났다).
+        refs = re.findall(r"`([^`]+)`", guard)
+        files, symbols = [], []
+        for ref in refs:
+            head, _, sym = ref.partition(":")
+            head = head.strip()
+            if re.search(r"\.(py|js|yaml|yml|sh|md|json)$", head):
+                files.append(head)
+                if sym.strip():
+                    symbols.append((sym.strip(), head))
+            else:
+                symbols.append((head, None))
+        blobs = {}
+        for fname in files:
+            path = REPO / fname
+            if not path.exists():
+                bad.append(f"{num}: {fname}가 없다")
+            else:
+                blobs[fname] = path.read_text(encoding="utf-8")
+        for sym, want in symbols:
+            pool = [blobs[want]] if want and want in blobs else list(blobs.values())
+            if pool and not any(sym in b for b in pool):
+                bad.append(f"{num}: {sym}를 {want or '가드 파일'}에서 못 찾았다")
+    return bad
+
+
 def unwired_gates() -> tuple[list[str], list[str]]:
     """규칙이 도달하지 못하는 게이트와, 목록이 낡은 게이트를 돌려준다.
 
@@ -404,10 +464,19 @@ def run(job: Path, rules: dict) -> None:
         print(f"       (QA_REPORT가 PASS로 찍는 미검사 게이트 {len(GATES_NOT_WIRED)}개: "
               f"{', '.join(GATES_NOT_WIRED)} — BUILDER_TO_PIPE.md 8절)")
 
-    print("\n[10] 구조 결함이 struct로 분류되나 — STRUCT 픽스처 두 장")
+    print("\n[10] 겪은 오류에 가드가 붙어 있나 — LESSONS.md")
+    holes = lessons_guarded()
+    check("가드 없는 교훈 없음", not holes, ", ".join(holes[:3]))
+    import re as _re
+    rows = [l for l in (REPO / "LESSONS.md").read_text(encoding="utf-8").splitlines()
+            if _re.match(r"^\| L\d+ ", l)]
+    hit = sum(int(l.split("|")[3].strip()) for l in rows if l.split("|")[3].strip().isdigit())
+    print(f"       ({len(rows)}부류를 {hit}번 고쳤다. 이 목록이 REVIEWER의 체크리스트다)")
+
+    print("\n[11] 구조 결함이 struct로 분류되나 — STRUCT 픽스처 두 장")
     struct_fixtures(rules)
 
-    print("\n[11] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
+    print("\n[12] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
     # 자는 검사기 **전체**다. audit.py 하나만 쓰던 것을 2026-08-30에 바꿨다.
     # STRUCT 게이트를 붙이자 732 = 732로 정확히 맞닿았고, PIPE가 한도를 맞추려고
     # 코드를 압축했다. 한도 때문에 코드를 줄이는 것은 이 규칙이 의도한 방향이 아니다.
