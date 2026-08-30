@@ -93,6 +93,7 @@ const TS = {
   gridCell: SR.sizes.grid_cell_pt,   axis: SR.sizes.axis_pt,
   legend: SR.sizes.legend_pt,        value: SR.sizes.value_pt,
   foot: SR.sizes.foot_pt,
+  statValue: SR.sizes.stat_value_pt,  statValueWeak: SR.sizes.stat_value_weak_pt,
 };
 
 /* ── 세로 리듬 — 여백은 눈대중이 아니라 이 값으로 맞춘다 ── */
@@ -232,7 +233,11 @@ function msgBox(s, y, h, text, x = MX, w = CW) {
 }
 
 // 소제목. accent 세로바 + ink 소제목. 색 면적은 세로바 0.055in 뿐
-function sub(s, x, y, label, desc, descW = 3.4) {
+// 보조설명(desc)은 오른쪽 끝에 붙는다. 그 "오른쪽 끝"은 칼럼 폭이 정한다.
+// 3.4in이 코드에 박혀 있어서 칼럼 오른쪽 끝에 못 닿고 중간에 떠 있었다
+// (2026-08-30, 사용자 지적). 규칙 값을 코드에 박지 않는다 (계획서 2.14).
+// 전면 폭 소제목은 호출부가 descW를 넘긴다.
+function sub(s, x, y, label, desc, descW = SR.columns.width - 0.16) {
   s.addShape("rect", { objectName: "sub/shape", x, y: y + 0.02, w: 0.06, h: 0.28, fill: { color: C.accent } });
   s.addText(label, { objectName: "sub/text", x: x + 0.16, y, w: 3.4, h: 0.32, fontFace: F, fontSize: TS.sub, bold: true, color: C.ink, margin: 0, valign: "middle" });
   if (desc) s.addText(desc, { objectName: "sub/text", x: x + 0.16, y, w: descW, h: 0.32, fontFace: F, fontSize: TS.subDesc, color: C.mute, align: "right", margin: 0, valign: "middle" });
@@ -926,7 +931,11 @@ function chartBase(opts) {
     catAxisLabelFontFace: F, catAxisLabelFontSize: TS.gridCell, catAxisLabelColor: C.ink,
     valAxisLabelFontFace: F, valAxisLabelFontSize: TS.axis, valAxisLabelColor: C.mute,
     catAxisLineShow: true, catGridLine: { style: "none" },
-    valGridLine: { style: "none" },
+    // 가로 격자선. 규칙(styles.<style>.chart)에서 읽는다 — 코드에 박지 않는다.
+    // 값 라벨을 전부 붙이면 지저분하고 안 붙이면 못 읽는다. 그 사이를 이것이 메운다
+    valGridLine: SR.chart
+      ? { color: SR.chart.grid_color, size: SR.chart.grid_width, style: "solid" }
+      : { style: "none" },
     valAxisLineShow: false,
     dataLabelFontFace: F, dataLabelFontSize: TS.axis, dataLabelColor: C.body,
     dataLabelPosition: "outEnd",

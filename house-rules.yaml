@@ -16,6 +16,24 @@
 
 # 규칙 판본. orchestrator가 정규식으로 이 줄을 읽는다 — 큰따옴표를 유지한다
 version: "2026.08"
+# ── 스크립트가 아니라 판단이 재는 규칙 (2026-08-30 신설) ──────────────
+#
+# 오늘까지 규칙은 한 종류뿐이었다 — 스크립트가 결정적으로 재는 것.
+# 그래서 잴 수 없는 것은 아예 안 적었고, 안 적힌 것은 아무도 안 봤다.
+# 실전 잡 003이 전 게이트를 통과했는데 사용자가 그림을 보고 결함 넷을 짚었다.
+# "팔레트 안의 색인가"는 재지만 "두 선이 구분되는가"는 못 재기 때문이다.
+#
+# 여기 적힌 것은 **CRITIC이 판정한다** (prompts/CRITIC.md).
+# 강제되지 않는 규칙(`unenforced`)과 섞지 않는다 — 이건 강제된다. 재는 주체가 다를 뿐이다.
+# 그 둘을 섞으면 "검사했다"와 "안 했다"가 다시 한 칸에 들어간다 (2.16-7).
+judgment_rules:
+- key: styles.shin-ppt1.emphasis.color_alone_forbidden
+  by: CRITIC
+  why: 흑백 인쇄에서 강조가 뒤집히는지는 그림을 봐야 안다. 색 코드만으로는 못 잰다
+- key: styles.shin-ppt1.emphasis.also_use
+  by: CRITIC
+  why: 위와 같다. 크기·굵기가 실제로 강조로 읽히는지는 판단이다
+
 unenforced:
 - key: palette_usage.brand_swatch
   why: 브랜드 색 정의다. 검사 대상이 아니라 참고값이다
@@ -512,6 +530,29 @@ styles:
       legend_pt: 10.5
       value_pt: 10
       foot_pt: 9
+      # 스탯 블록. 두 값을 나란히 놓을 때 강조 쪽을 키운다.
+      # 강조를 색에만 걸면 흑백 인쇄에서 뒤집힌다 (아래 emphasis 조항)
+      stat_value_pt: 20
+      stat_value_weak_pt: 16
+    # 차트 격자선. 값 라벨을 전부 붙이면 지저분하고, 안 붙이면 못 읽는다.
+    # 옅은 가로선이 그 사이를 메운다 (2026-08-30 신설)
+    chart:
+      grid_color: "E8EBED"
+      grid_width: 0.75
+      # 값 라벨은 자기 계열 선 색을 따른다. 어느 선의 값인지 색으로 알게 한다.
+      # 옅은 계열은 흰 바탕에서 대비가 약해 라벨만 한 단계 진하게 쓴다
+      label_follows_series: true
+      label_weak_series_color: "5E7C8A"
+
+    # 강조는 색에만 의존하지 않는다 (2026-08-30 신설)
+    #
+    # 실전 잡 003에서 스탯 카드 강조를 색으로만 줬다. 흑백으로 인쇄하면
+    # 배경 톤이 뒤집혀 강조가 반대로 읽힌다. 경영진 보고는 인쇄된다.
+    # 색을 쓰되 크기·굵기 중 하나를 반드시 같이 건다.
+    emphasis:
+      color_alone_forbidden: true
+      also_use: [size, bold]
+
     role_min_pt:
       header/text: title_pt
       summary/text: summary_pt
@@ -524,6 +565,14 @@ styles:
       sub/text: sub_desc_pt
       bullets/text: bullet_pt
       caption/text: legend_pt
+      # 스탯 블록의 작은 라벨. 값은 claim이라 _claim_shape가 받는다.
+      # 2026-08-30 추가 — 상관계수를 선 없는 표에 넣었더니 표로 안 읽혀서
+      # 도형으로 바꾸면서 생긴 역할이다 (실전 잡 003 재작업)
+      stat/label: legend_pt
+      # 차트 위에 "한 달" 같은 간격을 표시하는 주석. 결론을 그림 안에 넣는 자리다.
+      # 2026-08-30 추가 — 결론이 캡션에 말로만 있고 그림에 없다는 지적에서 나왔다
+      lag/text: legend_pt
+      lag/shape: card_body_pt
       bars/text: value_pt
       barsGroup/text: value_pt
       footer/text: foot_pt

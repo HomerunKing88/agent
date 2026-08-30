@@ -240,6 +240,12 @@ def unenforced_drift(rules: dict) -> tuple[list[str], list[str]]:
     code = "\n".join((REPO / name).read_text(encoding="utf-8") for name in CODE_FILES)
     code += "\n".join(path.read_text(encoding="utf-8") for path in (REPO / "schemas").glob("*.py"))
     listed = {item["key"] for item in rules.get("unenforced", [])}
+    # 스크립트가 아니라 CRITIC이 재는 규칙 (house-rules의 judgment_rules).
+    # 코드 참조가 0이어도 죽은 규칙이 아니다 — 재는 주체가 사람(모델)일 뿐이다.
+    # 2026-08-30 신설. 그전에는 규칙이 한 종류뿐이라 잴 수 없는 것은 아예 안 적혔고,
+    # 안 적힌 것은 아무도 안 봤다. 그 구멍으로 결함 넷이 그대로 나갔다.
+    judged = {item["key"] for item in rules.get("judgment_rules", [])}
+    listed |= judged
 
     # YAML 앵커로 한 노드가 여러 경로에 걸린다 (house-rules의 styles가 그렇다).
     # 같은 객체를 두 번 세면 없는 규칙이 죽은 것처럼 보인다. 정체로 걸러낸다.
@@ -256,13 +262,15 @@ def unenforced_drift(rules: dict) -> tuple[list[str], list[str]]:
             yield path
 
     dead, enforced = [], []
-    for path in walk({k: v for k, v in rules.items() if k != "unenforced"}):
+    # unenforced와 judgment_rules는 규칙이 아니라 규칙에 대한 메모다. 세지 않는다
+    for path in walk({k: v for k, v in rules.items()
+                      if k not in ("unenforced", "judgment_rules")}):
         dotted, leaf = ".".join(path), path[-1]
         parent = path[-2] if len(path) > 1 else None
         read_by_code = leaf in code or (parent is not None and parent in code)
         if not read_by_code and dotted not in listed:
             dead.append(dotted)
-        if read_by_code and dotted in listed:
+        if read_by_code and dotted in listed and dotted not in judged:
             enforced.append(dotted)
     return sorted(set(dead)), sorted(set(enforced))
 
