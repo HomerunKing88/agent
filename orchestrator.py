@@ -542,12 +542,26 @@ SKIP_REASONS = {
     "LINT": "lint_deck.js 미구현 (계획서 9절 보류)",
     # STRUCT: 파일이 없으면(아직 안 돌면) SKIP. 돌았으면 cmd_gates가 struct 건수로 결정한다.
     "STRUCT": "preflight가 아직 안 돌았다 (orchestrator.py <잡> preflight)",
+    "ISSUE": "EDITOR·CRITIC 판단이 안 돌았다 — 규칙 검사만으로는 통과라고 못 적는다",
 }
 
 
 def skip_reason(gate: str) -> str:
     """게이트가 SKIP일 이유. SKIP_REASONS에 없으면 환경(render SKIP) 쪽이다."""
     return SKIP_REASONS.get(gate, "render_check가 이 환경에서 SKIP (PowerPoint COM — 집 Windows)")
+
+
+def gate_headline(gates: dict) -> str:
+    """게이트 한 줄 요약.
+
+    "ALL PASS"라고만 적으면 건너뛴 게이트가 있어도 전부 검사하고 통과한 것처럼
+    읽힌다. 실전 잡 003에서 셋(LAYOUT·LINT·ISSUE)이 SKIP인데 화면에는
+    ALL PASS만 떴다. 검사한 것과 안 한 것이 한 단어에 섞이면 안 된다 (2.16-7).
+    """
+    if gates["blocked"]:
+        return "  ".join(gates["blocked"])
+    n = len(gates.get("skipped") or [])
+    return "차단 없음" + (f" — 다만 {n}개 미검사(SKIP)" if n else " (전부 검사함)")
 
 
 def gate_of(rule: str) -> str:
@@ -613,6 +627,15 @@ def cmd_gates(root: Path) -> None:
     # 이 환경에서 안 돎). 정적 미도달(CALC·LINT)과 맥의 render SKIP(LAYOUT의 진짜
     # 넘침 검사가 안 돎)이 PASS로 오인되어서는 안 된다 (계약 7, BUILDER_TO_PIPE.md 8절).
     render_status = (register.get("render_status") or "").upper()
+    # 판단(EDITOR·CRITIC)이 돌았나. 안 돌았으면 ISSUE는 PASS가 아니다.
+    #
+    # 2026-08-30, 실전 잡 003에서 드러났다. editor_r*.json이 없으면
+    # validate_editor가 조용히 빈 결과를 돌려주고 ISSUE가 PASS로 찍혔다.
+    # 그 PASS는 "봤더니 좋다"가 아니라 "아무도 안 봤다"였다.
+    # 사용자가 눈으로 보고 결함 넷을 바로 짚었는데 게이트는 전부 열려 있었다.
+    # LAYOUT에서 고친 것과 같은 버그가 제일 중요한 게이트에 있었다 (2.16-7).
+    judged = any((root / "review" / f"{who}_r{register.get('round', 1)}.json").exists()
+                 for who in ("editor", "critic"))
     status = {}
     for gate in GATES:
         if gate in blocked:
@@ -620,6 +643,11 @@ def cmd_gates(root: Path) -> None:
         elif gate == "STRUCT":
             status[gate] = "PASS" if pf_status in ("PASS", "FAIL") else "SKIP"
         elif gate in SKIP_REASONS:
+            status[gate] = "SKIP"
+        elif gate == "ISSUE" and not judged:
+            # 사람(모델)의 판단이 한 번도 안 들어왔다. 규칙 검사만으로 통과라고
+            # 적을 수 없다. house-rules는 바닥이지 기준이 아니다 —
+            # 팔레트 안의 색인지는 보지만 두 선이 구분되는지는 못 본다.
             status[gate] = "SKIP"
         elif gate == "LAYOUT" and render_status in ("", "SKIP"):
             # 빈 값 = render를 아예 안 돌렸다. 돌려서 SKIP이 나오면 SKIP인데
@@ -639,7 +667,7 @@ def cmd_gates(root: Path) -> None:
         "violations": violations,
     }
     write_json(root / "review" / "gates.json", gates)
-    print("GATE      " + "  ".join(gates["blocked"] or ["ALL PASS"]))
+    print("GATE      " + gate_headline(gates))
     if blocked:
         print("차단      : " + ", ".join(blocked))
     if skipped:
