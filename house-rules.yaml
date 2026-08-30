@@ -635,6 +635,11 @@ styles:
       default_align: center
       header_align: center
       long_text_col_align: left
+      # 금액·수량 열은 오른쪽 정렬한다 (2026-08-30 신설).
+      # 가운데 정렬이면 2,335,436(7자리)과 621,565(6자리)의 오른쪽 끝이 어긋나
+      # 자릿수로 크기를 비교할 수 없다. 표에서 숫자를 나란히 놓는 이유가 그 비교인데
+      # 정렬 하나로 그 이유가 사라진다. REVIEWER가 잡았다.
+      numeric_col_align: right
       row_height_formula: 글씨(pt) / 24 + 0.20
       row_height_min: 0.72
       zebra_stripes: false
