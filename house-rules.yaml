@@ -384,6 +384,10 @@ styles:
       default_align: center
       header_align: center
       long_text_col_align: left
+      # 금액·수량 열 정렬. template.js의 tableStyles.tdR이 "right"를 코드에 갖고
+      # 있던 것을 규칙으로 올린다 (2026-08-30). 동작은 그대로다 — 자리만 옮겼다.
+      # shin 쪽에서 같은 값이 없어 숫자 자릿수가 어긋난 일이 있었다 (LESSONS L16)
+      numeric_col_align: right
       short_phrase_left_align: false
       row_height_min: 0.33
       row_height_2line_min: 0.58

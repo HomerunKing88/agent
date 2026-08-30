@@ -262,7 +262,7 @@ const T = SR.table;
 const tableStyles = {
   hd:  { fontFace: F, fontSize: SZ.table_header_pt, bold: true, color: C.white, fill: { color: C.navy }, align: T.header_align, valign: "middle" },
   td:  { fontFace: F, fontSize: SZ.table_body_pt, color: C.body, align: T.default_align, valign: "middle" },
-  tdR: { fontFace: F, fontSize: SZ.table_body_pt, color: C.body, align: "right", valign: "middle" },
+  tdR: { fontFace: F, fontSize: SZ.table_body_pt, color: C.body, align: T.numeric_col_align, valign: "middle" },
   tdL: { fontFace: F, fontSize: SZ.table_body_pt, color: C.body, align: T.long_text_col_align, valign: "middle" },
   tdG: { fontFace: F, fontSize: SZ.table_body_pt, color: C.gray, align: T.default_align, valign: "middle" },
   tl:  { fontFace: F, fontSize: SZ.table_body_pt, bold: true, color: C.body, align: T.default_align, valign: "middle" },
