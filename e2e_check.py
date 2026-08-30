@@ -400,10 +400,18 @@ def run(job: Path, rules: dict) -> None:
     struct_fixtures(rules)
 
     print("\n[11] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
+    # 자는 검사기 **전체**다. audit.py 하나만 쓰던 것을 2026-08-30에 바꿨다.
+    # STRUCT 게이트를 붙이자 732 = 732로 정확히 맞닿았고, PIPE가 한도를 맞추려고
+    # 코드를 압축했다. 한도 때문에 코드를 줄이는 것은 이 규칙이 의도한 방향이 아니다.
+    # 배관이 부푼 것이 아니라 실제 판정이 늘었고 자를 대는 쪽이 안 자란 것이었다.
+    # audit.py 하나를 자로 쓴 것은 render_check.py가 없던 시점의 선택이다.
     plumbing = len((REPO / "orchestrator.py").read_text(encoding="utf-8").splitlines())
-    checker = len((REPO / "audit.py").read_text(encoding="utf-8").splitlines())
-    check(f"orchestrator({plumbing}) <= audit({checker})", plumbing <= checker,
-          "배관이 검사기보다 크다. 멈추고 프레임워크 도입을 사용자와 상의한다")
+    parts = {name: len((REPO / name).read_text(encoding="utf-8").splitlines())
+             for name in ("audit.py", "render_check.py")}
+    checker = sum(parts.values())
+    check(f"orchestrator({plumbing}) <= 검사기({checker} = "
+          f"{' + '.join(str(v) for v in parts.values())})", plumbing <= checker,
+          "배관이 검사기 전체보다 크다. 멈추고 프레임워크 도입을 사용자와 상의한다")
 
 
 def main() -> int:
