@@ -19,7 +19,7 @@
 걸려 codex의 3~5분과 맞물리지 않았다. 창은 남겨 두지만 일을 주지 않는다.
 
 - 이 세션은 **BUILDER**이자 **감독**이다 (계획서 3.0).
-  담당: `template.js`, `template_shin.js`, `deck.js`, `deckkit.js`, `schemas/`, `prompts/`,
+  담당: `template.js`, `template_shin.js`, `deck.js`, `deckkit.js`, `schemas/`, `prompts/`, `guard.sh`,
   `orchestrator.py`, `slack_bot.py`, `preview.py`, `e2e_check.py`, `relay.sh`, `ask.sh`, `opencode.json`
   (뒤 셋은 PIPE에게서 넘겨받았다)
 - **CODEX = 검사기.** 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
@@ -35,6 +35,18 @@
 - 사용자는 폰에서 나에게만 지시한다. CODEX·REVIEW에게는 `./ask.sh <대상> "지시"`로 시킨다.
   **판정은 내가 하지 않는다. 스크립트가 한다** — "괜찮아 보인다"로 통과시키지 않는다.
   브랜치·푸시·삭제·`house-rules.yaml`·확정 사항 변경, 실적 수치가 든 잡은 폰으로 올린다 (3.0).
+- **검문 지점은 명령이 아니라 쓰기 경계다** (2026-08-30 변경).
+  명령을 한 건씩 승인하던 방식은 **통제의 착각**이었다. 하루에 20번 눌렀는데
+  정작 나쁜 장표가 그대로 나갔다. 눈이 명령에 가 있었고 결과에는 없었다.
+  **승인 횟수는 통제의 양이 아니다.**
+  - CODEX는 `--sandbox read-only --ask-for-approval on-request`로 띄운다.
+    읽기·검사는 안 묻고 통과하고, **쓰기는 전부 나에게 온다.**
+    실측 확인: `audit.py`는 그냥 돌고, 파일 생성은 `Operation not permitted`로 막힌다.
+  - REVIEW(claude)는 `.claude/settings.local.json`이 읽기 명령을 허용한다.
+  - **바뀐 것은 `./guard.sh`로 한 번에 본다.** 워킹트리·미푸시 커밋·담당 경계·
+    잡 폴더 유출·E2E·픽스처를 한 화면에 낸다.
+    **에이전트 작업이 끝날 때, 커밋·푸시 전, 사용자에게 보고하기 전에 돌린다.**
+    사용자가 맥북을 안 봐도 이 출력 하나로 상태가 드러나야 한다.
 - **승인은 내가 전담한다** (계획서 3.0, 위임 2026-08-30).
   바로 승인: 자기 담당 파일만 지정한 커밋, 읽기·검사 명령, 추천안, 공동 파일 수정(diff 확인 후).
   사용자에게 올림: push·브랜치·삭제·이력 되감기, 확정 사항 변경, 실적 수치 잡, 판단이 갈릴 때.
