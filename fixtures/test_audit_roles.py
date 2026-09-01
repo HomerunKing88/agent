@@ -9,7 +9,7 @@ class MinimumFontSizeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         with open("house-rules.yaml", encoding="utf-8") as handle:
-            cls.rules = yaml.safe_load(handle)
+            cls.rules = yaml.safe_load(handle)["styles"]["corporate-strategy-ppt"]
 
     def test_named_roles_use_house_rule_mapping(self):
         cases = {
@@ -25,15 +25,13 @@ class MinimumFontSizeTests(unittest.TestCase):
                     float(self.rules["sizes"][size_key]),
                 )
 
-    def test_claim_and_unknown_structure_fallbacks(self):
+    def test_claim_fallback_and_unknown_structure_error(self):
         self.assertEqual(
             minimum_font_size("CLAIM_REVENUE", self.rules),
             float(self.rules["sizes"][self.rules["role_min_pt"]["_claim_shape"]]),
         )
-        self.assertEqual(
-            minimum_font_size("future_helper/text", self.rules),
-            float(self.rules["sizes"][self.rules["role_min_pt"]["_default"]]),
-        )
+        with self.assertRaises(ValueError):
+            minimum_font_size("future_helper/text", self.rules)
 
     def test_table_cells_keep_table_minimum(self):
         self.assertEqual(
