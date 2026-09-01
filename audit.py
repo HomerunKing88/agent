@@ -5,12 +5,17 @@ from __future__ import annotations
 import argparse
 import ast
 import hashlib
+import io
 import json
 import math
+import posixpath
 import re
 import sys
+import zipfile
 from dataclasses import asdict, dataclass
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import yaml
 from pptx import Presentation
@@ -429,7 +434,151 @@ def calculate_claim(claim, workbook):
     raise ValueError(f"unsupported transform: {kind}")
 
 
-def check_claims(prs, rules, manifest_path, source_root=None):
+CHART_NS = "http://schemas.openxmlformats.org/drawingml/2006/chart"
+REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+OFFICE_REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+
+
+def normalized_number(value):
+    """Return a stable numeric identity without conflating bools with 0/1."""
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, (int, float, Decimal)):
+        try:
+            number = Decimal(str(value))
+        except InvalidOperation:
+            return None
+        return number.normalize() if number.is_finite() else None
+    return None
+
+
+def related_part_name(part_name, target):
+    if target.startswith("/"):
+        return target.lstrip("/")
+    return posixpath.normpath(posixpath.join(posixpath.dirname(part_name), target))
+
+
+def relationships(archive, part_name):
+    directory, filename = posixpath.split(part_name)
+    rels_name = posixpath.join(directory, "_rels", filename + ".rels")
+    if rels_name not in archive.namelist():
+        return []
+    root = ET.fromstring(archive.read(rels_name))
+    return [
+        {
+            "id": node.attrib["Id"],
+            "type": node.attrib["Type"],
+            "target": related_part_name(part_name, node.attrib["Target"]),
+        }
+        for node in root.findall(f"{{{REL_NS}}}Relationship")
+        if node.attrib.get("TargetMode") != "External"
+    ]
+
+
+def chart_series_references(pptx_path):
+    """Yield slide/chart/series value ranges from embedded chart workbooks.
+
+    Only c:val, c:yVal, and c:bubbleSize are data series.  c:cat and c:xVal
+    are deliberately excluded because they contain category/axis labels.
+    """
+    with zipfile.ZipFile(pptx_path) as archive:
+        slide_names = sorted(
+            (name for name in archive.namelist()
+             if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)),
+            key=lambda name: int(re.search(r"slide(\d+)\.xml$", name).group(1)),
+        )
+        for slide_name in slide_names:
+            page = int(re.search(r"slide(\d+)\.xml$", slide_name).group(1))
+            chart_rels = [rel for rel in relationships(archive, slide_name)
+                          if rel["type"].endswith("/chart")]
+            for slide_rel in chart_rels:
+                chart_name = slide_rel["target"]
+                chart_root = ET.fromstring(archive.read(chart_name))
+                package_rels = [rel for rel in relationships(archive, chart_name)
+                                if rel["type"].endswith("/package")]
+                external = chart_root.find(f".//{{{CHART_NS}}}externalData")
+                rel_id = external.attrib.get(f"{{{OFFICE_REL_NS}}}id") if external is not None else None
+                workbook_rel = next((rel for rel in package_rels if rel["id"] == rel_id), None)
+                if workbook_rel is None and len(package_rels) == 1:
+                    workbook_rel = package_rels[0]
+                if workbook_rel is None:
+                    raise ValueError(f"chart workbook relationship missing: {chart_name}")
+                workbook = load_workbook(
+                    io.BytesIO(archive.read(workbook_rel["target"])),
+                    data_only=True,
+                    read_only=True,
+                )
+                try:
+                    for series_index, series in enumerate(
+                            chart_root.findall(f".//{{{CHART_NS}}}ser"), 1):
+                        for value_tag in ("val", "yVal", "bubbleSize"):
+                            formula = series.find(
+                                f"{{{CHART_NS}}}{value_tag}/{{{CHART_NS}}}numRef/{{{CHART_NS}}}f"
+                            )
+                            if formula is None or not formula.text:
+                                continue
+                            match = re.fullmatch(r"(?:'((?:[^']|'')+)'|([^!]+))!(.+)", formula.text)
+                            if not match:
+                                raise ValueError(
+                                    f"unsupported chart series formula {formula.text!r}: {chart_name}"
+                                )
+                            sheet_name = (match.group(1) or match.group(2)).replace("''", "'")
+                            cell_range = match.group(3).replace("$", "")
+                            if sheet_name not in workbook.sheetnames:
+                                raise ValueError(
+                                    f"chart worksheet missing {sheet_name!r}: {chart_name}"
+                                )
+                            cells = workbook[sheet_name][cell_range]
+                            if not isinstance(cells, tuple):
+                                cells = ((cells,),)
+                            elif cells and not isinstance(cells[0], tuple):
+                                cells = (cells,)
+                            values = [cell.value for row in cells for cell in row
+                                      if normalized_number(cell.value) is not None]
+                            yield page, chart_name, series_index, formula.text, values
+                finally:
+                    workbook.close()
+
+
+def claim_source_numbers(claims, workbooks, resolved_sources):
+    """Index numeric evidence by slide from source sheets named by claims."""
+    indexed = {}
+    allowed_by_page = {}
+    for claim in claims:
+        source = claim.get("source", {})
+        source_path = resolved_sources.get(id(claim))
+        sheet_name = source.get("sheet")
+        if not source_path or source_path not in workbooks or sheet_name not in workbooks[source_path].sheetnames:
+            continue
+        key = (source_path, sheet_name)
+        if key not in indexed:
+            indexed[key] = {
+                normalized_number(cell.value)
+                for row in workbooks[source_path][sheet_name].iter_rows()
+                for cell in row
+                if normalized_number(cell.value) is not None
+            }
+        for page in {int(item["slide"]) for item in claim.get("placements", [])}:
+            allowed_by_page.setdefault(page, set()).update(indexed[key])
+    return allowed_by_page
+
+
+def check_chart_series(pptx_path, claims, workbooks, resolved_sources):
+    allowed_by_page = claim_source_numbers(claims, workbooks, resolved_sources)
+    issues = []
+    for page, chart_name, series_index, formula, values in chart_series_references(pptx_path):
+        allowed = allowed_by_page.get(page, set())
+        for point_index, value in enumerate(values, 1):
+            if normalized_number(value) not in allowed:
+                issues.append(Issue(
+                    "claim.unregistered_chart_series_value", page, chart_name,
+                    f"계열 {series_index} 값 {point_index} ({formula})={value!r}: "
+                    "manifest가 가리키는 원천 시트에 없음",
+                ))
+    return issues
+
+
+def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     schema_errors = validate_manifest(payload, rules)
     if schema_errors:
@@ -437,6 +586,7 @@ def check_claims(prs, rules, manifest_path, source_root=None):
     claims = payload["claims"]
     issues, changes = [], []
     workbooks = {}
+    resolved_sources = {}
     root = source_root or manifest_path.parent
     for claim in claims:
         shape_id = claim["shape_id"]
@@ -496,6 +646,7 @@ def check_claims(prs, rules, manifest_path, source_root=None):
                                 "원천 파일 해시 불일치"))
         if source_path not in workbooks:
             workbooks[source_path] = load_workbook(source_path, data_only=True, read_only=True)
+        resolved_sources[id(claim)] = source_path
         calculated = calculate_claim(claim, workbooks[source_path])
         expected = format_number(calculated, claim["display"], rules)
         override = claim.get("override")
@@ -519,6 +670,8 @@ def check_claims(prs, rules, manifest_path, source_root=None):
         elif expected != display:
             issues.append(Issue("calc.source_manifest", int(claim.get("slide", 1)), shape_id,
                                 f"source={expected!r}, manifest={display!r}"))
+    if pptx_path is not None:
+        issues.extend(check_chart_series(pptx_path, claims, workbooks, resolved_sources))
     for workbook in workbooks.values():
         workbook.close()
     issues.extend(check_numeric_tokens(prs, rules, payload))
@@ -607,7 +760,7 @@ def audit(path, rules, manifest_path=None, source_root=None):
     issues.extend(issue for check in checks for issue in check(prs, rules))
     changes = []
     if manifest_path:
-        claim_issues, changes = check_claims(prs, rules, manifest_path, source_root)
+        claim_issues, changes = check_claims(prs, rules, manifest_path, source_root, path)
         issues.extend(claim_issues)
     issues.sort(key=lambda item: (item.slide, item.rule, item.shape, item.evidence))
     return {"file": path.name, "status": "FAIL" if issues else "PASS",
