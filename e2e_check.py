@@ -239,6 +239,8 @@ def lessons_guarded() -> list[str]:
         for ref in refs:
             head, _, sym = ref.partition(":")
             head = head.strip()
+            if "*" in head or "?" in head:
+                continue                                  # glob은 파일이 아니라 패턴이다
             if re.search(r"\.(py|js|yaml|yml|sh|md|json)$", head):
                 files.append(head)
                 if sym.strip():

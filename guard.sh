@@ -78,5 +78,13 @@ if OUT="$(python3 audit.py fixtures/ 2>&1)"; then
 else bad "픽스처 검사 실패"; fi
 
 say ""
-[ "$FAIL" -eq 0 ] && say "통과 — 사용자에게 보고해도 된다" || say "막힘 — 위 문제를 먼저 처리한다"
+if [ "$FAIL" -eq 0 ]; then
+  say "통과 — 사용자에게 보고해도 된다"
+else
+  say "막힘 — 위 문제를 먼저 처리한다"
+  say ""
+  say "  푸시하려면 ./guard.sh && git push origin main 으로 붙여 쓴다."
+  say "  2026-09-01에 guard가 막았는데 ';'로 이어 붙여 그대로 푸시한 일이 있다."
+  say "  main이 빨간불로 올라갔고 셋이 공유하는 리포라 다 같이 막혔다."
+fi
 exit "$FAIL"

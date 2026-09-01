@@ -36,6 +36,7 @@
 | L21 | 게이트가 지금 그 덱을 본 적이 없다 | 1 | 덱을 다른 것으로 바꿔도, **빈 파일로 만들어도** ALL PASS였다 | `orchestrator.py:deck_hash` 대조 | 스크립트 |
 | L22 | 시켜 놓은 보고서를 안 읽는다 | 1 | VERIFY가 구멍 8건을 파일로 냈는데 네 시간 묵혔다. L21이 그 안에 있었다 | `guard.sh`가 검토 산출물을 매번 목록으로 낸다 | 스크립트 |
 | L23 | 아무도 안 돌리는 테스트가 썩는다 | 1 | `test_audit_roles.py`가 이틀 전 깨졌는데(2.17 스타일 분리) 안 돌려서 몰랐다. 6건 전부 KeyError | `e2e_check.py`가 `fixtures/test_*.py`를 전부 돌린다 | 스크립트 |
+| L24 | 막힌 검문을 그대로 지나친다 | 1 | `guard.sh`가 "막힘"을 냈는데 `;`로 이어 붙여 푸시했다. main이 빨간불로 올라갔다 | `guard.sh` 실패 시 푸시 방법을 출력 · `CLAUDE.md` 푸시 절 | 스크립트 |
 | L12 | 새 도형 역할을 규칙에 등재 안 한다 | 2 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가
