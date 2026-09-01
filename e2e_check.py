@@ -464,7 +464,21 @@ def run(job: Path, rules: dict) -> None:
         print(f"       (QA_REPORT가 PASS로 찍는 미검사 게이트 {len(GATES_NOT_WIRED)}개: "
               f"{', '.join(GATES_NOT_WIRED)} — BUILDER_TO_PIPE.md 8절)")
 
-    print("\n[10] 겪은 오류에 가드가 붙어 있나 — LESSONS.md")
+    print("\n[10] 검사기 자체 테스트가 도나 — fixtures/test_*.py")
+    # CODEX가 audit.py에 붙인 단위 테스트다. 아무도 안 돌리면 썩는다 —
+    # 오늘 여러 번 확인한 부류다 (발동한 적 없는 게이트는 작동을 모르는 게이트다).
+    # 여기서 한 번에 돌린다. 파일이 늘면 자동으로 같이 돈다.
+    tests = sorted((REPO / "fixtures").glob("test_*.py"))
+    if tests:
+        names = [f"fixtures.{t.stem}" for t in tests]
+        ran = subprocess.run([sys.executable, "-m", "unittest", *names],
+                             capture_output=True, text=True, cwd=REPO)
+        check(f"검사기 테스트 {len(names)}개", ran.returncode == 0,
+              ran.stderr.strip().splitlines()[-1] if ran.stderr.strip() else "")
+    else:
+        print("       (없음)")
+
+    print("\n[11] 겪은 오류에 가드가 붙어 있나 — LESSONS.md")
     holes = lessons_guarded()
     check("가드 없는 교훈 없음", not holes, ", ".join(holes[:3]))
     import re as _re
@@ -473,10 +487,10 @@ def run(job: Path, rules: dict) -> None:
     hit = sum(int(l.split("|")[3].strip()) for l in rows if l.split("|")[3].strip().isdigit())
     print(f"       ({len(rows)}부류를 {hit}번 고쳤다. 이 목록이 REVIEWER의 체크리스트다)")
 
-    print("\n[11] 구조 결함이 struct로 분류되나 — STRUCT 픽스처 두 장")
+    print("\n[12] 구조 결함이 struct로 분류되나 — STRUCT 픽스처 두 장")
     struct_fixtures(rules)
 
-    print("\n[12] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
+    print("\n[13] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
     # 자는 검사기 **전체**다. audit.py 하나만 쓰던 것을 2026-08-30에 바꿨다.
     # STRUCT 게이트를 붙이자 732 = 732로 정확히 맞닿았고, PIPE가 한도를 맞추려고
     # 코드를 압축했다. 한도 때문에 코드를 줄이는 것은 이 규칙이 의도한 방향이 아니다.

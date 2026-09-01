@@ -14,7 +14,7 @@
 
 | # | 부류 | 겪은 횟수 | 어떻게 드러났나 | 가드 | 종류 |
 |---|---|---|---|---|---|
-| L1 | 같은 규칙 값이 두 군데 있어 갈라진다 | 9 | 생성기와 검사기가 다른 판정 / 캔버스 이탈 / 오탐 22건 | `e2e_check.py:unenforced_drift` · `audit.py:check_preflight_alignment` | 스크립트 |
+| L1 | 같은 규칙 값이 두 군데 있어 갈라진다 | 11 | 생성기와 검사기가 다른 판정 / 캔버스 이탈 / 오탐 22건 | `e2e_check.py:unenforced_drift` · `audit.py:check_preflight_alignment` | 스크립트 |
 | L2 | 검사 안 한 것이 PASS로 찍힌다 | 3 | LAYOUT·ISSUE 게이트, 게이트 요약 "ALL PASS" | `orchestrator.py:review_lens_cover` · 상태 분기 | 스크립트 |
 | L3 | 저장 관문을 우회한다 | 3 | 도형 ID 중복. 픽스처 20개 전부 | `deckkit.js:newPres`가 `writeFile` 직접 호출을 던진다 | 스크립트 |
 | L4 | 원천에 없는 수를 만든다 | 1 | 비율 0.5339를 "53.4%"로 적었다 | `audit.py` `calc.source_manifest` | 스크립트 |
@@ -35,6 +35,7 @@
 | L20 | 그림에 그것을 말하는 문장이 없다 | 1 | 재고일수 그림을 어떤 문장도 언급하지 않아 고아로 떠 있었다 | `prompts/REVIEW.md` DESIGN 렌즈 | 판단 |
 | L21 | 게이트가 지금 그 덱을 본 적이 없다 | 1 | 덱을 다른 것으로 바꿔도, **빈 파일로 만들어도** ALL PASS였다 | `orchestrator.py:deck_hash` 대조 | 스크립트 |
 | L22 | 시켜 놓은 보고서를 안 읽는다 | 1 | VERIFY가 구멍 8건을 파일로 냈는데 네 시간 묵혔다. L21이 그 안에 있었다 | `guard.sh`가 검토 산출물을 매번 목록으로 낸다 | 스크립트 |
+| L23 | 아무도 안 돌리는 테스트가 썩는다 | 1 | `test_audit_roles.py`가 이틀 전 깨졌는데(2.17 스타일 분리) 안 돌려서 몰랐다. 6건 전부 KeyError | `e2e_check.py`가 `fixtures/test_*.py`를 전부 돌린다 | 스크립트 |
 | L12 | 새 도형 역할을 규칙에 등재 안 한다 | 2 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가
@@ -51,6 +52,8 @@
 7  golden_deck.js tpl.R        2.17 뒤 남은 최상위 참조             생성 실패
 8  deck.js 배너 "470"          claim 문자열로 조립해야 했다
 9  sub() descW 3.4 하드코딩                                        칼럼 끝에 못 닿음
+10 corporate tdR "right" 하드코딩       shin에 같은 값이 없어 자릿수 어긋남
+11 test_audit_roles가 최상위 sizes 참조  2.17 뒤 이틀간 죽어 있었다 (L23)
 ```
 
 **공통점**: 값을 코드에 적는 순간 규칙과 갈라진다. 규칙에서 읽으면 안 난다.
