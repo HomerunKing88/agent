@@ -464,9 +464,15 @@ function chartSeries(entries) {
   (Array.isArray(entries) ? entries : [entries]).forEach((e, i) => {
     if (!e || !e.ref) throw new Error("chartSeries: ref가 없다. 원천 범위를 적어야 한다 (예: C4:C15)");
     if (!e.src || !e.sheet) throw new Error("chartSeries: src와 sheet가 필요하다");
+    // chart 이름에 기본값을 두면 조용히 어긋난다. 2026-09-03에 기본값이
+    // "chartLine/chart"였는데 실제로는 chartBar를 그려서 audit이
+    // claim.chart_series_missing으로 잡았다. 기본값이 없었으면 여기서 걸렸다
+    if (!e.chart) throw new Error(
+      "chartSeries: chart 이름이 없다. 실제 도형 이름을 적어야 한다 " +
+      "(chartBar/chart · chartLine/chart 등). 기본값을 두면 조용히 어긋난다");
     _chartSeries.push({
       slide: e.slide != null ? e.slide : _slideNo,
-      chart: e.chart || "chartLine/chart",
+      chart: e.chart,
       series: e.series != null ? e.series : i + 1,
       name: e.name || null,
       source: { file: e.src, file_hash: _hash(e.src), sheet: e.sheet, ref: e.ref },

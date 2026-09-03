@@ -410,6 +410,17 @@ styles:
       - FFC000
       - FFDC6D
       - FFF2CC
+    # 차트 격자선·계열색 (2026-09-03 신설).
+    # 네이티브 차트를 원칙으로 하면서 corporate에 헬퍼를 붙이느라 같이 만들었다.
+    # shin의 chart 절과 같은 모양이다 — 스타일 간 규칙 절이 갈리면 한쪽이 샌다 (L39)
+    chart:
+      grid_color: "E8EBEF"
+      grid_width: 0.75
+      label_follows_series: true
+      label_weak_series_color: "6B7280"
+      # 계열 색. 첫 계열이 당사·주인공이다
+      series: ["0D4D79", "C9DAE8", "C4CAD2", "FFC000", "6B7280", "DDE1E6"]
+
     # 강조는 색에만 의존하지 않는다 (2026-09-03, shin에서 옮겨 왔다)
     #
     # shin에는 있고 corporate에는 없었다. 잡 006(경전실 양식 첫 장표)에서 드러났다 —

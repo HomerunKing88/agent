@@ -259,6 +259,71 @@ function waterfall(s, px, pw, base, hScale, vmax, v0, v1, catLabels, lblDelta) {
 // 정렬 기본값은 전부 center. 좌측정렬(tdL)은 셀 안에서 줄바꿈되는 긴 서술문 열에만 쓰고,
 // 그 열도 헤더는 hd(center)를 쓴다. rowH는 table.row_height_min / row_height_2line_min 이상.
 const T = SR.table;
+/* ══════════════════════════════════════════════════════════
+   네이티브 차트 (2026-09-03 신설)
+
+   **네이티브 차트를 원칙으로 한다** (CLAUDE.md, 사용자 확정 2026-09-03).
+   pptxgenjs의 addChart는 OOXML 차트와 엑셀 워크시트를 파일 안에 같이 넣는다.
+   받는 사람이 더블클릭하면 "데이터 편집"이 열리고, 고치면 막대·선이 따라 바뀐다.
+
+   앞의 colChart·stacked100·waterfall은 도형 기반이다. 배치를 정밀하게 잡아야 하고
+   숫자가 확정돼 다시 고칠 일이 없을 때만 쓴다.
+
+   **네이티브 차트를 쓰면 tpl.chartSeries()로 계열의 원천 범위를 같이 적는다.**
+   안 적으면 audit이 "그 값이 시트 어딘가에 있나"까지만 본다 (LESSONS L38).
+   ══════════════════════════════════════════════════════════ */
+
+// 차트 공통 서식. 색·크기는 전부 house-rules에서 읽는다 (계획서 2.14)
+function chartBase() {
+  const ch = SR.chart || {};
+  return {
+    fill: C.white,
+    border: { pt: 0, color: C.white },
+    chartColors: (ch.series || [C.navy, C.steel, C.grayLt]).slice(),
+    showLegend: false,
+    legendPos: "b",
+    legendFontFace: F, legendFontSize: SZ.chart_axis_label_pt, legendColor: C.body,
+    catAxisLabelFontFace: F, catAxisLabelFontSize: SZ.chart_axis_label_pt, catAxisLabelColor: C.title,
+    valAxisLabelFontFace: F, valAxisLabelFontSize: SZ.chart_axis_label_pt, valAxisLabelColor: C.gray,
+    catAxisLineShow: true, catGridLine: { style: "none" },
+    valGridLine: ch.grid_color
+      ? { color: ch.grid_color, size: ch.grid_width, style: "solid" }
+      : { style: "none" },
+    valAxisLineShow: false,
+    dataLabelFontFace: F, dataLabelFontSize: SZ.chart_value_label_pt, dataLabelColor: C.body,
+    dataLabelPosition: "outEnd",
+    showValue: true,
+    barGapWidthPct: 60,
+  };
+}
+
+// 세로 막대 (네이티브). colChart의 편집 가능 판이다
+function chartBar(s, x, y, w, h, labels, series, opts = {}) {
+  const data = series.map(sr => ({ name: sr.name || "계열", labels, values: sr.vals }));
+  s.addChart("bar", data, Object.assign(chartBase(), {
+    objectName: nameOf("chartBar", "chart"),
+    x, y, w, h, barDir: "col",
+    showLegend: series.length > 1,
+    valAxisHidden: series.length === 1,
+  }, opts));
+  return y + h;
+}
+
+// 꺾은선 (네이티브)
+function chartLine(s, x, y, w, h, labels, series, opts = {}) {
+  const data = series.map(sr => ({ name: sr.name || "계열", labels, values: sr.vals }));
+  s.addChart("line", data, Object.assign(chartBase(), {
+    objectName: nameOf("chartLine", "chart"),
+    x, y, w, h,
+    showLegend: series.length > 1,
+    lineSize: 2, lineDataSymbol: "circle", lineDataSymbolSize: 6, lineSmooth: false,
+    showValue: series.length === 1,
+    dataLabelPosition: "t",
+    valAxisHidden: series.length === 1,
+  }, opts));
+  return y + h;
+}
+
 const tableStyles = {
   hd:  { fontFace: F, fontSize: SZ.table_header_pt, bold: true, color: C.white, fill: { color: C.navy }, align: T.header_align, valign: "middle" },
   td:  { fontFace: F, fontSize: SZ.table_body_pt, color: C.body, align: T.default_align, valign: "middle" },
@@ -272,7 +337,7 @@ const tableStyles = {
 module.exports = {
   R, F, FH, C, W, H, MX, CW, FOOT_BASE,
   newPres, header, banner, banner2, sectionChip, panel, panel2, creamBox,
-  bullets, footer, darkCard, statCard, iconBadge, colChart, stacked100, waterfall, tableStyles,
+  bullets, footer, darkCard, statCard, iconBadge, colChart, chartBar, chartLine, stacked100, waterfall, tableStyles,
   claim, claimText, table, cell, text, shape, whitelistToken, chartSeries: kit.chartSeries, manifest, writeDeck: kit.writeDeck, writeManifest, resetManifest, sourceRoot, currentSlide,
   TEMPLATE_VERSION, STYLE, SR, nameOf, claimName, U
 };
