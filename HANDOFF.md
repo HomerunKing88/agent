@@ -67,6 +67,15 @@
       → `62f1855`(적용 결정)·`9c4c297`(문서 갱신)
 
 - [x] TO:USER (계획서 9절 7단계) 배관 한도 → (b) 검사기 전체로 확정. 계획서 7절과 e2e [11]단계 반영
+- [ ] TO:BUILDER (2026-09-03) **경전실 양식에 네이티브 차트 헬퍼가 없다.**
+      사용자가 "네이티브 차트를 원칙으로" 확정했는데(CLAUDE.md), `template.js`에는
+      `colChart`·`stacked100`·`waterfall` 셋 다 도형 기반이고 네이티브 헬퍼가 아예 없다.
+      `template_shin.js`에는 `chartBar`·`chartLine`·`chartStack100`·`chartWaterfall`이 있다.
+      **잡 006(세제개편안)에서 드러났다** — `chartSeries`를 적었더니 audit이
+      `claim.chart_series_missing`으로 잡았다. 선언한 계열이 차트에 없기 때문이다.
+      도형 기반은 값이 `valClaims`로 claim에 걸려 추적은 되지만, 받는 사람이
+      숫자를 고칠 수 없다 — 그게 네이티브를 원칙으로 한 이유다.
+      shin 쪽 `chartBase`·`chartBar`를 corporate 팔레트로 옮기면 된다.
 - [ ] TO:USER (계획서 9절 5단계) 집 Windows PC에서 `pip install -r requirements.txt` 후
       `python render_check.py fixtures/05_text_overflow.pptx`가 FAIL이면 완료
 - [ ] TO:USER (계획서 9절 8단계) 실제 잡 하나를 끝까지 돌려 쓸 만한지 판단
