@@ -678,7 +678,9 @@ def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
         issues.extend(check_chart_series(pptx_path, claims, workbooks, resolved_sources))
     for workbook in workbooks.values():
         workbook.close()
-    issues.extend(check_numeric_tokens(prs, rules, payload))
+    token_issues, token_warnings = check_numeric_tokens(prs, rules, payload)
+    issues.extend(token_issues)
+    warnings.extend(token_warnings)
     return issues, changes, warnings
 
 
@@ -686,9 +688,9 @@ def check_numeric_tokens(prs, rules, manifest):
     config = rules["numeric_tokens"]
     token_re = re.compile(config["pattern"])
     context_patterns = [re.compile(item["pattern"]) for item in config["global_text_whitelist"]]
-    job_allowed = set()
+    job_allowed = {}
     for item in manifest.get("token_whitelist", []):
-        job_allowed.add((int(item["slide"]), str(item["token"])))
+        job_allowed[(int(item["slide"]), str(item["token"]))] = item
 
     registered = set()
     for claim in manifest["claims"]:
@@ -696,7 +698,7 @@ def check_numeric_tokens(prs, rules, manifest):
             registered.update((int(placement["slide"]), match.group(0))
                               for match in token_re.finditer(str(placement["text"])))
 
-    issues, emitted = [], set()
+    issues, emitted, whitelist_uses = [], set(), {}
     for page, slide in enumerate(prs.slides, 1):
         containers = []
         for shape in slide.shapes:
@@ -709,7 +711,10 @@ def check_numeric_tokens(prs, rules, manifest):
         for location, full_text in containers:
             for match in token_re.finditer(full_text):
                 token = match.group(0)
-                if (page, token) in registered or (page, token) in job_allowed:
+                if (page, token) in registered:
+                    continue
+                if (page, token) in job_allowed:
+                    whitelist_uses.setdefault((page, token), []).append(location)
                     continue
                 if any(pattern.fullmatch(token) for pattern in context_patterns):
                     continue
@@ -718,7 +723,15 @@ def check_numeric_tokens(prs, rules, manifest):
                     emitted.add(key)
                     issues.append(Issue("claim.unregistered_numeric_token", page, location,
                                         f"등록되지 않은 숫자 토큰: {token!r}"))
-    return issues
+    warnings = []
+    for (page, token), locations in sorted(whitelist_uses.items()):
+        item = job_allowed[(page, token)]
+        unique_locations = sorted(set(locations))
+        warnings.append(Issue(
+            "token.whitelist_used", page, ", ".join(unique_locations),
+            f"token={token!r}, uses={len(locations)}, reason={item['reason']!r}",
+        ))
+    return issues, warnings
 
 
 def check_shape_placement(shape, placement, rules, page, shape_id, issues):

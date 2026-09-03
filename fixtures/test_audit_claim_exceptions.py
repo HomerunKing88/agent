@@ -43,6 +43,25 @@ class ClaimExceptionTests(unittest.TestCase):
         self.assertIn("1,000", unverified[0]["evidence"])
         self.assertIn("원천으로 검증할 수 없는 값", unverified[0]["evidence"])
 
+    def test_used_token_whitelist_records_token_count_location_and_reason(self):
+        result = audit(
+            FIXTURES / "00_golden.pptx",
+            self.rules,
+            FIXTURES / "00_manifest.json",
+            FIXTURES,
+        )
+
+        exemptions = [
+            warning for warning in result["warnings"]
+            if warning["rule"] == "token.whitelist_used"
+        ]
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(len(exemptions), 1)
+        self.assertIn("-100", exemptions[0]["evidence"])
+        self.assertIn("uses=1", exemptions[0]["evidence"])
+        self.assertIn("음수 표기 정적 검사 기준값", exemptions[0]["evidence"])
+        self.assertEqual(exemptions[0]["shape"], "fixture/table[1,2]")
+
 
 if __name__ == "__main__":
     unittest.main()
