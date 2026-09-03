@@ -933,13 +933,18 @@ def check_numeric_tokens(prs, rules, manifest):
     for item in manifest.get("token_whitelist", []):
         job_allowed[(int(item["slide"]), str(item["token"]))] = item
 
-    registered = set()
+    registered_locations = {}
     for claim in manifest["claims"]:
         for placement in claim["placements"]:
-            registered.update((int(placement["slide"]), match.group(0))
-                              for match in token_re.finditer(str(placement["text"])))
+            page = int(placement["slide"])
+            if placement["type"] == "shape":
+                location = placement["name"]
+            else:
+                location = f"{placement['table']}[{placement['row']},{placement['col']}]"
+            for match in token_re.finditer(str(placement["text"])):
+                registered_locations.setdefault((page, match.group(0)), set()).add(location)
 
-    issues, emitted, whitelist_uses = [], set(), {}
+    issues, emitted, whitelist_uses, registered_reuses = [], set(), {}, {}
     for page, slide in enumerate(prs.slides, 1):
         containers = []
         for shape in slide.shapes:
@@ -952,7 +957,9 @@ def check_numeric_tokens(prs, rules, manifest):
         for location, full_text in containers:
             for match in token_re.finditer(full_text):
                 token = match.group(0)
-                if (page, token) in registered:
+                if (page, token) in registered_locations:
+                    if location not in registered_locations[(page, token)]:
+                        registered_reuses.setdefault((page, token), []).append(location)
                     continue
                 if (page, token) in job_allowed:
                     whitelist_uses.setdefault((page, token), []).append(location)
@@ -965,6 +972,13 @@ def check_numeric_tokens(prs, rules, manifest):
                     issues.append(Issue("claim.unregistered_numeric_token", page, location,
                                         f"등록되지 않은 숫자 토큰: {token!r}"))
     warnings = []
+    for (page, token), locations in sorted(registered_reuses.items()):
+        reused_at = sorted(set(locations))
+        placed_at = sorted(registered_locations[(page, token)])
+        warnings.append(Issue(
+            "token.registered_reused", page, ", ".join(reused_at),
+            f"token={token!r}, claim placements={placed_at}, reused_at={reused_at}",
+        ))
     for (page, token), locations in sorted(whitelist_uses.items()):
         item = job_allowed[(page, token)]
         unique_locations = sorted(set(locations))

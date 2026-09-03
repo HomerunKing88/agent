@@ -3,7 +3,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from audit import audit, load_rules
+from pptx import Presentation
+from pptx.util import Inches
+
+from audit import audit, check_numeric_tokens, load_rules, style_rules
 
 
 REPO = Path(__file__).resolve().parents[1]
@@ -61,6 +64,38 @@ class ClaimExceptionTests(unittest.TestCase):
         self.assertIn("uses=1", exemptions[0]["evidence"])
         self.assertIn("음수 표기 정적 검사 기준값", exemptions[0]["evidence"])
         self.assertEqual(exemptions[0]["shape"], "fixture/table[1,2]")
+
+    def test_registered_token_reuse_outside_claim_placement_is_visible(self):
+        presentation = Presentation(FIXTURES / "00_golden.pptx")
+        shape = presentation.slides[0].shapes.add_textbox(
+            Inches(1), Inches(1), Inches(4), Inches(0.4)
+        )
+        shape.name = "bullets/line"
+        shape.text = "본품 재고가 1,000일치나 남아 있다"
+        manifest = json.loads((FIXTURES / "00_manifest.json").read_text(encoding="utf-8"))
+        rules = style_rules(self.rules, FIXTURES / "00_manifest.json")
+
+        issues, warnings = check_numeric_tokens(presentation, rules, manifest)
+
+        self.assertEqual(issues, [])
+        reuses = [warning for warning in warnings
+                  if warning.rule == "token.registered_reused"]
+        self.assertEqual(len(reuses), 1)
+        self.assertIn("bullets/line", reuses[0].shape.split(", "))
+        self.assertIn("1,000", reuses[0].evidence)
+
+    def test_claim_placement_itself_is_not_reported_as_reuse(self):
+        presentation = Presentation(FIXTURES / "00_golden.pptx")
+        manifest = json.loads((FIXTURES / "00_manifest.json").read_text(encoding="utf-8"))
+        rules = style_rules(self.rules, FIXTURES / "00_manifest.json")
+
+        _, warnings = check_numeric_tokens(presentation, rules, manifest)
+
+        reuses = [warning for warning in warnings
+                  if warning.rule == "token.registered_reused"]
+        self.assertEqual(len(reuses), 1)
+        self.assertEqual(reuses[0].shape, "fixture/table[1,1]")
+        self.assertNotIn("CLAIM_REVENUE", reuses[0].shape)
 
 
 if __name__ == "__main__":
