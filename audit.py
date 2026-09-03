@@ -584,7 +584,7 @@ def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
     if schema_errors:
         raise ValueError("manifest schema: " + " | ".join(schema_errors))
     claims = payload["claims"]
-    issues, changes = [], []
+    issues, changes, warnings = [], [], []
     workbooks = {}
     resolved_sources = {}
     root = source_root or manifest_path.parent
@@ -636,6 +636,10 @@ def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
 
         source = claim.get("source", {})
         if transform == "unverified":
+            warnings.append(Issue(
+                "calc.unverified_claim", int(claim.get("slide", placements[0]["slide"])), shape_id,
+                f"value={display!r}, note={claim['transform']['note']!r}: 원천 계산 검증 안 됨",
+            ))
             continue
         source_path = root / source["file"]
         if not source_path.exists():
@@ -675,7 +679,7 @@ def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
     for workbook in workbooks.values():
         workbook.close()
     issues.extend(check_numeric_tokens(prs, rules, payload))
-    return issues, changes
+    return issues, changes, warnings
 
 
 def check_numeric_tokens(prs, rules, manifest):
@@ -758,13 +762,17 @@ def audit(path, rules, manifest_path=None, source_root=None):
               check_canvas_and_content)
     issues = check_preflight_alignment(rules)
     issues.extend(issue for check in checks for issue in check(prs, rules))
-    changes = []
+    changes, warnings = [], []
     if manifest_path:
-        claim_issues, changes = check_claims(prs, rules, manifest_path, source_root, path)
+        claim_issues, changes, warnings = check_claims(
+            prs, rules, manifest_path, source_root, path
+        )
         issues.extend(claim_issues)
     issues.sort(key=lambda item: (item.slide, item.rule, item.shape, item.evidence))
+    warnings.sort(key=lambda item: (item.slide, item.rule, item.shape, item.evidence))
     return {"file": path.name, "status": "FAIL" if issues else "PASS",
-            "issues": [asdict(issue) for issue in issues], "changes": changes}
+            "issues": [asdict(issue) for issue in issues],
+            "warnings": [asdict(warning) for warning in warnings], "changes": changes}
 
 
 def audit_safe(path, rules, manifest_path=None, source_root=None):
@@ -775,6 +783,7 @@ def audit_safe(path, rules, manifest_path=None, source_root=None):
             "file": path.name,
             "status": "ERROR",
             "issues": [],
+            "warnings": [],
             "changes": [],
             "error": f"{type(error).__name__}: {error}",
         }
@@ -819,6 +828,7 @@ def main(argv=None):
                     "file": str(args.target),
                     "status": "ERROR",
                     "issues": [],
+                    "warnings": [],
                     "changes": [],
                     "error": error,
                 }],
@@ -866,6 +876,8 @@ def main(argv=None):
                 print(f"  audit.error: {result['error']}")
             for issue in result["issues"]:
                 print(f"  p{issue['slide']} {issue['rule']}: {issue['evidence']}")
+            for warning in result.get("warnings", []):
+                print(f"  WARNING p{warning['slide']} {warning['rule']}: {warning['evidence']}")
             for change in result.get("changes", []):
                 print(f"  CHANGE p{change['slide']} {change['shape_id']}: "
                       f"{change['source_value']!r} -> {change['override_value']!r} "
