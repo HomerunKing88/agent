@@ -103,6 +103,7 @@ guard.sh            glob을 가드로 적은 L23을 막음 (그런데 내가 지
 | L36 | 가드의 스위치를 검사받는 쪽이 쥔다 | 2 | 09-03 | 09-03 | manifest의 `label_ref`를 지우면 라벨 대조가 통째로 꺼진다. `token_whitelist` 자기발급과 같은 모양 | 건너뛸 때 반드시 경고를 남긴다 — `audit.py` `token.whitelist_used` · `claim.source_label_unverified` | 스크립트 |
 | L37 | 오탐을 피하려다 구멍을 낸다 | 1 | 09-03 | 09-03 | "완전 일치는 오탐이 나니 포함 관계로 보라"고 지시했더니 접두어를 공유하는 네 행이 전부 통과했다 | `prompts/REVIEW.md` CONTENT 렌즈 · 새 검사는 반드시 깨 보고 확인 | 판단 |
 | L38 | 검사 범위가 지표가 아니라 시트다 | 1 | 09-03 | 09-03 | 차트 계열 값이 원천 **시트 어딘가**에 있기만 하면 통과했다. 거래대금 자리에 신용잔고 값을 넣어도 PASS | `audit.py:check_chart_series` · `deckkit.js:chartSeries` — 계열별 범위와 순서까지 대조 | 스크립트 |
+| L39 | 규칙이 한 스타일에만 있어 다른 쪽이 샌다 | 1 | 09-03 | 09-03 | `emphasis`(색 단독 강조 금지)가 shin에만 있어 corporate 배너가 같은 pt·같은 굵기로 색에만 강조를 걸었다 | `e2e_check.py`가 스타일 간 규칙 절 차이를 센다 | 스크립트 |
 | L12 | 새 도형 역할을 규칙에 등재 안 한다 | 2 | 08-30 | 08-30 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가

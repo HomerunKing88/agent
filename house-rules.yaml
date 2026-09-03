@@ -33,6 +33,12 @@ judgment_rules:
 - key: styles.shin-ppt1.emphasis.also_use
   by: CRITIC
   why: 위와 같다. 크기·굵기가 실제로 강조로 읽히는지는 판단이다
+- key: styles.corporate-strategy-ppt.emphasis.color_alone_forbidden
+  by: CRITIC
+  why: shin과 같은 조항이다. 흑백에서 강조가 남는지는 그림을 봐야 안다
+- key: styles.corporate-strategy-ppt.emphasis.also_use
+  by: CRITIC
+  why: 위와 같다
 
 unenforced:
 - key: palette_usage.brand_swatch
@@ -404,6 +410,16 @@ styles:
       - FFC000
       - FFDC6D
       - FFF2CC
+    # 강조는 색에만 의존하지 않는다 (2026-09-03, shin에서 옮겨 왔다)
+    #
+    # shin에는 있고 corporate에는 없었다. 잡 006(경전실 양식 첫 장표)에서 드러났다 —
+    # 배너 두 줄이 같은 15pt·같은 굵기라 강조가 색에만 걸려 있었다.
+    # 흑백으로 인쇄하면 강조가 사라진다. 경영진 보고는 인쇄된다.
+    # 같은 규칙이 한 스타일에만 있으면 다른 스타일이 조용히 샌다.
+    emphasis:
+      color_alone_forbidden: true
+      also_use: [size, bold]
+
     table:
       default_align: center
       header_align: center

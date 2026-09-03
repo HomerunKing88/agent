@@ -225,6 +225,32 @@ GEN_FILES = ("template.js", "template_shin.js", "deck.js", "deckkit.js")
 CHK_FILES = ("audit.py", "render_check.py", "skill/shin-ppt1/scripts/preflight.py")
 
 
+# 스타일마다 있어야 하는 규칙 절. 한쪽에만 있으면 다른 쪽이 조용히 샌다.
+#
+# 2026-09-03에 실제로 났다. emphasis(색 단독 강조 금지)가 shin에만 있어서
+# corporate 배너가 같은 pt·같은 굵기로 색에만 강조를 걸었다. 흑백으로 인쇄하면
+# 강조가 사라지는데 그것을 막을 규칙이 그 스타일에는 없었다 (LESSONS L39).
+#
+# 스타일마다 값은 다를 수 있다. 다만 **절이 있고 없고가 갈리면** 안 된다.
+SHARED_RULE_SECTIONS = ("fonts", "sizes", "table", "zones", "forbidden",
+                        "role_min_pt", "emphasis", "palette")
+
+
+def rule_section_gaps(rules: dict) -> list[str]:
+    """어떤 스타일에는 있고 다른 스타일에는 없는 규칙 절."""
+    styles = rules.get("styles") or {}
+    if len(styles) < 2:
+        return []
+    gaps = []
+    for section in SHARED_RULE_SECTIONS:
+        have = [name for name, body in styles.items()
+                if isinstance(body, dict) and section in body]
+        if have and len(have) != len(styles):
+            missing = sorted(set(styles) - set(have))
+            gaps.append(f"{section}: {', '.join(missing)}에 없다")
+    return gaps
+
+
 def one_sided_rules(rules: dict) -> list[str]:
     """생성기만 읽고 검사기는 모르는 스타일 규칙."""
     read = lambda fs: "\n".join((REPO / f).read_text(encoding="utf-8")
@@ -564,7 +590,11 @@ def run(job: Path, rules: dict) -> None:
     print(f"       ({len(rows)}부류 {hit}회. 가드 설치 후 재발 {len(leaked)}부류"
           + (f": {', '.join(leaked)}" if leaked else "") + ")")
 
-    print("\n[12] 검사기가 모르는 규칙이 늘지 않았나 — L1의 반대 방향")
+    print("\n[12] 규칙 절이 스타일마다 고르게 있나 — 한쪽만 있으면 다른 쪽이 샌다")
+    gaps = rule_section_gaps(rules)
+    check("스타일 간 규칙 절 차이 없음", not gaps, "; ".join(gaps))
+
+    print("\n[13] 검사기가 모르는 규칙이 늘지 않았나 — L1의 반대 방향")
     lonely = one_sided_rules(rules)
     check(f"생성기만 아는 규칙 {len(lonely)}개 (기준선 {ONE_SIDED_BASELINE})",
           len(lonely) <= ONE_SIDED_BASELINE,
@@ -573,10 +603,10 @@ def run(job: Path, rules: dict) -> None:
         print(f"       (기준선보다 {ONE_SIDED_BASELINE - len(lonely)}개 줄었다. "
               f"ONE_SIDED_BASELINE을 {len(lonely)}으로 낮춰라)")
 
-    print("\n[13] 구조 결함이 struct로 분류되나 — STRUCT 픽스처 두 장")
+    print("\n[14] 구조 결함이 struct로 분류되나 — STRUCT 픽스처 두 장")
     struct_fixtures(rules)
 
-    print("\n[14] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
+    print("\n[15] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
     # 자는 검사기 **전체**다. audit.py 하나만 쓰던 것을 2026-08-30에 바꿨다.
     # STRUCT 게이트를 붙이자 732 = 732로 정확히 맞닿았고, PIPE가 한도를 맞추려고
     # 코드를 압축했다. 한도 때문에 코드를 줄이는 것은 이 규칙이 의도한 방향이 아니다.
