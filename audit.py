@@ -580,6 +580,83 @@ def shape_role(shape):
     return shape.name.split("#", 1)[0]
 
 
+def check_component_text_and_chip_rules(prs, rules):
+    components = rules["components"]
+    marker_text = components.get("bullet_marker")
+    conclusion_prefix = components.get("conclusion_prefix")
+    caption_prefix = components.get("table_caption_prefix")
+    chip_rules = components.get("chip")
+    unit = rules["units"]["emu_per_inch"]
+    tolerance = 10 ** -int(rules["units"]["bounds_round_in"])
+    issues = []
+    for page, slide in enumerate(prs.slides, 1):
+        markers = [shape for shape in text_shapes(slide)
+                   if shape_role(shape) == "bullets/marker"]
+        if marker_text is not None:
+            for shape in markers:
+                actual = text(shape).strip()
+                if actual != str(marker_text):
+                    issues.append(Issue(
+                        "components.bullet_marker", page, shape.name,
+                        f"marker={actual!r}, expected={str(marker_text)!r}",
+                    ))
+
+        if conclusion_prefix is not None:
+            lines = [shape for shape in text_shapes(slide)
+                     if shape_role(shape) in {"bullets/text", "bullets/line"}
+                     and text(shape).strip()]
+            for shape in lines:
+                has_marker = any(
+                    abs(marker.top - shape.top) / unit <= tolerance
+                    and marker.left < shape.left
+                    for marker in markers
+                )
+                actual = text(shape).strip()
+                if not has_marker and not actual.startswith(str(conclusion_prefix)):
+                    issues.append(Issue(
+                        "components.conclusion_prefix", page, shape.name,
+                        f"마커 없는 결론 후보가 {str(conclusion_prefix)!r}로 시작하지 않음: "
+                        f"{actual[:60]!r}",
+                    ))
+
+        if caption_prefix is not None:
+            for shape in text_shapes(slide):
+                if shape_role(shape) != "table/caption":
+                    continue
+                actual = text(shape).strip()
+                if not actual.startswith(str(caption_prefix)):
+                    issues.append(Issue(
+                        "components.table_caption_prefix", page, shape.name,
+                        f"caption={actual[:60]!r}, expected prefix={str(caption_prefix)!r}",
+                    ))
+
+        if chip_rules is not None and "radius" in chip_rules:
+            expected_radius = float(chip_rules["radius"])
+            for shape in slide.shapes:
+                if shape_role(shape) != "chip/bg":
+                    continue
+                geometry = shape._element.find(f".//{{{DRAWINGML_NS}}}prstGeom")
+                adjustment = (geometry.find(
+                    f"{{{DRAWINGML_NS}}}avLst/{{{DRAWINGML_NS}}}gd[@name='adj']"
+                ) if geometry is not None else None)
+                formula = adjustment.attrib.get("fmla", "") if adjustment is not None else "val 16667"
+                match = re.fullmatch(r"val\s+(\d+(?:\.\d+)?)", formula)
+                if geometry is None or geometry.attrib.get("prst") != "roundRect" or not match:
+                    issues.append(Issue(
+                        "components.chip.radius", page, shape.name,
+                        "roundRect 반경 조정값을 읽을 수 없음",
+                    ))
+                    continue
+                short_side = min(shape.width, shape.height) / unit
+                actual_radius = short_side * float(match.group(1)) / 100000
+                if abs(actual_radius - expected_radius) > tolerance:
+                    issues.append(Issue(
+                        "components.chip.radius", page, shape.name,
+                        f"radius={actual_radius:.4f}in, expected={expected_radius:.4f}in",
+                    ))
+    return issues
+
+
 def check_chip_geometry(prs, rules):
     unit = rules["units"]["emu_per_inch"]
     tolerance = 10 ** -int(rules["units"]["bounds_round_in"])
@@ -1218,7 +1295,8 @@ def audit(path, rules, manifest_path=None, source_root=None):
     checks = (check_fonts, check_notation, check_negative_red, check_red_runs_per_line,
               check_table_alignments, check_footnotes,
               check_overflow, check_title_right, check_table_geometry,
-              check_canvas_and_content, check_chip_geometry)
+              check_canvas_and_content, check_component_text_and_chip_rules,
+              check_chip_geometry)
     issues = check_preflight_alignment(rules)
     warnings = []
     issues.extend(check_font_sizes(prs, rules, warnings))
