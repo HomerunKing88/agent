@@ -15,7 +15,7 @@ async function build(outPath, manifestPath, defect = null) {
   if (defect === "S01") {
     slide.addTable([
       [{ text: "구분", options: { bold: true, align: "center" } }, { text: "FY26", options: { bold: true, align: "center" } }],
-      [{ text: "영업이익", options: { align: "center" } }, { text: "1,000", options: { align: "center" } }],
+      [{ text: "영업이익", options: { align: "center" } }, { text: "1,000", options: { align: tpl.SR.table.numeric_col_align } }],
     ], { x: tpl.MX, y: 3.20, w: 4.2, colW: [2.1, 2.1], rowH: [0.35, 0.35],
       objectName: "openTable/table", fontFace: tpl.F, fontSize: 10, margin: 0 });
   } else if (defect === "S02") {

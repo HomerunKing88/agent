@@ -26,8 +26,8 @@ function addPage(pres, defectId, metric = "1,000") {
     ["구분", "FY25", "증감"].map(text => ({ text, options: headerStyle })),
     [
       { text: "영업수익", options: tpl.tableStyles.td },
-      { text: metric, options: { ...tpl.tableStyles.td, fontFace: bodyFont } },
-      { text: negative, options: tpl.tableStyles.td },
+      { text: metric, options: { ...tpl.tableStyles.tdR, fontFace: bodyFont } },
+      { text: negative, options: tpl.tableStyles.tdR },
     ],
   ];
   slide.addTable(rows, {

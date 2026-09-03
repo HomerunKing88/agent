@@ -259,19 +259,96 @@ def check_font_sizes(prs, rules):
     return issues
 
 
-def check_headers(prs, rules):
-    if rules["table"]["header_align"] != "center":
-        raise ValueError("only table.header_align=center is supported")
+ALIGN_NAMES = {
+    None: "left",
+    PP_ALIGN.LEFT: "left",
+    PP_ALIGN.CENTER: "center",
+    PP_ALIGN.RIGHT: "right",
+    PP_ALIGN.JUSTIFY: "justify",
+}
+
+
+def numeric_only(value, rules):
+    candidate = value.strip()
+    for marker in rules["notation"]["negative_forbidden"]:
+        if candidate.startswith(marker):
+            candidate = rules["notation"]["negative"] + candidate[len(marker):].lstrip()
+            break
+    if not re.fullmatch(rules["numeric_tokens"]["pattern"], candidate):
+        return False
+    number = candidate
+    for sign in (rules["notation"]["negative"], rules["notation"]["positive"]):
+        if number.startswith(sign):
+            number = number[len(sign):]
+            break
+    if number.endswith("%"):
+        number = number[:-1]
+    number = number.replace(rules["notation"]["thousands_sep"], "")
+    number = number.replace(rules["notation"]["decimal_sep"], ".")
+    try:
+        Decimal(number)
+    except InvalidOperation:
+        return False
+    return True
+
+
+def is_subtotal_row(row, rules):
+    if rules["table"].get("subtotal_row_style") != "bold_no_fill":
+        return False
+    nonempty = [cell for cell in row.cells if cell.text.strip()]
+    return bool(nonempty) and all(
+        cell.fill.type is None
+        and all(run.font.bold is True
+                for paragraph in cell.text_frame.paragraphs
+                for run in paragraph.runs if run.text.strip())
+        for cell in nonempty
+    )
+
+
+def check_table_alignments(prs, rules):
+    table_rules = rules["table"]
+    header_align = table_rules["header_align"]
+    default_align = table_rules["default_align"]
+    long_text_align = table_rules["long_text_col_align"]
+    numeric_align = table_rules["numeric_col_align"]
     issues = []
     for page, slide in enumerate(prs.slides, 1):
         for shape in slide.shapes:
             if not getattr(shape, "has_table", False) or not shape.table.rows:
                 continue
-            bad = [index for index, cell in enumerate(shape.table.rows[0].cells, 1)
-                   if any(p.alignment != PP_ALIGN.CENTER for p in cell.text_frame.paragraphs)]
-            if bad:
-                issues.append(Issue("table.header_align", page, shape.name,
-                                    f"헤더 중앙정렬 위반 셀: {bad}"))
+            body_rows = list(shape.table.rows)[1:]
+            long_text_columns = {
+                col_index
+                for col_index in range(len(shape.table.columns))
+                if (values := [row.cells[col_index].text.strip() for row in body_rows
+                               if row.cells[col_index].text.strip()])
+                and all(not numeric_only(value, rules) for value in values)
+            }
+            for row_index, row in enumerate(shape.table.rows):
+                subtotal = row_index > 0 and is_subtotal_row(row, rules)
+                for col_index, cell in enumerate(row.cells):
+                    value = cell.text.strip()
+                    if not value:
+                        continue
+                    if row_index == 0:
+                        rule, allowed = "table.header_align", {header_align}
+                    elif numeric_only(value, rules):
+                        rule = "table.numeric_col_align"
+                        allowed = {numeric_align, default_align} if subtotal else {numeric_align}
+                    elif col_index in long_text_columns:
+                        rule, allowed = "table.default_align", {default_align, long_text_align}
+                    else:
+                        rule, allowed = "table.default_align", {default_align}
+                    actual = {
+                        ALIGN_NAMES.get(paragraph.alignment, str(paragraph.alignment).lower())
+                        for paragraph in cell.text_frame.paragraphs if paragraph.text.strip()
+                    }
+                    bad = sorted(actual - allowed)
+                    if bad:
+                        issues.append(Issue(
+                            rule, page, shape.name,
+                            f"셀[{row_index},{col_index}]={value!r}: align={bad}, expected={sorted(allowed)}",
+                        ))
     return issues
 
 
@@ -752,9 +829,7 @@ def check_shape_placement(shape, placement, rules, page, shape_id, issues):
         issues.append(Issue("claim.source_manifest_pptx", page, shape_id, "font.size 불일치"))
     if any(bool(run.font.bold) != bool(spec.get("bold")) for run in runs):
         issues.append(Issue("claim.source_manifest_pptx", page, shape_id, "font.bold 불일치"))
-    align_map = {None: "left", PP_ALIGN.LEFT: "left", PP_ALIGN.CENTER: "center",
-                 PP_ALIGN.RIGHT: "right", PP_ALIGN.JUSTIFY: "justify"}
-    actual_align = align_map.get(shape.text_frame.paragraphs[0].alignment)
+    actual_align = ALIGN_NAMES.get(shape.text_frame.paragraphs[0].alignment)
     if actual_align != placement.get("align", "left"):
         issues.append(Issue("claim.source_manifest_pptx", page, shape_id,
                             f"align manifest={placement.get('align')}, pptx={actual_align}"))
@@ -770,7 +845,7 @@ def audit(path, rules, manifest_path=None, source_root=None):
     rules = style_rules(rules, manifest_path)
     prs = Presentation(str(path))
     checks = (check_fonts, check_notation, check_negative_red, check_red_runs_per_line, check_font_sizes,
-              check_headers, check_footnotes,
+              check_table_alignments, check_footnotes,
               check_overflow, check_title_right, check_table_geometry,
               check_canvas_and_content)
     issues = check_preflight_alignment(rules)
