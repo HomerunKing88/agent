@@ -176,7 +176,32 @@ def meta_update(root: Path, **fields) -> None:
     print(f"meta  : {' '.join(f'{k}={v}' for k, v in fields.items())}")
 
 
+def judgment_reminder() -> None:
+    """장표를 만들기 전에 판단 가드를 화면에 낸다.
+
+    Atlas의 session handoff에서 빌렸다 — 새 세션 첫 메시지에 사실 묶음을 자동으로 싣는다.
+    ask.sh는 다른 에이전트에게 그걸 붙여 주는데, **정작 만드는 쪽(BUILDER)은 아무도 안 붙여 준다.**
+    2026-08-30에 잡 004를 고쳐 놓고 같은 데이터로 차트 판(005)을 만들며 004에 붙인
+    경고 각주를 통째로 빠뜨렸다. 이미 고친 결함 셋이 되살아났다 (LESSONS L18).
+    사람의 기억에 맡기지 않는다.
+    """
+    path = Path(__file__).resolve().parent / "LESSONS.md"
+    if not path.exists():
+        return
+    rows = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        cols = [c.strip() for c in line.strip("|").split("|")]
+        if len(cols) >= 8 and re.fullmatch(r"L\d+", cols[0]) and cols[7] == "판단":
+            rows.append(f"  {cols[0]} {cols[1]}")
+    if rows:
+        print("── 만들기 전에 (스크립트가 못 잡는 것들) ──")
+        for r in rows:
+            print(r)
+        print(f"  ({len(rows)}건. 전체는 LESSONS.md)")
+
+
 def cmd_build(root: Path, version: int = 1) -> None:
+    judgment_reminder()
     p = job_paths(root, version)
     repo = Path(__file__).resolve().parent
     # deck_v1.js는 잡 폴더에 복사해 채운다. 리포의 데크.js는 템플릿이다 (계획서 5절)

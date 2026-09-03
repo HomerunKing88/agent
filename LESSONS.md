@@ -83,6 +83,7 @@ guard.sh            glob을 가드로 적은 L23을 막음 (그런데 내가 지
 | L27 | 검사기가 낸 것을 배관이 안 읽는다 | 1 | 09-03 | 09-03 | `audit.py`가 unverified 경고를 냈는데 orchestrator가 `issues`만 읽어 게이트·보고서가 몰랐다 | `orchestrator.py` `audit_warnings` | 스크립트 |
 | L28 | 가드가 오탐을 세면 기준선이 부풀어 진짜가 묻힌다 | 1 | 09-03 | 09-03 | 한쪽만 읽는 규칙 123개 중 73개가 오탐이었다 — `sizes.*`는 audit이 `role_min_pt`를 거쳐 간접으로 읽는다 | `e2e_check.py` `ONE_SIDED_SKIP` | 스크립트 |
 | L29 | 만들어 둔 자기 점검을 아무도 안 부른다 | 1 | 09-03 | 09-03 | `checkLayout`이 호출부에서 좌표를 받아야 해서 실전 잡 두 개 다 0회 호출이었다 | `template_shin.js:writeDeck`이 쓴 파일에서 되읽어 자동 실행 | 스크립트 |
+| L30 | 사실 묶음을 사람이 손으로 실어 준다 | 1 | 09-03 | 08-30 | L18이 그래서 났다 — 새 판을 짜며 앞 판의 경고를 안 옮겼다 | `ask.sh:factpack` · `orchestrator.py:judgment_reminder` | 스크립트 |
 | L12 | 새 도형 역할을 규칙에 등재 안 한다 | 2 | 08-30 | 08-30 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가

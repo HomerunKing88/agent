@@ -48,6 +48,24 @@ if [ -n "$LEAK" ]; then bad "실적 수치가 든 것이 리포에 들어왔다:
 else say "  없음"; fi
 
 say ""
+say "── 지시와 결과가 짝을 이루나 ──────────────"
+# Atlas의 checkpoint에서 빌린 것. 커밋을 그것을 만든 지시에 묶는다.
+# 시켰는데 커밋이 없으면 잊혔거나 막힌 것이다 — 오늘 실제로 그런 일이 있었다.
+if [ -d dispatch ]; then
+  OPEN=0
+  for f in dispatch/D-*.md; do
+    [ -f "$f" ] || continue
+    id="$(basename "$f" .md)"
+    if git log --all --oneline --grep="지시 $id" | head -1 | grep -q .; then :; else
+      head -1 "$f" | sed "s|^# |  [결과 없음] |"; OPEN=$((OPEN+1))
+    fi
+  done
+  [ "$OPEN" -eq 0 ] && say "  모든 지시에 커밋이 있다" || say "  ↑ ${OPEN}건 — 잊혔거나 막혔거나, 커밋에 번호를 안 적었다"
+else
+  say "  (dispatch 폴더 없음)"
+fi
+
+say ""
 say "── 검토 산출물 (에이전트가 낸 것) ─────────"
 # 시켜 놓고 안 읽으면 소용없다. 2026-08-30 VERIFY가 파이프라인 구멍 8건을
 # 파일로 냈는데 네 시간 묵혔다. 그중 하나는 게이트 전체를 무효로 만드는 것이었다.

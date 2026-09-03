@@ -44,15 +44,60 @@ if [ -z "$WHO" ] || [ -z "$TASK" ]; then
   exit 2
 fi
 
+# ── 사실 묶음을 자동으로 싣는다 (Atlas의 session handoff에서 빌림) ──
+#
+# Atlas는 새 세션 첫 메시지에 "curated fact pack"을 자동으로 붙인다.
+# 우리는 그걸 내가 손으로 적었고, 그래서 잊었다 — 2026-08-30에 잡 004를 고쳐 놓고
+# 같은 데이터로 차트 판(005)을 만들며 004에 붙인 경고 각주를 통째로 빠뜨렸다.
+# 이미 고친 결함 셋이 되살아났다 (LESSONS L18).
+#
+# 사람의 기억에 맡기지 않는다. 지시마다 기계가 붙인다.
+#   판단 가드 목록  스크립트가 못 잡는 것들. 검토자의 체크리스트다
+#   자기 앞 인계    HANDOFF.md에서 그 에이전트 앞으로 온 미완 항목
+factpack() {
+  local who="$1" out=""
+  if [ -f LESSONS.md ]; then
+    local rows
+    rows="$(awk -F'|' '/^\| L[0-9]+ \|/ && $9 ~ /판단/ {gsub(/^ +| +$/,"",$2); gsub(/^ +| +$/,"",$3); print "  " $2 " " $3}' LESSONS.md)"
+    [ -n "$rows" ] && out="이미 겪은 오류 중 **스크립트가 못 잡는 것**이다. 네 눈이 유일한 가드다.
+$rows
+(전체는 LESSONS.md. 새 부류를 찾으면 말해 달라 — 내가 한 줄 늘리고 가드를 붙인다.)
+"
+  fi
+  local mine
+  mine="$(grep -n "^- \[ \] TO:$who " HANDOFF.md 2>/dev/null | sed 's/^[0-9]*:- \[ \] /  /' | cut -c1-110)"
+  [ -n "$mine" ] && out="$out
+네 앞으로 온 미완 항목이다.
+$mine
+"
+  printf '%s' "$out"
+}
+
 # 어느 에이전트든 담당 경계와 검사를 먼저 상기시킨다.
 # 지시만 던지면 세션 규칙 파일을 안 읽고 남의 파일을 건드린다.
+# ── 지시에 번호를 붙인다 (Atlas의 checkpoint에서 빌림) ───────────────
+#
+# Atlas는 커밋을 그것을 만든 세션(프롬프트·툴콜·추론)에 묶어 둔다.
+# 우리는 커밋 메시지에 이유만 적어서 "어느 지시가 이 커밋을 낳았나"가 안 남는다.
+# guard.sh의 담당 경계 검사가 커밋 제목의 'Codex:' 접두로 추측하고 있었다 — 약하다.
+#
+# 지시마다 D-날짜-번호를 발급해 전문을 dispatch/에 남기고, 에이전트에게
+# 커밋 메시지 끝에 그 번호를 적게 한다. 그러면 두 가지가 드러난다.
+#   시켰는데 커밋이 없다      → 잊혔거나 막혔다
+#   커밋이 있는데 지시가 없다  → 시키지 않은 일을 했다
+mkdir -p dispatch
+DID="D-$(date +%Y%m%d)-$(printf '%02d' $(( $(ls dispatch/D-$(date +%Y%m%d)-*.md 2>/dev/null | wc -l | tr -d ' ') + 1 )))"
+
 PREAMBLE='너는 이 리포의 에이전트 중 하나다. AGENTS.md 머리의 "너는 누구인가" 표로
 자기 정체를 먼저 확인하고, 자기 담당 파일만 고쳐라.
 커밋은 자기 담당 파일만 이름으로 지정한다. 브랜치를 바꾸지 마라.
 커밋 전에 python3 e2e_check.py 를 돌려라. 실패하면 고치거나, 남의 담당이면
 HANDOFF.md에 인계 줄을 남겨라.
 
-지시:
+**커밋 메시지 마지막 줄에 지시번호를 적어라: '"'"'지시 __DID__'"'"'**
+시킨 것과 나온 것을 짝지어 볼 수 있어야 한다. 번호가 없으면 guard.sh가
+"시켰는데 결과가 없다"로 잡는다.
+
 '
 
 # herdr 창에서 도는 에이전트를 pane id로 찾는다. 창을 새로 띄우지 않고 있는 창에 넣는다.
@@ -99,10 +144,14 @@ if [ -z "$PANE" ]; then
   exit 3
 fi
 
+MSG="${PREAMBLE//__DID__/$DID}$(factpack "$WHO")
+지시:
+$TASK"
+
 if [ "$DRY" -eq 1 ]; then
   echo "herdr agent prompt $PANE <프롬프트>   ($AGENT 창)"
   echo "--- 프롬프트 ---"
-  printf '%s%s\n' "$PREAMBLE" "$TASK"
+  printf '%s\n' "$MSG"
   exit 0
 fi
 
@@ -124,8 +173,13 @@ fi
 echo "== $WHO 에게 지시 =="
 echo "$TASK"
 echo
+# 지시 전문을 남긴다. 커밋과 짝을 맞추는 근거다
+{ echo "# $DID → $WHO  ($(date '+%Y-%m-%d %H:%M'))"; echo; printf '%s\n' "$TASK"; } > "dispatch/$DID.md"
+echo "지시번호: $DID  (전문: dispatch/$DID.md)"
 echo "창: $PANE ($AGENT)"
-OUT="$(herdr agent prompt "$PANE" "$PREAMBLE$TASK" 2>&1)" || {
+OUT="$(herdr agent prompt "$PANE" "${PREAMBLE//__DID__/$DID}$(factpack "$WHO")
+지시:
+$TASK" 2>&1)" || {
   echo "창에 넣지 못했다: $OUT" >&2; exit 3; }
 printf '%s' "$OUT" | grep -q '"error"' && {
   echo "창에 넣지 못했다: $OUT" >&2; exit 3; }
