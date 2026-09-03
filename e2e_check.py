@@ -218,9 +218,9 @@ def lessons_guarded() -> list[str]:
         if not re.match(r"^\| L\d+ ", line):
             continue
         cols = [c.strip() for c in line.strip("|").split("|")]
-        if len(cols) < 6:
+        if len(cols) < 8:
             continue
-        num, guard, kind = cols[0], cols[4], cols[5]
+        num, guard, kind = cols[0], cols[6], cols[7]
         if kind == "판단":
             # 판단 가드는 REVIEW.md가 실제로 그 얘기를 해야 한다. 렌즈 이름으로 확인한다.
             lens = "DESIGN" if "DESIGN" in guard else ("CONTENT" if "CONTENT" in guard else None)
@@ -487,7 +487,15 @@ def run(job: Path, rules: dict) -> None:
     rows = [l for l in (REPO / "LESSONS.md").read_text(encoding="utf-8").splitlines()
             if _re.match(r"^\| L\d+ ", l)]
     hit = sum(int(l.split("|")[3].strip()) for l in rows if l.split("|")[3].strip().isdigit())
-    print(f"       ({len(rows)}부류를 {hit}번 고쳤다. 이 목록이 REVIEWER의 체크리스트다)")
+    # 가드를 붙인 뒤에도 또 났나. 이것이 "배우고 있나"의 지표다 —
+    # 목록이 길어지는 것은 학습이 아니다. 붙인 가드가 버티는지가 학습이다.
+    leaked = []
+    for l in rows:
+        c = [x.strip() for x in l.strip("|").split("|")]
+        if len(c) >= 5 and c[3] and c[4] and c[4] > c[3]:
+            leaked.append(f"{c[0]}({c[3]}→{c[4]})")
+    print(f"       ({len(rows)}부류 {hit}회. 가드 설치 후 재발 {len(leaked)}부류"
+          + (f": {', '.join(leaked)}" if leaked else "") + ")")
 
     print("\n[12] 구조 결함이 struct로 분류되나 — STRUCT 픽스처 두 장")
     struct_fixtures(rules)
