@@ -228,6 +228,10 @@ function claim(value, opts = {}) {
       file_hash: opts.src ? _hash(opts.src) : null,
       sheet: opts.sheet || null,
       ref: opts.ref || null,
+      // 이 값이 어느 항목의 것인지 가리키는 셀 (예: 제품명이 든 B18).
+      // 적으면 audit이 그 글자와 장표의 라벨을 대조한다. 안 적으면 건너뛴다.
+      // 값이 맞아도 라벨이 어긋나면 뜻이 정반대가 되는데 아무도 못 잡던 자리다 (L34)
+      label_ref: opts.label_ref || null,
     },
     transform: tf,
   };

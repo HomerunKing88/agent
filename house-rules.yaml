@@ -170,6 +170,16 @@ manifest:
   - numeric
   - text
   source_required: true
+  # 라벨 셀 참조 (2026-09-03 신설, 하위 호환)
+  #
+  # 값 대조기는 숫자가 원천과 맞는지만 보고 **그 숫자가 어느 항목의 것인지는 안 본다.**
+  # 표 1열 라벨 둘을 맞바꾸면 뜻이 정반대가 되는데 audit이 통과시켰다 (실측).
+  # REVIEWER는 그림을 보고 잡았지만(L34), 스크립트로 잴 수 있으면 사람에게 맡기지 않는다.
+  #
+  # claim이 label_ref를 적으면 audit이 그 셀의 글자와 장표에 찍힌 라벨을 대조한다.
+  # **없으면 검사를 건너뛴다** — 기존 잡의 manifest를 깨지 않기 위해서다.
+  # 표가 아닌 그림(막대·선)에는 라벨 개념이 달라 강제하지 않는다.
+  label_ref_optional: true
   source_ref_required_for:
   - identity
   transforms:

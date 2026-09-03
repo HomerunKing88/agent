@@ -89,6 +89,9 @@ class Source(Strict):
     file_hash: str | None = None
     sheet: str | None = None
     ref: str | None = None
+    # 이 값이 어느 항목의 것인지 가리키는 셀 (예: 제품명이 든 B18).
+    # 선택이다 — 없으면 audit이 라벨 대조를 건너뛴다 (manifest.label_ref_optional)
+    label_ref: str | None = None
 
 
 class Claim(Strict):
