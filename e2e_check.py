@@ -213,8 +213,13 @@ def struct_fixtures(rules: dict) -> None:
 #
 # 실측으로 확인했다. 검사기가 모르는 규칙을 하나 넣으니 123→124로 잡혔고,
 # 되돌리니 통과했다.
-ONE_SIDED_BASELINE = 123
-ONE_SIDED_SKIP = ("role_min_pt.", "qa.")   # 검사기 쪽 표다. 설계상 한쪽만 읽는다
+ONE_SIDED_BASELINE = 50
+# 설계상 한쪽만 읽는 것들. 잎 이름이 코드에 안 나올 뿐 실제로는 검사된다.
+#   role_min_pt  검사기 쪽 표다. 생성기는 안 읽는다
+#   qa           검사기 전용 임계값
+#   sizes        audit이 role_min_pt를 거쳐 간접으로 읽는다 (minimum_font_size)
+#   themes·palette  색은 palette_usage·forbidden 쪽에서 묶어 검사한다
+ONE_SIDED_SKIP = ("role_min_pt.", "qa.", "sizes.", "themes.", "palette.")
 
 GEN_FILES = ("template.js", "template_shin.js", "deck.js", "deckkit.js")
 CHK_FILES = ("audit.py", "render_check.py", "skill/shin-ppt1/scripts/preflight.py")
