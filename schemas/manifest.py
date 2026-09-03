@@ -116,6 +116,10 @@ class Manifest(Strict):
     style: str
     template_version: str
     token_whitelist: list[dict] = []
+    # 차트 계열의 원천 범위. 네이티브 차트 값은 claim에 안 걸리므로 이것이 없으면
+    # audit이 "시트 어딘가에 있나"까지만 본다 (LESSONS L38).
+    # 선택이다 — 없으면 audit이 시트 전체 대조로 떨어지고 경고를 남긴다
+    chart_series: list[dict] = []
     claims: list[Claim]
 
 

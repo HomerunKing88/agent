@@ -70,7 +70,7 @@ guard.sh            glob을 가드로 적은 L23을 막음 (그런데 내가 지
 | L2 | 검사 안 한 것이 PASS로 찍힌다 | 3 | 08-30 | 08-30 | LAYOUT·ISSUE 게이트, 게이트 요약 "ALL PASS" | `orchestrator.py:review_lens_cover` · 상태 분기 | 스크립트 |
 | L3 | 저장 관문을 우회한다 | 3 | 08-30 | 08-30 | 도형 ID 중복. 픽스처 20개 전부 | `deckkit.js:newPres`가 `writeFile` 직접 호출을 던진다 | 스크립트 |
 | L4 | 원천에 없는 수를 만든다 | 1 | 08-29 | 08-30 | 비율 0.5339를 "53.4%"로 적었다 | `audit.py` `calc.source_manifest` | 스크립트 |
-| L5 | 차트 안 숫자를 아무도 안 본다 | 1 | 09-01 | 08-30 | 값을 99.9로 바꿔도 audit·preflight 통과 | **없다** — 도형 기반 막대(`bars`)를 쓰면 claim에 걸린다 | 판단 |
+| L5 | 차트 안 숫자를 아무도 안 본다 | 1 | 09-01 | 08-30 | 값을 99.9로 바꿔도 audit·preflight 통과 | `audit.py` `claim.unregistered_chart_series_value` | 스크립트 |
 | L6 | 결론이 그림에 없고 글로만 있다 | 1 | 08-30 | 08-30 | 상관 0.93이 캡션에만. CRITIC이 CRITICAL로 잡음 | `prompts/REVIEW.md` DESIGN 렌즈 | 판단 |
 | L7 | 표가 표로 안 읽힌다 | 2 | 08-30 | 08-30 | 선 없는 큰 표에 값 두셋. 규칙은 다 지켰다 | `prompts/REVIEW.md` DESIGN 렌즈 | 판단 |
 | L8 | 강조를 색에만 건다 | 1 | 08-30 | 08-30 | 흑백 인쇄에서 강조가 뒤집힌다 | `house-rules.yaml` `emphasis.color_alone_forbidden` | 판단 |

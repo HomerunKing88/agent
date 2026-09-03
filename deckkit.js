@@ -108,11 +108,12 @@ const ISO8601_TZ = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{
 
 let _claims = [];
 let _tokenWhitelist = [];
+let _chartSeries = [];
 let _slideNo = 0;
 let _srcRoot = process.env.DECK_SOURCE_ROOT || __dirname;
 const _hashCache = new Map();
 
-function resetManifest() { _claims = []; _tokenWhitelist = []; _slideNo = 0; _hashCache.clear(); _nameSeq.clear(); }
+function resetManifest() { _claims = []; _tokenWhitelist = []; _chartSeries = []; _slideNo = 0; _hashCache.clear(); _nameSeq.clear(); }
 // 잡 폴더에서는 builder/ 기준으로 ../source 를 가리킨다
 function sourceRoot(dir) { if (dir != null) _srcRoot = dir; return _srcRoot; }
 function currentSlide() { return _slideNo; }
@@ -450,6 +451,30 @@ print(touched)
 // 실행 정보는 run_metadata.json이 따로 담는다 (계획서 6.4)
 // meta로 스타일과 생성기 버전을 받는다. 계약(이 파일)은 스타일을 모르고,
 // 어느 스킬로 만들었는지는 생성기가 안다 (계획서 2.17).
+/**
+ * 차트 계열이 원천의 어느 범위에서 왔는지 적는다.
+ *
+ * 네이티브 차트 값은 내장 워크북 안에 있어 claim에 안 걸린다. 이것이 없으면
+ * audit이 "그 값이 시트 어딘가에 있나"까지만 본다 — 거래대금 자리에 신용잔고
+ * 값을 넣어도 통과한다 (LESSONS L38).
+ *
+ * 안 적어도 된다(chart_series_ref_optional). 다만 안 적으면 audit이 경고를 남긴다.
+ */
+function chartSeries(entries) {
+  (Array.isArray(entries) ? entries : [entries]).forEach((e, i) => {
+    if (!e || !e.ref) throw new Error("chartSeries: ref가 없다. 원천 범위를 적어야 한다 (예: C4:C15)");
+    if (!e.src || !e.sheet) throw new Error("chartSeries: src와 sheet가 필요하다");
+    _chartSeries.push({
+      slide: e.slide != null ? e.slide : _slideNo,
+      chart: e.chart || "chartLine/chart",
+      series: e.series != null ? e.series : i + 1,
+      name: e.name || null,
+      source: { file: e.src, file_hash: _hash(e.src), sheet: e.sheet, ref: e.ref },
+    });
+  });
+  return _chartSeries.length;
+}
+
 function writeManifest(file, meta = {}) {
   if (!meta.style) throw new Error("writeManifest: style이 없다. 어느 스킬로 만든 장표인지 적어야 한다 (계획서 2.17)");
   if (!meta.templateVersion) throw new Error("writeManifest: templateVersion이 없다 (계획서 2.16-6)");
@@ -461,6 +486,7 @@ function writeManifest(file, meta = {}) {
     style: meta.style,
     template_version: meta.templateVersion,
     token_whitelist: _tokenWhitelist.slice(),
+    chart_series: _chartSeries.slice(),
     claims,
   };
   fs.writeFileSync(file, JSON.stringify(out, null, 2) + "\n", "utf8");
@@ -479,6 +505,6 @@ module.exports = {
   // 도형 이름 (2.16-1)
   nameOf, claimName, shape, text,
   // claim / manifest (2.4~2.8, 6.2)
-  claim, claimText, table, cell, whitelistToken, writeDeck, renumberShapeIds, readGeometry,
+  claim, claimText, table, cell, whitelistToken, chartSeries, writeDeck, renumberShapeIds, readGeometry,
   manifest, writeManifest, resetManifest, sourceRoot, currentSlide,
 };

@@ -650,7 +650,7 @@ module.exports = {
   icon, bars, barsGroup,
   flow, stack, branch, matrix, timeline, compare, tree,
   // ── 계약 (deckkit. 계획서 2.16) ──────────────────────────────────
-  claim, claimText, cell, whitelistToken, manifest, writeManifest,
+  claim, claimText, cell, whitelistToken, chartSeries: kit.chartSeries, manifest, writeManifest,
   resetManifest, sourceRoot, currentSlide, nameOf, claimName,
   table: kitTable, writeDeck,
   // 이 생성기가 어느 스킬의 문법인지. manifest에 박힌다 (2.17)
