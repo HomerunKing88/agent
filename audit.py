@@ -819,6 +819,54 @@ def check_chart_series(pptx_path, claims, workbooks, resolved_sources):
     return issues
 
 
+def normalized_label(value):
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", str(value)).strip().casefold()
+
+
+def check_source_label(prs, claim, workbook, checked):
+    """Compare an optional source label with column 0 of cell placements."""
+    source = claim.get("source", {})
+    label_ref = source.get("label_ref")
+    if not label_ref:
+        return []
+    source_label_raw = workbook[source["sheet"]][label_ref].value
+    source_label = normalized_label(source_label_raw)
+    issues = []
+    for placement in claim["placements"]:
+        if placement["type"] != "cell":
+            continue
+        page = int(placement["slide"])
+        row = int(placement["row"])
+        key = (
+            source.get("file"), source["sheet"], label_ref,
+            page, placement["table"], row,
+        )
+        if key in checked:
+            continue
+        checked.add(key)
+        if page < 1 or page > len(prs.slides):
+            continue
+        tables = [shape for shape in prs.slides[page - 1].shapes
+                  if getattr(shape, "has_table", False) and shape.name == placement["table"]]
+        if len(tables) != 1:
+            continue
+        try:
+            deck_label_raw = tables[0].table.cell(row, 0).text
+        except IndexError:
+            continue
+        deck_label = normalized_label(deck_label_raw)
+        if (not source_label or not deck_label
+                or (source_label not in deck_label and deck_label not in source_label)):
+            issues.append(Issue(
+                "claim.source_label_mismatch", page, placement["table"],
+                f"row={row}, source[{source['sheet']}!{label_ref}]={source_label_raw!r}, "
+                f"deck[0]={deck_label_raw!r}",
+            ))
+    return issues
+
+
 def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     schema_errors = validate_manifest(payload, rules)
@@ -828,6 +876,7 @@ def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
     issues, changes, warnings = [], [], []
     workbooks = {}
     resolved_sources = {}
+    checked_labels = set()
     root = source_root or manifest_path.parent
     for claim in claims:
         shape_id = claim["shape_id"]
@@ -881,6 +930,14 @@ def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
                 "calc.unverified_claim", int(claim.get("slide", placements[0]["slide"])), shape_id,
                 f"value={display!r}, note={claim['transform']['note']!r}: 원천 계산 검증 안 됨",
             ))
+            if not source.get("label_ref"):
+                continue
+            source_path = root / source["file"]
+            if not source_path.exists():
+                raise FileNotFoundError(f"claim[{shape_id}] source missing: {source_path}")
+            if source_path not in workbooks:
+                workbooks[source_path] = load_workbook(source_path, data_only=True, read_only=True)
+            issues.extend(check_source_label(prs, claim, workbooks[source_path], checked_labels))
             continue
         source_path = root / source["file"]
         if not source_path.exists():
@@ -892,6 +949,7 @@ def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
         if source_path not in workbooks:
             workbooks[source_path] = load_workbook(source_path, data_only=True, read_only=True)
         resolved_sources[id(claim)] = source_path
+        issues.extend(check_source_label(prs, claim, workbooks[source_path], checked_labels))
         calculated = calculate_claim(claim, workbooks[source_path])
         expected = format_number(calculated, claim["display"], rules)
         override = claim.get("override")
