@@ -81,6 +81,7 @@ guard.sh            glob을 가드로 적은 L23을 막음 (그런데 내가 지
 | L25 | 지시를 던지고 루프에서 빠진다 | 4 | 09-03 | 09-03 | 에이전트가 승인 대기로 서 있는 동안 다른 일을 했다. 사용자가 "지시가 제대로 안 된다"고 지적 | `ask.sh`가 결정할 것이 생길 때까지 안 끝난다 | 스크립트 |
 | L26 | 막힌 창에 보낸 지시가 조용히 사라진다 | 1 | 09-03 | 09-03 | 창이 blocked면 prompt가 agent_blocked로 튕기는데 `ask.sh`가 종료코드 0으로 끝났다 | `ask.sh`가 보내기 전 창 상태를 보고, 실패 시 4·3·5로 끝낸다 | 스크립트 |
 | L27 | 검사기가 낸 것을 배관이 안 읽는다 | 1 | 09-03 | 09-03 | `audit.py`가 unverified 경고를 냈는데 orchestrator가 `issues`만 읽어 게이트·보고서가 몰랐다 | `orchestrator.py` `audit_warnings` | 스크립트 |
+| L28 | 가드가 오탐을 세면 기준선이 부풀어 진짜가 묻힌다 | 1 | 09-03 | 09-03 | 한쪽만 읽는 규칙 123개 중 73개가 오탐이었다 — `sizes.*`는 audit이 `role_min_pt`를 거쳐 간접으로 읽는다 | `e2e_check.py` `ONE_SIDED_SKIP` | 스크립트 |
 | L12 | 새 도형 역할을 규칙에 등재 안 한다 | 2 | 08-30 | 08-30 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가
