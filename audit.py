@@ -730,10 +730,23 @@ def chart_series_references(pptx_path):
         )
         for slide_name in slide_names:
             page = int(re.search(r"slide(\d+)\.xml$", slide_name).group(1))
+            slide_root = ET.fromstring(archive.read(slide_name))
+            chart_shapes = {}
+            for frame in slide_root.findall(f".//{{{PRESENTATIONML_NS}}}graphicFrame"):
+                chart = frame.find(f".//{{{CHART_NS}}}chart")
+                properties = frame.find(
+                    f"{{{PRESENTATIONML_NS}}}nvGraphicFramePr/"
+                    f"{{{PRESENTATIONML_NS}}}cNvPr"
+                )
+                if chart is not None and properties is not None:
+                    chart_shapes[chart.attrib.get(f"{{{OFFICE_REL_NS}}}id")] = properties.attrib["name"]
             chart_rels = [rel for rel in relationships(archive, slide_name)
                           if rel["type"].endswith("/chart")]
             for slide_rel in chart_rels:
                 chart_name = slide_rel["target"]
+                chart_shape = chart_shapes.get(slide_rel["id"])
+                if not chart_shape:
+                    raise ValueError(f"chart shape name missing: {slide_name} {slide_rel['id']}")
                 chart_root = ET.fromstring(archive.read(chart_name))
                 package_rels = [rel for rel in relationships(archive, chart_name)
                                 if rel["type"].endswith("/package")]
@@ -776,7 +789,7 @@ def chart_series_references(pptx_path):
                                 cells = (cells,)
                             values = [cell.value for row in cells for cell in row
                                       if normalized_number(cell.value) is not None]
-                            yield page, chart_name, series_index, formula.text, values
+                            yield page, chart_shape, series_index, formula.text, values
                 finally:
                     workbook.close()
 
@@ -804,10 +817,67 @@ def claim_source_numbers(claims, workbooks, resolved_sources):
     return allowed_by_page
 
 
-def check_chart_series(pptx_path, claims, workbooks, resolved_sources):
+def range_numbers(workbook, sheet_name, cell_range):
+    if sheet_name not in workbook.sheetnames:
+        raise ValueError(f"chart source worksheet missing: {sheet_name!r}")
+    cells = workbook[sheet_name][cell_range]
+    if not isinstance(cells, tuple):
+        cells = ((cells,),)
+    elif cells and not isinstance(cells[0], tuple):
+        cells = (cells,)
+    return [normalized_number(cell.value) for row in cells for cell in row
+            if normalized_number(cell.value) is not None]
+
+
+def check_chart_series(pptx_path, claims, workbooks, resolved_sources,
+                       chart_series=None, source_root=None):
     allowed_by_page = claim_source_numbers(claims, workbooks, resolved_sources)
-    issues = []
+    specs = {}
+    for item in chart_series or []:
+        key = (int(item["slide"]), item["chart"], int(item["series"]))
+        if key in specs:
+            raise ValueError(f"duplicate manifest chart_series: {key}")
+        specs[key] = item
+    issues, warnings, seen = [], [], set()
+    root = source_root or Path(pptx_path).parent
     for page, chart_name, series_index, formula, values in chart_series_references(pptx_path):
+        key = (page, chart_name, series_index)
+        seen.add(key)
+        spec = specs.get(key)
+        if spec is not None:
+            source = spec["source"]
+            source_path = root / source["file"]
+            if not source_path.exists():
+                raise FileNotFoundError(f"chart_series source missing: {source_path}")
+            digest = "sha256:" + hashlib.sha256(source_path.read_bytes()).hexdigest()
+            if source.get("file_hash") != digest:
+                issues.append(Issue(
+                    "claim.chart_series_source", page, chart_name,
+                    f"계열 {series_index} 원천 파일 해시 불일치",
+                ))
+            if source_path not in workbooks:
+                workbooks[source_path] = load_workbook(source_path, data_only=True, read_only=True)
+            expected = range_numbers(workbooks[source_path], source["sheet"], source["ref"])
+            actual = [normalized_number(value) for value in values]
+            if actual != expected:
+                mismatches = [
+                    f"{index}: chart={actual[index - 1] if index <= len(actual) else 'MISSING'}, "
+                    f"source={expected[index - 1] if index <= len(expected) else 'MISSING'}"
+                    for index in range(1, max(len(actual), len(expected)) + 1)
+                    if (actual[index - 1] if index <= len(actual) else None)
+                    != (expected[index - 1] if index <= len(expected) else None)
+                ]
+                issues.append(Issue(
+                    "claim.unregistered_chart_series_value", page, chart_name,
+                    f"계열 {series_index} {spec['name']!r} ({source['sheet']}!{source['ref']}) "
+                    f"순서 불일치: {'; '.join(mismatches)}",
+                ))
+            continue
+
+        warnings.append(Issue(
+            "claim.chart_series_range_unverified", page, chart_name,
+            f"계열 {series_index} ({formula}): 범위 미등록, claim 원천 시트 전체로 검사",
+        ))
         allowed = allowed_by_page.get(page, set())
         for point_index, value in enumerate(values, 1):
             if normalized_number(value) not in allowed:
@@ -816,7 +886,13 @@ def check_chart_series(pptx_path, claims, workbooks, resolved_sources):
                     f"계열 {series_index} 값 {point_index} ({formula})={value!r}: "
                     "manifest가 가리키는 원천 시트에 없음",
                 ))
-    return issues
+    for key in sorted(set(specs) - seen):
+        page, chart_name, series_index = key
+        issues.append(Issue(
+            "claim.chart_series_missing", page, chart_name,
+            f"manifest 계열 {series_index}을 차트에서 찾지 못함",
+        ))
+    return issues, warnings
 
 
 def normalized_label(value):
@@ -1028,7 +1104,12 @@ def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
             issues.append(Issue("calc.source_manifest", int(claim.get("slide", 1)), shape_id,
                                 f"source={expected!r}, manifest={display!r}"))
     if pptx_path is not None:
-        issues.extend(check_chart_series(pptx_path, claims, workbooks, resolved_sources))
+        chart_issues, chart_warnings = check_chart_series(
+            pptx_path, claims, workbooks, resolved_sources,
+            payload.get("chart_series", []), root,
+        )
+        issues.extend(chart_issues)
+        warnings.extend(chart_warnings)
     for workbook in workbooks.values():
         workbook.close()
     token_issues, token_warnings = check_numeric_tokens(prs, rules, payload)
