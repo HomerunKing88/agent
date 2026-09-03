@@ -472,6 +472,66 @@ def check_canvas_and_content(prs, rules):
     return issues
 
 
+def shape_role(shape):
+    return shape.name.split("#", 1)[0]
+
+
+def check_chip_geometry(prs, rules):
+    unit = rules["units"]["emu_per_inch"]
+    tolerance = 10 ** -int(rules["units"]["bounds_round_in"])
+    issues = []
+    for page, slide in enumerate(prs.slides, 1):
+        backgrounds = [shape for shape in slide.shapes if shape_role(shape) == "chip/bg"]
+        descriptions = [shape for shape in slide.shapes if shape_role(shape) == "chip/desc"]
+        if not backgrounds and not descriptions:
+            continue
+        chip_rules = rules["components"].get("chip")
+        if chip_rules is None:
+            raise ValueError("components.chip rules are required when chip shapes exist")
+        desc_gap = float(chip_rules["desc_gap"])
+        desc_max_width = float(chip_rules["desc_w"])
+        right_limit = float(rules["layout"]["width"]) - float(rules["layout"]["margin_x"])
+        unused = set(range(len(backgrounds)))
+        for desc in sorted(descriptions, key=lambda shape: (shape.top, shape.left)):
+            dx = desc.left / unit
+            dy0, dy1 = desc.top / unit, (desc.top + desc.height) / unit
+            candidates = []
+            for index in unused:
+                bg = backgrounds[index]
+                bg_right = (bg.left + bg.width) / unit
+                by0, by1 = bg.top / unit, (bg.top + bg.height) / unit
+                overlaps_y = dy0 < by1 + tolerance and dy1 > by0 - tolerance
+                if overlaps_y and dx >= bg_right - tolerance:
+                    candidates.append((abs(dx - bg_right - desc_gap), index, bg_right))
+            if not candidates:
+                issues.append(Issue(
+                    "layout.chip_pair", page, desc.name,
+                    "세로로 겹치면서 왼쪽에 있는 chip/bg를 찾지 못함",
+                ))
+                continue
+            _, index, bg_right = min(candidates)
+            unused.remove(index)
+            actual_gap = dx - bg_right
+            width = desc.width / unit
+            canvas_width = right_limit - dx
+            if abs(actual_gap - desc_gap) > tolerance:
+                issues.append(Issue(
+                    "layout.chip_desc_gap", page, desc.name,
+                    f"gap={actual_gap:.4f}in, expected={desc_gap:.4f}in",
+                ))
+            if width > desc_max_width + tolerance:
+                issues.append(Issue(
+                    "layout.chip_desc_width", page, desc.name,
+                    f"w={width:.4f}in > desc_w={desc_max_width:.4f}in",
+                ))
+            if width > canvas_width + tolerance:
+                issues.append(Issue(
+                    "layout.chip_desc_canvas", page, desc.name,
+                    f"w={width:.4f}in > right_limit-desc.x={canvas_width:.4f}in",
+                ))
+    return issues
+
+
 def format_number(value, display, rules):
     rounding = display.get("rounding")
     if rounding is None:
@@ -847,7 +907,7 @@ def audit(path, rules, manifest_path=None, source_root=None):
     checks = (check_fonts, check_notation, check_negative_red, check_red_runs_per_line, check_font_sizes,
               check_table_alignments, check_footnotes,
               check_overflow, check_title_right, check_table_geometry,
-              check_canvas_and_content)
+              check_canvas_and_content, check_chip_geometry)
     issues = check_preflight_alignment(rules)
     issues.extend(issue for check in checks for issue in check(prs, rules))
     changes, warnings = [], []
