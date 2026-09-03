@@ -85,6 +85,7 @@ guard.sh            glob을 가드로 적은 L23을 막음 (그런데 내가 지
 | L29 | 만들어 둔 자기 점검을 아무도 안 부른다 | 1 | 09-03 | 09-03 | `checkLayout`이 호출부에서 좌표를 받아야 해서 실전 잡 두 개 다 0회 호출이었다 | `template_shin.js:writeDeck`이 쓴 파일에서 되읽어 자동 실행 | 스크립트 |
 | L30 | 사실 묶음을 사람이 손으로 실어 준다 | 1 | 09-03 | 08-30 | L18이 그래서 났다 — 새 판을 짜며 앞 판의 경고를 안 옮겼다 | `ask.sh:factpack` · `orchestrator.py:judgment_reminder` | 스크립트 |
 | L31 | 새로 만든 식별자가 겹친다 | 1 | 09-03 | 09-03 | 지시번호를 파일 개수로 매겨 `--dry`로 뽑힌 번호와 실제 지시가 같은 번호를 받았다 | `ask.sh`가 파일과 `git log`를 함께 본다 | 스크립트 |
+| L32 | 값이 없으면 검사가 통째로 빠진다 | 1 | 09-03 | 09-03 | run에 `sz`가 없으면 글씨 크기 검사를 건너뛰었다. 명시된 6pt는 잡고 미지정은 못 잡았다 | `audit.py:inherited_font_size` — 상속을 따라가고 못 찾으면 경고 | 스크립트 |
 | L12 | 새 도형 역할을 규칙에 등재 안 한다 | 2 | 08-30 | 08-30 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가
