@@ -563,6 +563,10 @@ EXACT_GATE = {
     "claim.source_manifest_pptx": "SOURCE",   # 원천 대조
     "claim.cross_page_consistency": "XREF",   # 페이지 간 지표 일치
     "claim.unregistered_numeric_token": "TOKEN",  # 미등록 숫자 토큰
+    # 2026-09-03 신설. 등재를 잊어 UNMAPPED으로 떨어져 있었다 —
+    # 막기는 했지만 게이트 표에 엉뚱한 이름이 찍혔다. L12가 게이트 맵에서 난 것이다.
+    "claim.source_label_mismatch": "SOURCE",      # 표 라벨이 원천 라벨과 다르다
+    "claim.unregistered_chart_series_value": "SOURCE",  # 차트 계열 값이 원천에 없다
     "qa.text_max_ymax_pt": "LAYOUT",          # 각주 y 좌표 (정적 근사)
     # 검사 자체의 실패(2.16.7: 조용한 PASS 금지)는 게이트를 막는 이슈로 승격한다.
     # 사용자 기각(REJ)로 우회될 수 없어야 하므로 ISSUE 게이트에 매핑하되,
