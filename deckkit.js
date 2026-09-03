@@ -348,6 +348,71 @@ async function writeDeck(pres, fileName) {
 
 // zip 라이브러리를 새로 들이지 않는다. 파이썬은 이미 전제 환경이고(계획서 4절)
 // 표준 라이브러리로 끝난다. preflight.py도 같은 방식이다.
+/**
+ * 쓴 파일에서 장별 기하를 되읽는다. 레이아웃 자기 점검이 쓸 값이다.
+ *
+ * 왜 되읽나: `checkLayout`은 호출부가 각 단의 하단 y를 넘겨 줘야 해서
+ * **아무도 안 불렀다** (2026-09-03 확인. 잡 004·005 둘 다 0회).
+ * 값을 넘겨받는 대신 **실제로 쓰인 것을 읽으면** 부를지 말지가 선택이 아니게 된다.
+ * 저장 관문 안에 있으니 잡 스크립트가 건너뛸 수도 없다.
+ *
+ * 돌려주는 것: [{ page, cols: [좌단 하단, 우단 하단], tail, footLines }]
+ * 머리글·각주·쪽번호는 콘텐츠가 아니므로 뺀다.
+ */
+function readGeometry(file, rightX, footBase) {
+  const script = `
+import re, sys, zipfile
+from xml.etree import ElementTree as ET
+A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+P = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
+EMU = 914400.0
+src, right_x, foot_base = sys.argv[1], float(sys.argv[2]), float(sys.argv[3])
+out = []
+with zipfile.ZipFile(src) as z:
+    names = sorted((n for n in z.namelist() if re.fullmatch(r"ppt/slides/slide\\d+\\.xml", n)),
+                   key=lambda n: int(re.search(r"(\\d+)", n.split("/")[-1]).group(1)))
+    for page, n in enumerate(names, 1):
+        root = ET.fromstring(z.read(n))
+        left, right, foot = [], [], 0
+        for sp in root.iter():
+            nv = sp.find(f"./{P}nvSpPr/{P}cNvPr") if sp.tag.endswith("}sp") else None
+            if nv is None:
+                nv = sp.find(f"./{P}nvGraphicFramePr/{P}cNvPr") if sp.tag.endswith("}graphicFrame") else None
+            if nv is None:
+                continue
+            name = nv.get("name") or ""
+            xfrm = sp.find(f".//{A}xfrm")
+            if xfrm is None:
+                continue
+            off, ext = xfrm.find(f"{A}off"), xfrm.find(f"{A}ext")
+            if off is None or ext is None:
+                continue
+            x = int(off.get("x")) / EMU; y = int(off.get("y")) / EMU
+            w = int(ext.get("cx")) / EMU; h = int(ext.get("cy")) / EMU
+            role = name.split("/")[0]
+            # 머리글·요약띠·각주·구분선은 콘텐츠가 아니다. 하단 계산에서 뺀다.
+            # ruleThin(각주 위 구분선)을 안 빼면 그것이 가장 깊은 요소로 잡힌다
+            if role in ("header", "footer", "summary", "ruleThin", "ruleThick"):
+                if role == "footer":
+                    # 각주는 한 도형에 여러 줄이 들어간다. 도형이 아니라 문단을 센다
+                    foot += max(1, len([t for t in sp.iter(f"{A}p")
+                                        if "".join(x.text or "" for x in t.iter(f"{A}t")).strip()]))
+                continue
+            if y >= foot_base - 0.02:
+                continue
+            (right if x >= right_x - 0.05 else left).append(y + h)
+        out.append({"page": page,
+                    "cols": [round(max(left), 3) if left else None,
+                             round(max(right), 3) if right else None],
+                    "footLines": max(1, foot)})
+import json; print(json.dumps(out))
+`;
+  const r = require("child_process").spawnSync(
+    "python3", ["-c", script, file, String(rightX), String(footBase)], { encoding: "utf8" });
+  if (r.status !== 0) throw new Error("기하 되읽기 실패: " + (r.stderr || "").trim());
+  return JSON.parse(r.stdout.trim() || "[]");
+}
+
 function renumberShapeIds(file) {
   const script = `
 import re, shutil, sys, zipfile
@@ -410,6 +475,6 @@ module.exports = {
   // 도형 이름 (2.16-1)
   nameOf, claimName, shape, text,
   // claim / manifest (2.4~2.8, 6.2)
-  claim, claimText, table, cell, whitelistToken, writeDeck, renumberShapeIds,
+  claim, claimText, table, cell, whitelistToken, writeDeck, renumberShapeIds, readGeometry,
   manifest, writeManifest, resetManifest, sourceRoot, currentSlide,
 };

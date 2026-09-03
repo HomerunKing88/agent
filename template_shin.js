@@ -612,6 +612,34 @@ function tree(s, x, y, w, root, children) {
   return ty + ch;
 }
 
+/**
+ * 저장 관문에서 레이아웃을 스스로 점검한다.
+ *
+ * `checkLayout`은 호출부가 각 단의 하단 y를 넘겨 줘야 해서 **아무도 안 불렀다**
+ * (2026-09-03 확인. 실전 잡 004·005 둘 다 0회). 규칙 col_tolerance·slack_max가
+ * "생성기만 읽는다"로 잡힌 진짜 이유가 그것이다 — 읽는 함수를 아무도 안 부른다.
+ *
+ * 값을 넘겨받는 대신 **쓴 파일에서 되읽는다.** 그러면 부를지 말지가 선택이 아니고,
+ * 잡 스크립트가 건너뛸 수도 없다. 저장 관문 안에 있기 때문이다 (writeFile 관문과 같은 이유).
+ *
+ * 막지는 않는다 — 여백은 판단이 갈리는 영역이고, 막으면 정상 장표가 못 나간다.
+ * 다만 조용히 지나가지 않는다 (계획서 2.16-7).
+ */
+async function writeDeck(pres, fileName) {
+  const out = await kit.writeDeck(pres, fileName);
+  try {
+    const pages = kit.readGeometry(fileName, SR.columns.right_x, SR.zones.footnote_bottom_y);
+    pages.forEach(pg => {
+      const cols = pg.cols.filter(v => v != null);
+      if (cols.length) checkLayout(`p${pg.page}`, { cols, footLines: pg.footLines });
+    });
+  } catch (e) {
+    // 점검이 실패해도 저장은 실패시키지 않는다. 다만 조용히 지나가지 않는다
+    console.warn("[레이아웃] 자기 점검을 못 돌렸다: " + e.message);
+  }
+  return out;
+}
+
 module.exports = {
   F, FH, C, TS, THEMES, W, H, MX, CW, COLW, RX, FOOT_BASE,
   BAND_TOP, SUB_GAP, BLOCK_GAP, COL_TOL, SLACK_MAX, bandBottom, checkLayout, layoutIssues, save,
@@ -624,7 +652,7 @@ module.exports = {
   // ── 계약 (deckkit. 계획서 2.16) ──────────────────────────────────
   claim, claimText, cell, whitelistToken, manifest, writeManifest,
   resetManifest, sourceRoot, currentSlide, nameOf, claimName,
-  table: kitTable, writeDeck: kit.writeDeck,
+  table: kitTable, writeDeck,
   // 이 생성기가 어느 스킬의 문법인지. manifest에 박힌다 (2.17)
   STYLE, TEMPLATE_VERSION, R, SR, TS,
 };
