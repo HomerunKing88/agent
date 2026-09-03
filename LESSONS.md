@@ -39,6 +39,7 @@
 | L24 | 막힌 검문을 그대로 지나친다 | 1 | `guard.sh`가 "막힘"을 냈는데 `;`로 이어 붙여 푸시했다. main이 빨간불로 올라갔다 | `guard.sh` 실패 시 푸시 방법을 출력 · `CLAUDE.md` 푸시 절 | 스크립트 |
 | L25 | 지시를 던지고 루프에서 빠진다 | 4 | 에이전트가 승인 대기로 서 있는 동안 다른 일을 했다. 사용자가 "지시가 제대로 안 된다"고 지적 | `ask.sh`가 결정할 것이 생길 때까지 안 끝난다 | 스크립트 |
 | L26 | 막힌 창에 보낸 지시가 조용히 사라진다 | 1 | 창이 blocked면 prompt가 agent_blocked로 튕기는데 `ask.sh`가 종료코드 0으로 끝났다 | `ask.sh`가 보내기 전 창 상태를 보고, 실패 시 4·3·5로 끝낸다 | 스크립트 |
+| L27 | 검사기가 낸 것을 배관이 안 읽는다 | 1 | `audit.py`가 unverified 경고를 냈는데 orchestrator가 `issues`만 읽어 게이트·보고서가 몰랐다 | `orchestrator.py` `audit_warnings` | 스크립트 |
 | L12 | 새 도형 역할을 규칙에 등재 안 한다 | 2 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가

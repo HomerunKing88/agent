@@ -257,9 +257,14 @@ def cmd_review(root: Path, version: int = 1) -> None:
     if not isinstance(probe, dict):
         # audit.py가 JSON을 만들지 못했다(스택 트레이스 등). 조용한 PASS는 오류다 (2.16.7)
         audit_status, audit_error, audit_issues = "ERROR", "audit.py 결과 JSON이 없다", []
+        audit_warnings = []
     else:
         audit_status, audit_error = probe.get("status", "ERROR"), probe.get("error")
         audit_issues = list(probe.get("issues", []))
+        # 경고도 받는다. audit이 낸 것을 배관이 안 읽으면 화면에만 남고 사라진다.
+        # 2026-09-03 실측: unverified claim 경고가 audit --json에는 있는데
+        # issue_register에 없어 게이트도 보고서도 그것을 몰랐다.
+        audit_warnings = list(probe.get("warnings", []))
 
     if audit_status == "ERROR":
         # 이슈가 없는 ERROR는 게이트에서 ALL PASS처럼 보이므로 블로킹용으로 만든다
@@ -275,6 +280,8 @@ def cmd_review(root: Path, version: int = 1) -> None:
         "deck": p["pptx"].name,
         "deck_hash": deck_hash(p["pptx"]),
         "audit_status": audit_status,
+        # 막지는 않지만 사용자가 알아야 하는 것. 검증을 끈 claim이 여기 남는다
+        "warnings": audit_warnings,
         "audit_error": audit_error,
         "editor_kept": len(editor_issues),
         "editor_dropped": len(editor_log),
@@ -284,6 +291,10 @@ def cmd_review(root: Path, version: int = 1) -> None:
     write_json(p["register"], register)
     meta_update(root, stage="REVIEWED", audit_round=version)
     print(f"issue : 총 {len(issues)}건 → {p['register'].name}")
+    if audit_warnings:
+        print(f"경고  : {len(audit_warnings)}건 — 막지는 않지만 사람이 봐야 한다")
+        for w in audit_warnings[:3]:
+            print(f"        {w.get('rule')}: {str(w.get('evidence'))[:70]}")
     schema_problems = schema_check("issue", register)
     if schema_problems:
         # issue_register가 계약을 어겼다. 게이트가 신뢰할 수 없으니 스키마 위반
@@ -739,6 +750,10 @@ def cmd_gates(root: Path) -> None:
     }
     write_json(root / "review" / "gates.json", gates)
     print("GATE      " + gate_headline(gates))
+    warn = register.get("warnings") or []
+    if warn:
+        print(f"경고      : {len(warn)}건 — " + "; ".join(
+            f"{w.get('rule')}" for w in warn[:3]))
     if blocked:
         print("차단      : " + ", ".join(blocked))
     if skipped:
