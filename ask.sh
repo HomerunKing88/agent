@@ -86,7 +86,17 @@ $mine
 #   시켰는데 커밋이 없다      → 잊혔거나 막혔다
 #   커밋이 있는데 지시가 없다  → 시키지 않은 일을 했다
 mkdir -p dispatch
-DID="D-$(date +%Y%m%d)-$(printf '%02d' $(( $(ls dispatch/D-$(date +%Y%m%d)-*.md 2>/dev/null | wc -l | tr -d ' ') + 1 )))"
+# 번호는 **파일과 커밋 이력을 함께** 본다. 파일만 보면 --dry로 뽑힌 번호나
+# 지운 파일 때문에 같은 번호가 두 번 나온다 — 실제로 한 번 겹쳤다.
+_d="$(date +%Y%m%d)"
+_n=0
+while :; do
+  _n=$((_n+1)); _cand="D-${_d}-$(printf '%02d' $_n)"
+  [ -f "dispatch/$_cand.md" ] && continue
+  git log --all --oneline --grep="지시 $_cand" 2>/dev/null | grep -q . && continue
+  break
+done
+DID="$_cand"
 
 PREAMBLE='너는 이 리포의 에이전트 중 하나다. AGENTS.md 머리의 "너는 누구인가" 표로
 자기 정체를 먼저 확인하고, 자기 담당 파일만 고쳐라.
