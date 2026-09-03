@@ -355,20 +355,34 @@ def check_table_alignments(prs, rules):
 def check_footnotes(prs, rules):
     zones = rules["zones"]
     markers = tuple(rules["components"]["footnote_markers"])
-    tolerance = rules["qa"]["canvas_overflow_tolerance_in"]
+    tolerance = 10 ** -int(rules["units"]["bounds_round_in"])
+    max_lines = int(zones["footnote_max_lines"])
+    bottom_y = float(zones["footnote_bottom_y"])
+    line_step = float(zones["footnote_line_step"])
     issues = []
     for page, slide in enumerate(prs.slides, 1):
         for shape in text_shapes(slide):
             if not shape.name.startswith("footer/"):
                 continue
             paragraphs = [p.text.strip() for p in shape.text_frame.paragraphs if p.text.strip()]
+            # footer/ also names page-number boxes.  A note marker distinguishes
+            # the actual note block without treating those boxes as footnotes.
             if not paragraphs or not paragraphs[0].startswith(markers):
                 continue
-            expected = zones["footnote_bottom_y"] - zones["footnote_line_step"] * len(paragraphs)
+            line_count = len(paragraphs)
+            if line_count > max_lines:
+                issues.append(Issue(
+                    "zones.footnote_max_lines", page, shape.name,
+                    f"각주 {line_count}줄 > 최대 {max_lines}줄",
+                ))
+            expected = bottom_y - line_step * line_count
             actual = shape.top / rules["units"]["emu_per_inch"]
             if abs(actual - expected) > tolerance:
-                issues.append(Issue("zones.footnote_bottom_y", page, shape.name,
-                                    f"각주 y={actual:.2f}, 기대값={expected:.2f}"))
+                issues.append(Issue(
+                    "zones.footnote_bottom_y", page, shape.name,
+                    f"각주 y={actual:.4f}in, 기대값={expected:.4f}in "
+                    f"(bottom={bottom_y:.4f}, step={line_step:.4f}, lines={line_count})",
+                ))
     return issues
 
 
