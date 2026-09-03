@@ -199,6 +199,60 @@ def struct_fixtures(rules: dict) -> None:
               f"오류 {len(errs)}건 전부 style로 분류됐다: {errs[:1]}")
 
 
+# 생성기만 읽고 검사기는 모르는 규칙. 지금 있는 만큼이 기준선이고 **늘면 막는다.**
+#
+# L1(같은 값이 두 군데)이 열한 번 났다. 가드가 한 방향만 봤기 때문이다 —
+# "규칙에 있는데 읽는 코드가 없다"는 잡았지만 "생성기만 알고 검사기는 모르는 규칙"은
+# 못 봤다. 검사기가 모르면 생성기가 값을 바꿔도 아무도 어긋남을 못 잡는다.
+# 실제로 chip.desc_gap·desc_w가 그 자리에 있었고 칩이 판형을 넘었다.
+#
+# 값 일치 스캔(오탐 302건)과 최상위 참조 스캔(오탐 52건)은 못 쓴다고 실측으로 확인했다.
+# 이쪽은 오탐이 낮다 — 규칙 이름을 양쪽 코드에서 찾을 뿐이다.
+# 0으로 만들 수는 없다(지금 123개가 이미 있다). 다만 **새로 늘지는 못하게** 한다.
+# 이미 있는 123개는 갚아야 할 빚이다 — 검사기가 하나씩 읽게 하고 기준선을 낮춘다.
+#
+# 실측으로 확인했다. 검사기가 모르는 규칙을 하나 넣으니 123→124로 잡혔고,
+# 되돌리니 통과했다.
+ONE_SIDED_BASELINE = 123
+ONE_SIDED_SKIP = ("role_min_pt.", "qa.")   # 검사기 쪽 표다. 설계상 한쪽만 읽는다
+
+GEN_FILES = ("template.js", "template_shin.js", "deck.js", "deckkit.js")
+CHK_FILES = ("audit.py", "render_check.py", "skill/shin-ppt1/scripts/preflight.py")
+
+
+def one_sided_rules(rules: dict) -> list[str]:
+    """생성기만 읽고 검사기는 모르는 스타일 규칙."""
+    read = lambda fs: "\n".join((REPO / f).read_text(encoding="utf-8")
+                                 for f in fs if (REPO / f).exists())
+    gen, chk = read(GEN_FILES), read(CHK_FILES)
+    leaves: list[tuple] = []
+
+    def walk(node, path=()):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                walk(v, path + (k,))
+        elif not isinstance(node, list):
+            leaves.append(path)
+
+    for style in (rules.get("styles") or {}).values():
+        walk(style)
+    out = set()
+    for path in leaves:
+        key = ".".join(path)
+        if key.startswith(ONE_SIDED_SKIP):
+            continue
+        leaf = path[-1]
+        # **잎 이름만 본다.** 부모까지 인정하면 `table`·`sizes` 같은 흔한 이름 때문에
+        # 자식 전부가 "검사기가 안다"로 새 버린다. 시험용 키를 넣어 확인했다 —
+        # 부모 완화가 있을 때는 안 잡혔고, 없애니 잡혔다.
+        # 짧은 이름은 우연히 걸리므로 네 글자 이상만 센다.
+        if len(leaf) < 4:
+            continue
+        if leaf in gen and leaf not in chk:
+            out.add(key)
+    return sorted(out)
+
+
 def lessons_guarded() -> list[str]:
     """LESSONS.md의 각 줄이 실제로 있는 가드를 가리키나. 못 가리키는 줄을 돌려준다.
 
@@ -497,10 +551,19 @@ def run(job: Path, rules: dict) -> None:
     print(f"       ({len(rows)}부류 {hit}회. 가드 설치 후 재발 {len(leaked)}부류"
           + (f": {', '.join(leaked)}" if leaked else "") + ")")
 
-    print("\n[12] 구조 결함이 struct로 분류되나 — STRUCT 픽스처 두 장")
+    print("\n[12] 검사기가 모르는 규칙이 늘지 않았나 — L1의 반대 방향")
+    lonely = one_sided_rules(rules)
+    check(f"생성기만 아는 규칙 {len(lonely)}개 (기준선 {ONE_SIDED_BASELINE})",
+          len(lonely) <= ONE_SIDED_BASELINE,
+          "새로 생긴 것: " + ", ".join(lonely[-3:]) + " — 검사기가 읽게 하거나 기준선을 낮춰라")
+    if len(lonely) < ONE_SIDED_BASELINE:
+        print(f"       (기준선보다 {ONE_SIDED_BASELINE - len(lonely)}개 줄었다. "
+              f"ONE_SIDED_BASELINE을 {len(lonely)}으로 낮춰라)")
+
+    print("\n[13] 구조 결함이 struct로 분류되나 — STRUCT 픽스처 두 장")
     struct_fixtures(rules)
 
-    print("\n[13] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
+    print("\n[14] 배관이 본체를 넘지 않았나 (계획서 9절 7단계)")
     # 자는 검사기 **전체**다. audit.py 하나만 쓰던 것을 2026-08-30에 바꿨다.
     # STRUCT 게이트를 붙이자 732 = 732로 정확히 맞닿았고, PIPE가 한도를 맞추려고
     # 코드를 압축했다. 한도 때문에 코드를 줄이는 것은 이 규칙이 의도한 방향이 아니다.
