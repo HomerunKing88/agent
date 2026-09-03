@@ -88,6 +88,7 @@ guard.sh            glob을 가드로 적은 L23을 막음 (그런데 내가 지
 | L32 | 값이 없으면 검사가 통째로 빠진다 | 1 | 09-03 | 09-03 | run에 `sz`가 없으면 글씨 크기 검사를 건너뛰었다. 명시된 6pt는 잡고 미지정은 못 잡았다 | `audit.py:inherited_font_size` — 상속을 따라가고 못 찾으면 경고 | 스크립트 |
 | L33 | 값이 맞으면 뜻이 틀려도 통과한다 | 1 | 09-03 | 09-03 | 판매수량 161이 "재고가 161일치" 문장에 들어가도 PASS였다. 실제 재고일수는 16.2일 | `audit.py` `token.registered_reused` 경고 | 스크립트 |
 | L34 | 라벨과 값의 짝이 어긋나도 통과한다 | 1 | 09-03 | 08-30 | 표 1열 라벨 둘을 맞바꾸니 뜻이 정반대인데 audit PASS. 숫자는 전부 원천과 맞다 | `audit.py` `claim.source_label_mismatch` (표) · `prompts/REVIEW.md` CONTENT 렌즈 (그림) | 스크립트 |
+| L35 | 배관이 끝까지 안 나른다 | 2 | 09-03 | 09-03 | audit 경고가 게이트 화면에는 나오는데 사용자가 받는 QA_REPORT에는 없었다. L27과 같은 뿌리 | `e2e_check.py` [7]이 register 경고가 보고서에 실렸는지 본다 | 스크립트 |
 | L12 | 새 도형 역할을 규칙에 등재 안 한다 | 2 | 08-30 | 08-30 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가

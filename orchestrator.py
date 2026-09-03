@@ -804,6 +804,16 @@ def cmd_report(root: Path) -> None:
         skipped = gates.get("skipped") or []
         lines.append("PASS    : " + (", ".join(passed) if passed else "없음"))
         lines.append("SKIP    : " + (", ".join(f"{g} ({skip_reason(g)})" for g in skipped) if skipped else "없음"))
+        # 막지는 않지만 사용자가 알아야 하는 것. 게이트 화면에는 나오는데
+        # 정작 사용자가 받는 문서에 없었다 (2026-09-03). 검사기가 낸 것을
+        # 배관이 끝까지 안 나른 것이라 L27과 같은 부류다.
+        warn = register.get("warnings") or []
+        if warn:
+            lines.append("")
+            lines.append(f"## 경고 ({len(warn)}건) — 막지 않지만 확인이 필요하다")
+            for w in warn:
+                lines.append(f"- `{w.get('rule')}` p{w.get('slide', '?')} "
+                             f"{str(w.get('evidence', ''))[:120]}")
         if register.get("render_status"):
             lines.append("Render  : " + str(register["render_status"])
                          + (f" — {register.get('render_error')}" if register.get("render_error") else ""))

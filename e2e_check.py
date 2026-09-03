@@ -507,9 +507,17 @@ def run(job: Path, rules: dict) -> None:
     if gap:
         print(f"       (알려진 격차 {len(gap)}건: audit.py가 house-rules의 role_min_pt를 아직 안 읽는다)")
 
-    print("\n[7] 보고서가 나온다")
+    print("\n[7] 보고서가 나온다 — 경고까지 실려 나가나")
     orch(job, "report")
     check("QA_REPORT.md", (job / "final" / "QA_REPORT.md").exists())
+    # 검사기가 낸 경고가 사용자가 받는 문서까지 오나. 게이트 화면에는 나오는데
+    # 보고서에 없던 일이 있었다 (2026-09-03). 배관이 끝까지 안 나르면 없는 것과 같다
+    reg = read(job / "review" / "issue_register.json")
+    body = (job / "final" / "QA_REPORT.md").read_text(encoding="utf-8")
+    warn = reg.get("warnings") or []
+    check("경고가 보고서에 실린다" if warn else "경고 없음 (실을 것이 없다)",
+          not warn or all(str(w.get("rule")) in body for w in warn),
+          f"register {len(warn)}건인데 보고서에 없다")
     check("CHANGELOG.md", (job / "final" / "CHANGELOG.md").exists())
 
     print("\n[8] 규칙이 강제되고 있나 — house-rules의 죽은 키를 센다")
