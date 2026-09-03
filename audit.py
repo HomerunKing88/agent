@@ -825,7 +825,54 @@ def normalized_label(value):
     return re.sub(r"\s+", " ", str(value)).strip().casefold()
 
 
-def check_source_label(prs, claim, workbook, checked):
+def source_label_catalog(claims, root, workbooks):
+    catalog = {}
+    for claim in claims:
+        source = claim.get("source", {})
+        label_ref = source.get("label_ref")
+        cell_placements = [item for item in claim["placements"] if item["type"] == "cell"]
+        if not label_ref or not cell_placements:
+            continue
+        source_path = root / source["file"]
+        if not source_path.exists():
+            raise FileNotFoundError(f"claim[{claim['shape_id']}] source missing: {source_path}")
+        if source_path not in workbooks:
+            workbooks[source_path] = load_workbook(source_path, data_only=True, read_only=True)
+        label = normalized_label(workbooks[source_path][source["sheet"]][label_ref].value)
+        for placement in cell_placements:
+            key = (source["file"], source["sheet"], int(placement["slide"]), placement["table"])
+            catalog.setdefault(key, set()).add(label)
+    return catalog
+
+
+def source_labels_match(source_label, deck_label, candidates):
+    if not source_label or not deck_label:
+        return False
+    if source_label == deck_label:
+        return True
+    matching_sources = {candidate for candidate in candidates if deck_label in candidate}
+    return deck_label in source_label and matching_sources == {source_label}
+
+
+def missing_label_ref_warnings(claims):
+    grouped = {}
+    for claim in claims:
+        if claim.get("source", {}).get("label_ref"):
+            continue
+        for placement in claim["placements"]:
+            if placement["type"] == "cell":
+                key = (int(placement["slide"]), placement["table"])
+                grouped.setdefault(key, set()).add(claim["shape_id"])
+    return [
+        Issue(
+            "claim.source_label_unverified", page, table,
+            f"label_ref 없는 표 claim={len(shape_ids)}: {sorted(shape_ids)}",
+        )
+        for (page, table), shape_ids in sorted(grouped.items())
+    ]
+
+
+def check_source_label(prs, claim, workbook, checked, label_catalog):
     """Compare an optional source label with column 0 of cell placements."""
     source = claim.get("source", {})
     label_ref = source.get("label_ref")
@@ -857,8 +904,9 @@ def check_source_label(prs, claim, workbook, checked):
         except IndexError:
             continue
         deck_label = normalized_label(deck_label_raw)
-        if (not source_label or not deck_label
-                or (source_label not in deck_label and deck_label not in source_label)):
+        catalog_key = (source["file"], source["sheet"], page, placement["table"])
+        candidates = label_catalog.get(catalog_key, {source_label})
+        if not source_labels_match(source_label, deck_label, candidates):
             issues.append(Issue(
                 "claim.source_label_mismatch", page, placement["table"],
                 f"row={row}, source[{source['sheet']}!{label_ref}]={source_label_raw!r}, "
@@ -878,6 +926,8 @@ def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
     resolved_sources = {}
     checked_labels = set()
     root = source_root or manifest_path.parent
+    label_catalog = source_label_catalog(claims, root, workbooks)
+    warnings.extend(missing_label_ref_warnings(claims))
     for claim in claims:
         shape_id = claim["shape_id"]
         display = str(claim["display"]["text"])
@@ -937,7 +987,9 @@ def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
                 raise FileNotFoundError(f"claim[{shape_id}] source missing: {source_path}")
             if source_path not in workbooks:
                 workbooks[source_path] = load_workbook(source_path, data_only=True, read_only=True)
-            issues.extend(check_source_label(prs, claim, workbooks[source_path], checked_labels))
+            issues.extend(check_source_label(
+                prs, claim, workbooks[source_path], checked_labels, label_catalog
+            ))
             continue
         source_path = root / source["file"]
         if not source_path.exists():
@@ -949,7 +1001,9 @@ def check_claims(prs, rules, manifest_path, source_root=None, pptx_path=None):
         if source_path not in workbooks:
             workbooks[source_path] = load_workbook(source_path, data_only=True, read_only=True)
         resolved_sources[id(claim)] = source_path
-        issues.extend(check_source_label(prs, claim, workbooks[source_path], checked_labels))
+        issues.extend(check_source_label(
+            prs, claim, workbooks[source_path], checked_labels, label_catalog
+        ))
         calculated = calculate_claim(claim, workbooks[source_path])
         expected = format_number(calculated, claim["display"], rules)
         override = claim.get("override")
