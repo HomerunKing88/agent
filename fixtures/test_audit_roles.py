@@ -1,8 +1,10 @@
 import unittest
 
 import yaml
+from pptx import Presentation
+from pptx.oxml.xmlchemy import OxmlElement
 
-from audit import minimum_font_size
+from audit import check_font_sizes, minimum_font_size
 
 
 class MinimumFontSizeTests(unittest.TestCase):
@@ -38,6 +40,33 @@ class MinimumFontSizeTests(unittest.TestCase):
             minimum_font_size("table/perf", self.rules, is_table=True),
             float(self.rules["sizes"]["table_body_min_pt"]),
         )
+
+    def table_with_unset_run_size(self, paragraph_size=None):
+        presentation = Presentation()
+        slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+        table_shape = slide.shapes.add_table(1, 1, 0, 0, 2000000, 500000)
+        table_shape.name = "table/perf"
+        paragraph = table_shape.table.cell(0, 0).text_frame.paragraphs[0]
+        paragraph.text = "값"
+        if paragraph_size is not None:
+            properties = paragraph._p.get_or_add_pPr()
+            default_run = OxmlElement("a:defRPr")
+            default_run.set("sz", str(paragraph_size * 100))
+            properties.append(default_run)
+        return presentation
+
+    def test_unset_run_size_is_resolved_and_reported(self):
+        warnings = []
+        issues = check_font_sizes(self.table_with_unset_run_size(), self.rules, warnings)
+        self.assertEqual(issues, [])
+        self.assertEqual([warning.rule for warning in warnings], ["sizes.font_size_inherited"])
+        self.assertIn("master otherStyle", warnings[0].evidence)
+
+    def test_inherited_small_size_fails_minimum(self):
+        warnings = []
+        issues = check_font_sizes(self.table_with_unset_run_size(6), self.rules, warnings)
+        self.assertEqual([issue.rule for issue in issues], ["sizes.body_min_pt"])
+        self.assertEqual([warning.rule for warning in warnings], ["sizes.font_size_inherited"])
 
 
 if __name__ == "__main__":

@@ -235,7 +235,83 @@ def minimum_font_size(shape_name, rules, is_table=False):
     return float(sizes[key])
 
 
-def check_font_sizes(prs, rules):
+DRAWINGML_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+PRESENTATIONML_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
+
+
+def inherited_font_size(prs, slide, shape, frame, paragraph):
+    """Resolve DrawingML's default run-size chain for a run without a:sz."""
+    level_tag = f"{{{DRAWINGML_NS}}}lvl{paragraph.level + 1}pPr"
+    def_rpr_tag = f"{{{DRAWINGML_NS}}}defRPr"
+
+    def size_from_paragraph_properties(properties, source):
+        if properties is None:
+            return None
+        default_run = properties.find(def_rpr_tag)
+        if default_run is not None and default_run.get("sz") is not None:
+            return float(default_run.get("sz")) / 100, source
+        return None
+
+    def size_from_list_style(list_style, source):
+        if list_style is None:
+            return None
+        return size_from_paragraph_properties(list_style.find(level_tag), source)
+
+    paragraph_properties = paragraph._p.find(f"{{{DRAWINGML_NS}}}pPr")
+    resolved = size_from_paragraph_properties(paragraph_properties, "paragraph defRPr")
+    if resolved:
+        return resolved
+
+    list_style = frame._txBody.find(f"{{{DRAWINGML_NS}}}lstStyle")
+    resolved = size_from_list_style(list_style, "shape lstStyle")
+    if resolved:
+        return resolved
+
+    if getattr(shape, "is_placeholder", False):
+        placeholder_index = shape.placeholder_format.idx
+        inherited_shapes = []
+        for owner, label in ((slide.slide_layout, "layout placeholder"),
+                             (slide.slide_layout.slide_master, "master placeholder")):
+            inherited = next(
+                (candidate for candidate in owner.placeholders
+                 if candidate.placeholder_format.idx == placeholder_index),
+                None,
+            )
+            if inherited is not None and getattr(inherited, "has_text_frame", False):
+                inherited_shapes.append((inherited, label))
+        for inherited, label in inherited_shapes:
+            inherited_list = inherited.text_frame._txBody.find(f"{{{DRAWINGML_NS}}}lstStyle")
+            resolved = size_from_list_style(inherited_list, label)
+            if resolved:
+                return resolved
+
+    master = slide.slide_layout.slide_master
+    text_styles = master._element.find(f"{{{PRESENTATIONML_NS}}}txStyles")
+    if text_styles is not None:
+        placeholder_name = (
+            shape.placeholder_format.type.name
+            if getattr(shape, "is_placeholder", False) else ""
+        )
+        if placeholder_name in {"TITLE", "CENTER_TITLE"}:
+            style_name = "titleStyle"
+        elif placeholder_name in {"BODY", "OBJECT", "SUBTITLE"}:
+            style_name = "bodyStyle"
+        else:
+            style_name = "otherStyle"
+        resolved = size_from_list_style(
+            text_styles.find(f"{{{PRESENTATIONML_NS}}}{style_name}"),
+            f"master {style_name}",
+        )
+        if resolved:
+            return resolved
+
+    default_style = prs.part._element.find(f"{{{PRESENTATIONML_NS}}}defaultTextStyle")
+    return size_from_list_style(default_style, "presentation defaultTextStyle")
+
+
+def check_font_sizes(prs, rules, warnings=None):
+    if warnings is None:
+        warnings = []
     issues = []
     for page, slide in enumerate(prs.slides, 1):
         for shape in slide.shapes:
@@ -250,9 +326,23 @@ def check_font_sizes(prs, rules):
                 minimum = minimum_font_size(shape.name, rules, is_table)
                 for paragraph in frame.paragraphs:
                     for run in paragraph.runs:
-                        if not run.text.strip() or run.font.size is None:
+                        if not run.text.strip():
                             continue
-                        actual = run.font.size.pt
+                        if run.font.size is not None:
+                            actual = run.font.size.pt
+                        else:
+                            resolved = inherited_font_size(prs, slide, shape, frame, paragraph)
+                            if resolved is None:
+                                warnings.append(Issue(
+                                    "sizes.font_size_unresolved", page, shape.name,
+                                    f"글씨 크기 미지정·상속값 확인 불가: {run.text[:30]!r}",
+                                ))
+                                continue
+                            actual, source = resolved
+                            warnings.append(Issue(
+                                "sizes.font_size_inherited", page, shape.name,
+                                f"글씨 크기 미지정; {source}의 {actual:g}pt로 검사: {run.text[:30]!r}",
+                            ))
                         if actual + 0.001 < minimum:
                             issues.append(Issue("sizes.body_min_pt", page, shape.name,
                                                 f"{actual:g}pt < 역할별 하한 {minimum:g}pt: {run.text[:30]!r}"))
@@ -918,18 +1008,21 @@ def check_shape_placement(shape, placement, rules, page, shape_id, issues):
 def audit(path, rules, manifest_path=None, source_root=None):
     rules = style_rules(rules, manifest_path)
     prs = Presentation(str(path))
-    checks = (check_fonts, check_notation, check_negative_red, check_red_runs_per_line, check_font_sizes,
+    checks = (check_fonts, check_notation, check_negative_red, check_red_runs_per_line,
               check_table_alignments, check_footnotes,
               check_overflow, check_title_right, check_table_geometry,
               check_canvas_and_content, check_chip_geometry)
     issues = check_preflight_alignment(rules)
+    warnings = []
+    issues.extend(check_font_sizes(prs, rules, warnings))
     issues.extend(issue for check in checks for issue in check(prs, rules))
-    changes, warnings = [], []
+    changes = []
     if manifest_path:
-        claim_issues, changes, warnings = check_claims(
+        claim_issues, changes, claim_warnings = check_claims(
             prs, rules, manifest_path, source_root, path
         )
         issues.extend(claim_issues)
+        warnings.extend(claim_warnings)
     issues.sort(key=lambda item: (item.slide, item.rule, item.shape, item.evidence))
     warnings.sort(key=lambda item: (item.slide, item.rule, item.shape, item.evidence))
     return {"file": path.name, "status": "FAIL" if issues else "PASS",
