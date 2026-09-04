@@ -107,6 +107,7 @@ guard.sh            glob을 가드로 적은 L23을 막음 (그런데 내가 지
 | L40 | 기본값을 두면 조용히 어긋난다 | 1 | 09-03 | 09-03 | `chartSeries`의 chart 이름 기본값이 `chartLine/chart`인데 실제로는 `chartBar`를 그려 `claim.chart_series_missing`이 났다 | `deckkit.js:chartSeries`가 chart 이름을 필수로 받는다 | 스크립트 |
 | L41 | 가드가 이름만 보고 내용을 안 본다 | 1 | 09-04 | 09-04 | `e2e_check.py`가 판단 가드를 확인할 때 렌즈 **이름**이 `REVIEW.md`에 있는지만 봤다. "CONTENT"·"DESIGN"은 둘 다 절 제목이라 무슨 교훈이든 통과했다 — 판단 13건 중 8건을 REVIEW.md가 한 번도 언급한 적이 없는데 OK가 나왔다 | `e2e_check.py`의 판단 가드 대조가 **교훈 번호**를 REVIEW.md에서 찾는다 | 스크립트 |
 | L42 | 생성기가 자기 규칙만 지키고 검사기의 하한선을 모른다 | 1 | 09-04 | 09-04 | shin 각주 상자가 `zones.footnote_bottom_y`(생성기·audit 합의)는 지켰는데 상자가 아래로 0.42in 자라 `qa.text_max_ymax_pt`(593pt)를 넘었다. 잡 003·004·005 셋 다 넘었고 **LAYOUT이 한 번도 안 돌아 아무도 몰랐다** | `template_shin.js:footer`가 `qa.text_max_ymax_pt`를 읽어 상자 높이를 자른다 — 새 규칙을 만들지 않고 검사기가 이미 아는 값을 생성기가 지킨다 | 스크립트 |
+| L43 | 이름을 바꾸고 읽는 쪽을 안 바꾼다 | 1 | 09-04 | 09-04 | EDITOR·CRITIC을 REVIEW 하나로 합치면서 프롬프트는 `review_r{N}.json`에 쓰게 했는데 `validate_editor`는 `editor_r{N}.json`만 봤다. `review_lens_cover`는 세 이름을 다 봐서 **게이트를 열어 주고**, 지적을 읽는 쪽은 못 읽었다 — 잡 007에서 REVIEW가 CRITICAL 3건을 냈는데 게이트가 "차단 없음 (전부 검사함)"을 냈다 | `orchestrator.py:REVIEWER_FILES` 한 목록을 `validate_editor`와 `review_lens_cover`가 같이 쓴다 (2.14) | 스크립트 |
 | L12 | 새 도형 역할을 규칙에 등재 안 한다 | 3 | 08-30 | 09-04 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR. 09-04에 또 났다 — `chevron/text`로 잡 007이 끊겼고, 세어 보니 shin 템플릿이 내는 역할 51개 중 **32개가 미등재**였다. 도식 헬퍼를 쓰는 잡은 전부 막혀 있었다 | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가

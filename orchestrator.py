@@ -380,13 +380,32 @@ def cmd_review(root: Path, version: int = 1) -> None:
         print(f"editor: 통과 {len(editor_issues)}건, 버림 {len(editor_log)}건 → {p['editor'].with_name('editor_log' + str(version) + '.json')}")
 
 
+# 검토자가 낸 파일. 이름이 셋인 것은 역사적 이유다 — 2026-08-30에 EDITOR와
+# CRITIC을 REVIEW 하나로 합쳤는데(prompts/REVIEW.md) 배관은 옛 이름만 봤다.
+# 그래서 2026-09-04 잡 007에서 REVIEW가 CRITICAL 3건을 냈는데 게이트는
+# "차단 없음 (전부 검사함)"을 냈다. review_lens_cover는 세 이름을 다 보고
+# 게이트를 열어 줬는데 정작 지적을 읽는 쪽은 editor_r{N}.json만 봤다 — 최악의 짝이다.
+# **두 곳이 같은 목록을 보게 한다.** 목록은 여기 한 군데만 둔다 (2.14).
+REVIEWER_FILES = ("review", "editor", "critic")
+
+
+def reviewer_file(root: Path, version: int) -> Path | None:
+    """검토 결과 파일. 없으면 None."""
+    for name in REVIEWER_FILES:
+        path = root / "review" / f"{name}_r{version}.json"
+        if path.exists():
+            return path
+    return None
+
+
 def validate_editor(p: dict, version: int) -> tuple[list[dict], list[dict]]:
     """EDITOR 응답을 house-rules 어휘로 검증한다. (통과, 버림)을 반환.
 
     버림 원문은 review/editor_log{n}.json에 기록한다 (6.3: "원문을 로그에
     남기고 그 이슈만 버린다"). 이슈가 아예 없으면 빈 결과를 돌려준다.
     """
-    if not p["editor"].exists():
+    source = reviewer_file(p["root"], version)
+    if source is None:
         return [], []
     try:
         from schemas.editor import validate
@@ -401,9 +420,9 @@ def validate_editor(p: dict, version: int) -> tuple[list[dict], list[dict]]:
     rules = _yaml.safe_load(Path(__file__).resolve().parent.joinpath("house-rules.yaml")
                             .read_text(encoding="utf-8"))
     try:
-        payload = json.loads(p["editor"].read_text(encoding="utf-8"))
+        payload = json.loads(source.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
-        log = [{ "raw": {}, "errors": [f"editor JSON 파싱 실패: {error}"] }]
+        log = [{ "raw": {}, "errors": [f"{source.name} JSON 파싱 실패: {error}"] }]
         write_json(p["editor"].with_name(f"editor_log{version}.json"),
                    {"job": p["root"].name, "dropped": log})
         return [], log
@@ -686,7 +705,7 @@ def review_lens_cover(root: Path, version: int) -> tuple[bool, str]:
     지적이 0건인 것과 그 렌즈로 안 본 것은 다르다. 전자는 lenses_covered에
     이름을 적어 "봤고 없다"를 밝히면 된다 (2.16-7).
     """
-    for name in ("review", "editor", "critic"):
+    for name in REVIEWER_FILES:
         path = root / "review" / f"{name}_r{version}.json"
         if path.exists():
             break
