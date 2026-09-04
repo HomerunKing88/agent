@@ -349,6 +349,9 @@ def cmd_review(root: Path, version: int = 1) -> None:
         # LINT를 돌린 적이 있나. 없으면 게이트는 PASS가 아니라 SKIP이다 (2.16-7).
         # 이 키가 생기기 전에 만들어진 잡은 린트를 받은 적이 없다.
         "lint_status": lint_status,
+        # 검토가 지금 덱을 본 것인가. 아니면 ISSUE는 PASS도 FAIL도 아니다
+        "review_stale": (lambda f: bool(f and reviewer_is_stale(f, p["pptx"])))(
+            reviewer_file(p["root"], version)),
         # 막지는 않지만 사용자가 알아야 하는 것. 검증을 끈 claim이 여기 남는다
         "warnings": audit_warnings,
         "audit_error": audit_error,
@@ -398,6 +401,19 @@ def reviewer_file(root: Path, version: int) -> Path | None:
     return None
 
 
+def reviewer_is_stale(review: Path, deck: Path) -> bool:
+    """덱이 검토보다 새로우면 그 판정은 지금 덱을 본 것이 아니다.
+
+    2026-09-04에 잡 004·005를 다시 뽑자 8월 30일 검토 결과 12건이 그대로
+    딸려 올라왔다. 그 지적들은 이미 반영됐거나 다른 덱의 것이다. 낡은 판정으로
+    게이트를 막는 것도, 통과시키는 것도 틀렸다 — **모르는 상태다** (2.16-7).
+    게이트는 SKIP으로 적고 재검토를 요구한다. deck_hash 대조와 같은 취지다.
+    """
+    if not review.is_file() or not deck.is_file():
+        return False
+    return deck.stat().st_mtime > review.stat().st_mtime
+
+
 def validate_editor(p: dict, version: int) -> tuple[list[dict], list[dict]]:
     """EDITOR 응답을 house-rules 어휘로 검증한다. (통과, 버림)을 반환.
 
@@ -406,6 +422,9 @@ def validate_editor(p: dict, version: int) -> tuple[list[dict], list[dict]]:
     """
     source = reviewer_file(p["root"], version)
     if source is None:
+        return [], []
+    if reviewer_is_stale(source, p["pptx"]):
+        # 낡은 판정은 합치지 않는다. 게이트는 아래 cmd_gates가 SKIP으로 적는다
         return [], []
     try:
         from schemas.editor import validate
@@ -820,6 +839,9 @@ def cmd_gates(root: Path) -> None:
             status[gate] = "BLOCKED"
         elif gate == "STRUCT":
             status[gate] = "PASS" if pf_status in ("PASS", "FAIL") else "SKIP"
+        elif gate == "ISSUE" and register.get("review_stale"):
+            SKIP_REASONS["ISSUE"] = "검토 이후 덱이 바뀌었다 — 지금 덱으로 다시 검토받아야 한다"
+            status[gate] = "SKIP"
         elif gate == "ISSUE" and not judged:
             # 검토가 안 돌았거나 렌즈 하나를 안 봤다. 규칙 검사만으로 통과라고
             # 적을 수 없다. house-rules는 바닥이지 기준이 아니다 —

@@ -378,6 +378,9 @@ function footer(s, notes, y, opts = {}) {
   // 하한선(qa.text_max_ymax_pt = 593pt = 8.236in)을 넘었다. 렌더 검사가 실제로
   // 돌기 시작한 2026-09-04에 잡 003·004·005에서 한꺼번에 드러났다.
   // 새 규칙을 만들지 않고 **검사기가 이미 아는 값**을 생성기가 지키게 한다 (2.14).
+  // 상자 바닥이 하한을 넘지 않는지 마지막으로 본다. 규칙 값이 맞으면 걸리지 않는다 —
+  // 2026-09-04에 zones.footnote_bottom_y를 8.14에서 8.11로 내려 모순을 없앴다.
+  // 이 clamp는 그 뒤에도 남긴다. 규칙이 다시 어긋나면 여기서 먼저 드러난다
   const footFloor = SR.qa.text_max_ymax_pt / R.units.pt_per_inch;
   const pw = opts.page ? 1.10 : 0;
   s.addText(notes.map((t, i) => ({ text: t, options: { breakLine: i < notes.length - 1 } })),

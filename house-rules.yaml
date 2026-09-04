@@ -702,7 +702,9 @@ styles:
       waterfall/shape: value_pt
       waterfall/text: value_pt
     zones:
-      footnote_bottom_y: 8.14
+      footnote_bottom_y: 8.11   # 8.14였다. 상자 바닥(= 이 값 + 0.12 여백)이 항상
+    # qa.text_max_ymax_pt(593pt = 8.236in)를 넘어 규칙끼리 모순이었다 (2026-09-04).
+    # 줄 수와 무관하게 늘 초과했고 렌더 검사가 돌기 시작하면서 드러났다
       footnote_line_step: 0.15
       footnote_max_lines: 4
       content_max_y: 8.0
