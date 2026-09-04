@@ -165,11 +165,6 @@ def text_font_names(text_range) -> set[str]:
     return names
 
 
-def explicit_line_count(value: str) -> int:
-    normalized = value.replace("\r\n", "\n").replace("\r", "\n")
-    return max(1, len(normalized.split("\n")))
-
-
 def normalized_text(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
@@ -438,12 +433,6 @@ def inspect_libreoffice_presentation(presentation, rendered_slides, rules, insta
                     "render.page_text_ymax", slide_index, name,
                     f"text ymax={rendered.bottom:.1f}pt > {qa['text_max_ymax_pt']}pt",
                 ))
-            explicit_lines = explicit_line_count(shape.text)
-            if rendered.lines > explicit_lines:
-                issues.append(RenderIssue(
-                    "render.unexpected_wrap", slide_index, name,
-                    f"명시 {explicit_lines}행, 렌더 {rendered.lines}행",
-                ))
     issues.sort(key=lambda item: (item.slide, item.rule, item.shape, item.evidence))
     return issues, skips, inspected
 
@@ -528,13 +517,6 @@ def inspect_presentation(presentation, rules, missing_heading: bool):
                     f"text ymax={bottom:.1f}pt > {qa['text_max_ymax_pt']}pt",
                 ))
 
-            rendered_lines = int(text_range.Lines().Count)
-            explicit_lines = explicit_line_count(value)
-            if rendered_lines > explicit_lines:
-                issues.append(RenderIssue(
-                    "render.unexpected_wrap", slide_index, name,
-                    f"명시 {explicit_lines}행, 렌더 {rendered_lines}행",
-                ))
     issues.sort(key=lambda item: (item.slide, item.rule, item.shape, item.evidence))
     return issues, skips
 

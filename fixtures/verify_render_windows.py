@@ -43,7 +43,7 @@ def main() -> int:
         print(f"ERROR: overflow has unverified shapes: {overflow['skips']}", file=sys.stderr)
         return 1
     rules_found = {issue["rule"] for issue in overflow["issues"]}
-    expected = {"render.text_overflow", "render.unexpected_wrap"}
+    expected = {"render.text_overflow"}
     if not rules_found & expected:
         print(f"ERROR: overflow evidence missing; got {sorted(rules_found)}", file=sys.stderr)
         return 1

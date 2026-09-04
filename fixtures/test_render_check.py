@@ -72,7 +72,7 @@ class Presentation:
 
 
 class RenderCheckTest(unittest.TestCase):
-    def test_overflow_page_bottom_and_wrap_are_reported(self):
+    def test_overflow_and_page_bottom_are_reported_but_wrap_is_allowed(self):
         rules = {
             "fonts": {"heading": "HY헤드라인M"},
             "units": {"pt_per_inch": 72},
@@ -82,7 +82,7 @@ class RenderCheckTest(unittest.TestCase):
         self.assertEqual(skips, [])
         self.assertEqual(
             {issue.rule for issue in issues},
-            {"render.text_overflow", "render.page_text_ymax", "render.unexpected_wrap"},
+            {"render.text_overflow", "render.page_text_ymax"},
         )
 
     def test_libreoffice_checks_available_font_and_skips_only_untrusted_fonts(self):
@@ -105,7 +105,8 @@ class RenderCheckTest(unittest.TestCase):
         substituted.text_frame.paragraphs[0].runs[0].font.name = "맑은 고딕"
 
         rendered = [[
-            SvgTextRender("본문", 72, 72, 216, 144, 1, frozenset({"맑은 고딕"})),
+            # Three rendered lines without an expanded bound are normal wrapping.
+            SvgTextRender("본문", 72, 72, 216, 144, 3, frozenset({"맑은 고딕"})),
             SvgTextRender("제목", 72, 144, 216, 216, 1, frozenset({"HY헤드라인M"})),
             SvgTextRender("대체", 72, 216, 216, 288, 1, frozenset({"Arial"})),
         ]]
