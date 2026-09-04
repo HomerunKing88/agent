@@ -238,6 +238,55 @@ SHARED_RULE_SECTIONS = ("fonts", "sizes", "table", "zones", "forbidden",
                         "role_min_pt", "emphasis", "palette")
 
 
+def rule_contradictions(rules: dict) -> list[str]:
+    """규칙끼리 동시에 성립할 수 없는 조합을 찾는다.
+
+    2026-09-04에 각주 상자 바닥이 줄 수와 무관하게 늘 하한을 넘고 있었다는 것을
+    **우연히** 알았다 (L46). LAYOUT이 처음 돌면서 드러났고, 그전까지 모든 덱이
+    어긴 채 통과했다. 값 하나하나는 다 맞는데 **같이 놓으면 성립하지 않는** 종류는
+    누가 읽어도 안 보인다. 파생으로 재야 한다.
+
+    죽은 규칙 검사(unenforced_drift)와 다른 것을 본다 — 저쪽은 "아무도 안 읽나",
+    이쪽은 "읽어도 서로 어긋나나"다.
+    """
+    bad: list[str] = []
+    for name, style in (rules.get("styles") or {}).items():
+        z, q, L = style.get("zones", {}), style.get("qa", {}), style.get("layout", {})
+        if not z or not q or not L:
+            continue
+        step = z.get("footnote_line_step")
+        fb = z.get("footnote_bottom_y")
+        cmax = z.get("content_max_y")
+        ymax_in = q["text_max_ymax_pt"] / rules["units"]["pt_per_inch"] if "text_max_ymax_pt" in q else None
+
+        # 1) 본문 하한이 각주 시작보다 아래면 본문이 각주를 덮어도 통과한다.
+        #    각주가 제일 짧을 때(1줄)가 가장 빡빡하다
+        if None not in (step, fb, cmax) and cmax > fb - step + 1e-9:
+            bad.append(f"{name}: content_max_y({cmax}) > 각주 top 1줄({fb - step:.2f}) — 본문이 각주를 덮는다")
+
+        # 2) 글자 하한선이 지면 밖이면 아무것도 못 막는다
+        if ymax_in is not None and "height" in L and ymax_in > L["height"] + 1e-9:
+            bad.append(f"{name}: text_max_ymax_pt가 지면 높이를 넘는다 ({ymax_in:.3f} > {L['height']})")
+
+        # 3) 최대 줄수의 각주가 지면 위에서 시작하나
+        mx = z.get("footnote_max_lines")
+        if None not in (step, fb, mx) and fb - step * mx <= 0:
+            bad.append(f"{name}: footnote_max_lines({mx})줄이면 각주가 지면 위로 나간다")
+
+        # 4) 두 단이 지면 안에 들어가나
+        cw, rx, mxn = style.get("columns", {}).get("width"), style.get("columns", {}).get("right_x"), L.get("margin_x")
+        if None not in (cw, rx, mxn) and rx + cw > L["width"] - mxn + 1e-9:
+            bad.append(f"{name}: 우단이 오른쪽 여백을 넘는다 ({rx + cw:.3f} > {L['width'] - mxn:.3f})")
+
+        # 5) 파생할 수 있는 값을 따로 적으면 언젠가 어긋난다. 실제로 어긋나 있었다
+        #    (content_width 10.39 vs 10.3929, page_height_pt 595.2 vs 595.27)
+        if "content_width" in L:
+            bad.append(f"{name}: layout.content_width는 width - 2*margin_x로 파생된다. 따로 적지 않는다")
+        if "page_height_pt" in q:
+            bad.append(f"{name}: qa.page_height_pt는 layout.height * 72로 파생된다. 따로 적지 않는다")
+    return bad
+
+
 def rule_section_gaps(rules: dict) -> list[str]:
     """어떤 스타일에는 있고 다른 스타일에는 없는 규칙 절."""
     styles = rules.get("styles") or {}
@@ -383,8 +432,15 @@ def unwired_gates() -> tuple[list[str], list[str]]:
     return sorted(dark), sorted(lit)
 
 
-CODE_FILES = ("template.js", "deck.js", "audit.py", "render_check.py",
+CODE_FILES = ("template.js", "template_shin.js", "deckkit.js", "deck.js",
+              "audit.py", "render_check.py", "lint_deck.js",
               "orchestrator.py", "slack_bot.py")
+
+# 이름으로 찾을 수 없는 절. 코드가 `role_min_pt[도형이름]`처럼 계산한 키로 꺼내
+# 쓰기 때문에 leaf가 소스에 문자열로 안 나온다. **절 이름이 읽히면 그 아래는 읽힌 것**으로
+# 본다. 목록을 여기 명시적으로 둔다 — 예전처럼 아무 부모나 통과시키면
+# `layout`·`qa`가 흔해서 그 아래 죽은 값이 전부 숨는다 (2026-09-04에 그랬다).
+DYNAMIC_SECTIONS = ("role_min_pt", "themes", "palette", "series")
 
 
 def unenforced_drift(rules: dict) -> tuple[list[str], list[str]]:
@@ -428,7 +484,11 @@ def unenforced_drift(rules: dict) -> tuple[list[str], list[str]]:
                       if k not in ("unenforced", "judgment_rules")}):
         dotted, leaf = ".".join(path), path[-1]
         parent = path[-2] if len(path) > 1 else None
-        read_by_code = leaf in code or (parent is not None and parent in code)
+        # 부모 이름으로 통과시키면 안 된다. `layout`·`qa`·`sizes`는 코드에 흔해서
+        # 그 아래 값이 아무도 안 읽어도 전부 통과했다 — content_width와
+        # page_height_pt가 그렇게 2026-09-04까지 죽은 채 남아 있었다.
+        # one_sided_rules에서는 같은 버그를 이미 고쳤는데 여기만 남아 있었다 (L1).
+        read_by_code = leaf in code or (parent in DYNAMIC_SECTIONS and parent in code)
         if not read_by_code and dotted not in listed:
             dead.append(dotted)
         if read_by_code and dotted in listed and dotted not in judged:
@@ -595,6 +655,10 @@ def run(job: Path, rules: dict) -> None:
           subprocess.run(["node", str(lint_js), str(job / "builder" / "deck_v1.js")],
                          capture_output=True, check=False).returncode == 0,
           "e2e의 정상 잡이 LINT에 걸린다")
+
+    print("\n[8.7] 규칙끼리 모순이 없나 — 값이 아니라 조합을 본다")
+    clash = rule_contradictions(rules)
+    check("동시에 성립 못 하는 규칙 없음", not clash, "; ".join(clash))
 
     print("\n[9] 게이트가 실제로 검사되나 — 도달 못 하는 게이트를 센다")
     dark, lit = unwired_gates()

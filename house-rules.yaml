@@ -41,6 +41,92 @@ judgment_rules:
   why: 위와 같다
 
 unenforced:
+- key: notation.not_available
+  why: 결측 표기 검사 미구현
+- key: styles.corporate-strategy-ppt.chart.label_follows_series
+  why: 네이티브 차트 라벨 색 검사 미구현
+- key: styles.corporate-strategy-ppt.chart.label_weak_series_color
+  why: 네이티브 차트 라벨 색 검사 미구현
+- key: styles.corporate-strategy-ppt.charts.gridlines
+  why: 차트 눈금선 검사 미구현
+- key: styles.corporate-strategy-ppt.charts.stack_label_on_amber_or_gray
+  why: 누적 막대 라벨 색 검사 미구현
+- key: styles.corporate-strategy-ppt.charts.stack_label_on_navy
+  why: 누적 막대 라벨 색 검사 미구현
+- key: styles.corporate-strategy-ppt.components.chip.width_formula
+  why: 칩 폭 계산 검사 미구현
+- key: styles.corporate-strategy-ppt.components.icon_badge.fills
+  why: 아이콘 배지 색 검사 미구현
+- key: styles.corporate-strategy-ppt.components.icon_badge.uniform
+  why: 아이콘 배지 균일성 검사 미구현
+- key: styles.corporate-strategy-ppt.fonts.allowed_count
+  why: audit이 heading·body 두 키로 집합을 만들어 2가 구조에 암묵적이다. 값을 안 읽는다 (CODEX 전달)
+- key: styles.corporate-strategy-ppt.fonts.heading_bold
+  why: 제목 굵기 검사 미구현
+- key: styles.corporate-strategy-ppt.fonts.heading_no_bold
+  why: 제목 굵기 검사 미구현
+- key: styles.corporate-strategy-ppt.fonts.heading_width_ratio
+  why: 제목 자폭 검사 미구현
+- key: styles.corporate-strategy-ppt.palette_usage.brand_swatch
+  why: 브랜드 색 정의다. 검사 대상이 아니라 참고값이다
+- key: styles.corporate-strategy-ppt.palette_usage.red_scope
+  why: 검사 가능하다. 결론 줄(⇒ 접두) 판별이 필요해 red_max_per_line 다음 순서다
+- key: styles.corporate-strategy-ppt.qa.dark_pixel_min_count
+  why: 픽셀 기반 렌더 검사가 없다. 위와 같다
+- key: styles.corporate-strategy-ppt.qa.dark_pixel_sum_threshold
+  why: 픽셀 기반 렌더 검사가 없다. render_check는 SVG 경계(맥)와 COM(윈도)을 쓴다
+- key: styles.corporate-strategy-ppt.qa.master_page_number_ymax_pt
+  why: 마스터 쪽번호 위치 검사 미구현
+- key: styles.corporate-strategy-ppt.qa.render_dpi
+  why: 픽셀 기반 렌더 검사가 없다. 위와 같다
+- key: styles.corporate-strategy-ppt.sizes.banner_inline_paren_pt
+  why: 해당 헬퍼가 이 크기를 안 쓴다
+- key: styles.corporate-strategy-ppt.sizes.callout_compare_pt
+  why: 해당 헬퍼가 template.js에 없다
+- key: styles.corporate-strategy-ppt.sizes.callout_number_pt
+  why: 해당 헬퍼가 template.js에 없다
+- key: styles.corporate-strategy-ppt.sizes.dark_card_body_pt
+  why: darkCard는 호출부 runs로 크기를 받는다. 이 값을 안 읽는다
+- key: styles.corporate-strategy-ppt.sizes.dark_card_title_pt
+  why: darkCard는 호출부 runs로 크기를 받는다. 이 값을 안 읽는다
+- key: styles.corporate-strategy-ppt.sizes.kpi_delta_pt
+  why: 해당 헬퍼가 template.js에 없다
+- key: styles.corporate-strategy-ppt.sizes.subheader_pt
+  why: 해당 헬퍼가 template.js에 없다
+- key: styles.corporate-strategy-ppt.table.short_phrase_left_align
+  why: 표 정렬 검사가 numeric_col_align까지만 붙어 있다
+- key: styles.corporate-strategy-ppt.table.zebra_stripes
+  why: 줄무늬를 안 쓴다는 선언이다. 검사할 대상이 없다
+- key: styles.corporate-strategy-ppt.zones.content_max_y_exempt
+  why: audit이 코드에 박아 쓴다({'header/draft_tag'}). 같은 규칙이 두 군데다 (CODEX 전달)
+- key: styles.corporate-strategy-ppt.zones.footnote_divider
+  why: 각주 구분선 유무 선언. 검사는 components.footnote_rule_thickness가 한다
+- key: styles.corporate-strategy-ppt.zones.master_bottom_rule_y
+  why: 마스터 하단 선 위치 검사 미구현
+- key: styles.corporate-strategy-ppt.zones.title_underline
+  why: 제목 밑줄 유무 선언. 검사할 대상이 없다
+- key: styles.shin-ppt1.chart.label_follows_series
+  why: 네이티브 차트 라벨 색 검사 미구현
+- key: styles.shin-ppt1.chart.label_weak_series_color
+  why: 네이티브 차트 라벨 색 검사 미구현
+- key: styles.shin-ppt1.fonts.allowed_count
+  why: audit이 heading·body 두 키로 집합을 만들어 2가 구조에 암묵적이다. 값을 안 읽는다 (CODEX 전달)
+- key: styles.shin-ppt1.palette_usage.red_scope
+  why: 검사 가능하다. 결론 줄(⇒ 접두) 판별이 필요해 red_max_per_line 다음 순서다
+- key: styles.shin-ppt1.qa.dark_pixel_min_count
+  why: 픽셀 기반 렌더 검사가 없다. 위와 같다
+- key: styles.shin-ppt1.qa.dark_pixel_sum_threshold
+  why: 픽셀 기반 렌더 검사가 없다. render_check는 SVG 경계(맥)와 COM(윈도)을 쓴다
+- key: styles.shin-ppt1.qa.master_page_number_ymax_pt
+  why: 마스터 쪽번호 위치 검사 미구현
+- key: styles.shin-ppt1.qa.render_dpi
+  why: 픽셀 기반 렌더 검사가 없다. 위와 같다
+- key: styles.shin-ppt1.table.row_height_formula
+  why: 행 높이 계산식 검사 미구현. row_height_min만 검사한다
+- key: styles.shin-ppt1.table.zebra_stripes
+  why: 줄무늬를 안 쓴다는 선언이다. 검사할 대상이 없다
+- key: units.emu_per_pt
+  why: 쓰는 곳이 없다. emu_per_inch와 pt_per_inch로 충분하다
 - key: palette_usage.brand_swatch
   why: 브랜드 색 정의다. 검사 대상이 아니라 참고값이다
 - key: palette_usage.red_scope
@@ -51,54 +137,6 @@ unenforced:
   why: 무엇을 "병렬 항목"으로 셀지 정의가 없다. 정의부터 정해야 검사가 된다
 - key: limits.diagrams_per_page_max
   why: 무엇을 "다이어그램"으로 셀지 정의가 없다. 위와 같은 이유다
-- key: styles.shin-ppt1.themes.dense.accent
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.dense.accentLt
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.dense.ink
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.dense.msgInk
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.dense.mute
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.dense.onDark
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.dense.sky
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.dense.wash
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.mono.accent
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.mono.accentLt
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.mono.ink
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.mono.msgInk
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.mono.mute
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.mono.onDark
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.mono.sky
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.mono.wash
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.paper.accent
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.paper.accentLt
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.paper.ink
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.paper.msgInk
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.paper.mute
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.paper.onDark
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.paper.sky
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
-- key: styles.shin-ppt1.themes.paper.wash
-  why: 2.17 이행 중. shin-ppt1을 읽는 코드가 아직 없다
 - key: styles.corporate-strategy-ppt.charts.grouped_bar.series_max
   why: template.js에 groupedBar 헬퍼가 없다. 헬퍼를 만들 때 생성기 가드로 넣는다
 - key: styles.corporate-strategy-ppt.limits.diagrams_per_page_max
@@ -283,7 +321,6 @@ styles:
       width: 11.6929
       height: 8.2677
       margin_x: 0.65
-      content_width: 10.39
     fonts:
       heading: HY헤드라인M
       body: 맑은 고딕
@@ -459,7 +496,8 @@ styles:
       footnote_max_lines: 4
       footnote_divider: false
       master_bottom_rule_y: 7.83
-      content_max_y: 7.78
+      content_max_y: 7.56   # 각주 top(1줄) = 7.7 - 0.14. 7.78이었고 각주보다
+    # 0.22in 아래라 본문이 각주 위에 겹칠 수 있었다 (2026-09-04)
       content_max_y_exempt:
       - draft_tag
       draft_tag_xy:
@@ -571,7 +609,6 @@ styles:
     - third_font
     - dark_emphasis_card
     qa:
-      page_height_pt: 595.2
       text_max_ymax_pt: 593
       master_page_number_ymax_pt: 587
       colw_tolerance_emu: 10000
@@ -585,7 +622,6 @@ styles:
       width: 11.6929
       height: 8.2677
       margin_x: 0.65
-      content_width: 10.39
     fonts:
       heading: HY헤드라인M
       body: 맑은 고딕
@@ -707,7 +743,8 @@ styles:
     # 줄 수와 무관하게 늘 초과했고 렌더 검사가 돌기 시작하면서 드러났다
       footnote_line_step: 0.15
       footnote_max_lines: 4
-      content_max_y: 8.0
+      content_max_y: 7.96   # 각주 top(1줄) = footnote_bottom_y - line_step.
+    # 8.0이었는데 각주 top 7.96보다 아래라 본문이 각주를 덮어도 통과했다 (2026-09-04)
       band_top: 2.0
       sub_gap: 0.44
       block_gap: 0.34
@@ -752,7 +789,6 @@ styles:
     - table_zebra_stripes
     - monospace_in_number_column
     qa:
-      page_height_pt: 595.2
       text_max_ymax_pt: 593
       master_page_number_ymax_pt: 587
       colw_tolerance_emu: 10000
