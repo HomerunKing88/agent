@@ -101,11 +101,16 @@ guard.sh            glob을 가드로 적은 L23을 막음 (그런데 내가 지
 | L34 | 라벨과 값의 짝이 어긋나도 통과한다 | 1 | 09-03 | 08-30 | 표 1열 라벨 둘을 맞바꾸니 뜻이 정반대인데 audit PASS. 숫자는 전부 원천과 맞다 | `audit.py` `claim.source_label_mismatch` (표) · `prompts/REVIEW.md` CONTENT 렌즈 (그림) | 스크립트 |
 | L35 | 배관이 끝까지 안 나른다 | 2 | 09-03 | 09-03 | audit 경고가 게이트 화면에는 나오는데 사용자가 받는 QA_REPORT에는 없었다. L27과 같은 뿌리 | `e2e_check.py` [7]이 register 경고가 보고서에 실렸는지 본다 | 스크립트 |
 | L36 | 가드의 스위치를 검사받는 쪽이 쥔다 | 2 | 09-03 | 09-03 | manifest의 `label_ref`를 지우면 라벨 대조가 통째로 꺼진다. `token_whitelist` 자기발급과 같은 모양 | 건너뛸 때 반드시 경고를 남긴다 — `audit.py` `token.whitelist_used` · `claim.source_label_unverified` | 스크립트 |
-| L37 | 오탐을 피하려다 구멍을 낸다 | 1 | 09-03 | 09-03 | "완전 일치는 오탐이 나니 포함 관계로 보라"고 지시했더니 접두어를 공유하는 네 행이 전부 통과했다 | `prompts/REVIEW.md` CONTENT 렌즈 · 새 검사는 반드시 깨 보고 확인 | 판단 |
+| L37 | 오탐을 피하려다 구멍을 낸다 | 2 | 09-03 | 09-04 | "완전 일치는 오탐이 나니 포함 관계로 보라"고 지시했더니 접두어를 공유하는 네 행이 전부 통과했다. 09-04에 또 났다 — `guard.sh`의 `grep "^## 결과"`가 `## 결과보류`도 통과시켰다. **깨 보기가 잡았다** | `prompts/REVIEW.md` CONTENT 렌즈 · 새 검사는 반드시 깨 보고 확인 | 판단 |
 | L38 | 검사 범위가 지표가 아니라 시트다 | 1 | 09-03 | 09-03 | 차트 계열 값이 원천 **시트 어딘가**에 있기만 하면 통과했다. 거래대금 자리에 신용잔고 값을 넣어도 PASS | `audit.py:check_chart_series` · `deckkit.js:chartSeries` — 계열별 범위와 순서까지 대조 | 스크립트 |
 | L39 | 규칙이 한 스타일에만 있어 다른 쪽이 샌다 | 1 | 09-03 | 09-03 | `emphasis`(색 단독 강조 금지)가 shin에만 있어 corporate 배너가 같은 pt·같은 굵기로 색에만 강조를 걸었다 | `e2e_check.py`가 스타일 간 규칙 절 차이를 센다 | 스크립트 |
 | L40 | 기본값을 두면 조용히 어긋난다 | 1 | 09-03 | 09-03 | `chartSeries`의 chart 이름 기본값이 `chartLine/chart`인데 실제로는 `chartBar`를 그려 `claim.chart_series_missing`이 났다 | `deckkit.js:chartSeries`가 chart 이름을 필수로 받는다 | 스크립트 |
-| L12 | 새 도형 역할을 규칙에 등재 안 한다 | 2 | 08-30 | 08-30 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
+| L41 | 가드가 이름만 보고 내용을 안 본다 | 1 | 09-04 | 09-04 | `e2e_check.py`가 판단 가드를 확인할 때 렌즈 **이름**이 `REVIEW.md`에 있는지만 봤다. "CONTENT"·"DESIGN"은 둘 다 절 제목이라 무슨 교훈이든 통과했다 — 판단 13건 중 8건을 REVIEW.md가 한 번도 언급한 적이 없는데 OK가 나왔다 | `e2e_check.py`의 판단 가드 대조가 **교훈 번호**를 REVIEW.md에서 찾는다 | 스크립트 |
+| L42 | 생성기가 자기 규칙만 지키고 검사기의 하한선을 모른다 | 1 | 09-04 | 09-04 | shin 각주 상자가 `zones.footnote_bottom_y`(생성기·audit 합의)는 지켰는데 상자가 아래로 0.42in 자라 `qa.text_max_ymax_pt`(593pt)를 넘었다. 잡 003·004·005 셋 다 넘었고 **LAYOUT이 한 번도 안 돌아 아무도 몰랐다** | `template_shin.js:footer`가 `qa.text_max_ymax_pt`를 읽어 상자 높이를 자른다 — 새 규칙을 만들지 않고 검사기가 이미 아는 값을 생성기가 지킨다 | 스크립트 |
+| L43 | 이름을 바꾸고 읽는 쪽을 안 바꾼다 | 1 | 09-04 | 09-04 | EDITOR·CRITIC을 REVIEW 하나로 합치면서 프롬프트는 `review_r{N}.json`에 쓰게 했는데 `validate_editor`는 `editor_r{N}.json`만 봤다. `review_lens_cover`는 세 이름을 다 봐서 **게이트를 열어 주고**, 지적을 읽는 쪽은 못 읽었다 — 잡 007에서 REVIEW가 CRITICAL 3건을 냈는데 게이트가 "차단 없음 (전부 검사함)"을 냈다 | `orchestrator.py:REVIEWER_FILES` 한 목록을 `validate_editor`와 `review_lens_cover`가 같이 쓴다 (2.14) | 스크립트 |
+| L44 | 스킬 규칙을 안 읽고 장표를 쓴다 | 1 | 09-04 | 09-04 | `SKILL.md:290`과 `references/anti-slop.md`에 개조식·붙임표 금지가 08월부터 적혀 있었는데 읽지 않았다. 잡 007이 서술형 어미 16곳·붙임표 4곳·accent 12곳으로 아홉 게이트를 다 통과했고 **사용자가 눈으로 잡았다.** 004·005·006도 같은 병이 있었다 | `lint_deck.js` `lint.text_style`가 문안을 잰다 (규칙 값은 `house-rules.yaml` `text_style`). accent 개수·균일 격자는 `prompts/REVIEW.md` DESIGN 렌즈 | 스크립트 |
+| L45 | 그려 놓고 보이는지 확인 안 한다 | 1 | 09-04 | 09-04 | 각주 구분선을 0.008in·D5D9DE로 그렸다. 도형은 있고 검사도 통과했는데 96dpi에서 한 픽셀 밝기 227(배경 255)이라 사용자가 "구분선이 빠진 것 같다"고 했다. **있는 것과 보이는 것은 다르다** | `audit.py` `components.footnote_rule_thickness`가 존재와 굵기를 잰다. 굵기 값은 `house-rules.yaml` `components`에 있고 코드에 없다 | 스크립트 |
+| L12 | 새 도형 역할을 규칙에 등재 안 한다 | 3 | 08-30 | 09-04 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR. 09-04에 또 났다 — `chevron/text`로 잡 007이 끊겼고, 세어 보니 shin 템플릿이 내는 역할 51개 중 **32개가 미등재**였다. 도식 헬퍼를 쓰는 잡은 전부 막혀 있었다 | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가
 

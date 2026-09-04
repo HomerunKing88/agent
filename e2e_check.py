@@ -163,10 +163,12 @@ def slack_run(job: Path) -> tuple[str, str]:
 # 어떤 검사 규칙도 도달하지 못하는 게이트. QA_REPORT에는 PASS로 찍힌다.
 # "검사했고 통과"와 "검사한 적 없음"이 구분되지 않는 자리다 (2.16-7).
 # 사용자가 받는 문서라 조용히 늘어나면 안 된다. 아래 목록과 실제가 어긋나면 FAIL.
-GATES_NOT_WIRED = {
+GATES_NOT_WIRED: dict[str, str] = {
     # CALC는 2026-08-29에 살아났다. Codex가 계산 불일치를 calc.* 규칙으로 분리했다(e5eb0c9).
     # 이 감시가 "목록이 낡았다"로 잡아서 알았다. 합성 테스트가 아니라 실제로 발동한 첫 사례다.
-    "LINT": "lint_deck.js가 계획서 9절 보류 항목이다. 아예 존재하지 않는다",
+    # LINT는 2026-09-04에 살아났다. `lint_deck.js`를 만들고 cmd_review에 배선했다 —
+    # 보류를 유지하면 게이트 아홉 중 하나가 영구 SKIP이라 표가 실제보다 넓어 보인다.
+    # **이제 비어 있다.** 여기에 뭔가 다시 들어가면 그 게이트는 죽은 것이다.
 }
 
 
@@ -213,7 +215,7 @@ def struct_fixtures(rules: dict) -> None:
 #
 # 실측으로 확인했다. 검사기가 모르는 규칙을 하나 넣으니 123→124로 잡혔고,
 # 되돌리니 통과했다.
-ONE_SIDED_BASELINE = 38
+ONE_SIDED_BASELINE = 36
 # 설계상 한쪽만 읽는 것들. 잎 이름이 코드에 안 나올 뿐 실제로는 검사된다.
 #   role_min_pt  검사기 쪽 표다. 생성기는 안 읽는다
 #   qa           검사기 전용 임계값
@@ -307,7 +309,12 @@ def lessons_guarded() -> list[str]:
             continue
         num, guard, kind = cols[0], cols[6], cols[7]
         if kind == "판단":
-            # 판단 가드는 REVIEW.md가 실제로 그 얘기를 해야 한다. 렌즈 이름으로 확인한다.
+            # 판단 가드는 REVIEW.md가 실제로 그 얘기를 해야 한다.
+            # 렌즈 **이름**만 보면 안 된다 — "CONTENT"와 "DESIGN"은 둘 다 절 제목에
+            # 있어서 어떤 교훈이든 무조건 통과했다. 2026-09-04에 드러났다: 판단 13건
+            # 중 8건을 REVIEW.md가 한 번도 언급한 적이 없는데 e2e는 OK를 냈다 (L37).
+            # 교훈 번호를 REVIEW.md가 이름으로 들어야 통과시킨다 — 그래야 체크리스트가
+            # 교훈이 늘 때 같이 늘고, 08-30에 얼어붙은 채로 남지 않는다.
             lens = "DESIGN" if "DESIGN" in guard else ("CONTENT" if "CONTENT" in guard else None)
             if guard.startswith("**없다**"):
                 continue                                  # 가드 없음을 명시한 줄은 통과시킨다
@@ -315,6 +322,8 @@ def lessons_guarded() -> list[str]:
                 bad.append(f"{num}: REVIEW.md에 {lens} 렌즈가 없다")
             elif not lens and "prompts/REVIEW.md" not in guard and "house-rules" not in guard:
                 bad.append(f"{num}: 판단 가드인데 REVIEW.md도 house-rules도 안 가리킨다")
+            elif "prompts/REVIEW.md" in guard and not re.search(rf"\b{num}\b", review):
+                bad.append(f"{num}: REVIEW.md가 이 교훈을 이름으로 들지 않는다 — 체크리스트가 얼었다")
             continue
         # 스크립트 가드 — 백틱 안을 파일과 심볼로 나눈다.
         # 확장자가 있으면 파일, 없으면 심볼이다. 심볼은 같은 칸에 적힌 파일 중
@@ -360,8 +369,13 @@ def unwired_gates() -> tuple[list[str], list[str]]:
         # 걸친 호출 다섯 개가 감시견에 안 보였다 — contract.* 둘, render.* 셋.
         # 게이트 배선을 증명하는 장치 자신이 눈이 멀어 있었다 (2026-08-30).
         emitted |= set(re.findall(r'Issue\(\s*"([a-z][a-z_.]+)"', (REPO / name).read_text(encoding="utf-8")))
-    # orchestrator가 스스로 붙이는 규칙 (EDITOR 지적, 스키마 위반)
-    emitted |= {"editor.MESSAGE", "pipeline.schema_violation"}
+    # lint_deck.js는 파이썬이 아니라 `rule: "lint.raw_call"` 꼴로 낸다.
+    # orchestrator의 run_lint가 못 돌린 경우 붙이는 lint.error도 같이 센다.
+    lint_js = REPO / "lint_deck.js"
+    if lint_js.is_file():
+        emitted |= set(re.findall(r'rule:\s*"([a-z][a-z_.]+)"', lint_js.read_text(encoding="utf-8")))
+    # orchestrator가 스스로 붙이는 규칙 (EDITOR 지적, 스키마 위반, lint 수행 불가)
+    emitted |= {"editor.MESSAGE", "pipeline.schema_violation", "lint.error"}
 
     reachable = {orchestrator.gate_of(rule) for rule in emitted}
     dark = [g for g in orchestrator.GATES if g not in reachable and g not in GATES_NOT_WIRED]
@@ -550,6 +564,37 @@ def run(job: Path, rules: dict) -> None:
     dead, stale = unenforced_drift(rules)
     check("검사 없는 새 규칙 없음", not dead, ", ".join(dead))
     check("unenforced 목록이 최신", not stale, ", ".join(stale))
+
+    print("\n[8.5] LINT가 실제로 잡나 — 헬퍼 우회를 심어 본다")
+    # 도달 가능한 게이트와 실제로 발동하는 게이트는 다르다. [9]는 규칙 이름이
+    # 게이트로 이어지는지만 본다 — 검사가 아무것도 못 잡아도 통과한다.
+    # 그래서 여기서 진짜 우회를 심어 FAIL이 나는지 본다 (2.16-7, L37).
+    lint_js = REPO / "lint_deck.js"
+    probe = job / "builder" / "lint_probe.js"
+    probe.parent.mkdir(parents=True, exist_ok=True)
+    probe.write_text(
+        'const tpl = require("./template.js");\n'
+        'function build(pres) {\n'
+        '  const s = pres.addSlide();\n'
+        '  tpl.text(s, "정상", { x: 1, y: 1 });\n'
+        '  s.addText("이름 없는 도형", { x: 1, y: 2, w: 3, h: 0.4 });\n'
+        '  s.addTable([[1]], { objectName: "t/x", x: 1, y: 3 });\n'
+        '  s.addShape("rect", { x: 1, y: 4 });   // lint-allow: 사유를 적었다\n'
+        '}\n', encoding="utf-8")
+    done = subprocess.run(["node", str(lint_js), str(probe), "--json"],
+                          capture_output=True, text=True, check=False)
+    try:
+        out = json.loads(done.stdout)
+    except json.JSONDecodeError:
+        out = {"status": "ERROR", "issues": []}
+    caught = [i["line"] for i in out.get("issues", [])]
+    check("이름 없는 raw 호출을 잡는다", caught == [5],
+          f"status={out.get('status')} 잡은 줄={caught} (5만 나와야 한다)")
+    # objectName을 붙였거나 사유를 적은 것까지 잡으면 오탐이다. 위 == [5]가 둘 다 본다.
+    check("정상 덱은 통과시킨다",
+          subprocess.run(["node", str(lint_js), str(job / "builder" / "deck_v1.js")],
+                         capture_output=True, check=False).returncode == 0,
+          "e2e의 정상 잡이 LINT에 걸린다")
 
     print("\n[9] 게이트가 실제로 검사되나 — 도달 못 하는 게이트를 센다")
     dark, lit = unwired_gates()

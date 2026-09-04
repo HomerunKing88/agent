@@ -69,6 +69,7 @@ def job_paths(root: Path, version: int = 1) -> dict[str, Path]:
         "audit": root / "review" / f"audit_r{version}.json",
         "editor": root / "review" / f"editor_r{version}.json",
         "preflight": root / "review" / f"preflight_r{version}.json",
+        "lint": root / "review" / f"lint_r{version}.json",
         "register": root / "review" / "issue_register.json",
         "decision": root / "review" / "user_decision.json",
         "final": root / "final",
@@ -252,6 +253,41 @@ def cmd_build(root: Path, version: int = 1) -> None:
     meta_update(root, **{k: v for k, v in preview.render_preview(p, version).items() if v})
 
 
+def run_lint(p: dict[str, Path]) -> tuple[list[dict], str]:
+    """lint_deck.js를 돌리고 결과를 파일로 남긴 뒤 이슈를 돌려준다.
+
+    못 돌린 경우(node 없음·스크립트 없음·JSON 아님)를 조용히 넘기지 않는다.
+    `lint.error`로 만들어 LINT 게이트를 막는다 — 모르는 상태는 PASS가 아니다 (2.16-7).
+    """
+    script = Path(__file__).with_name("lint_deck.js")
+    target = p["deck_js"]
+    payload = {"file": target.name, "status": "ERROR", "error": None, "issues": []}
+    if not target.is_file():
+        payload["error"] = f"덱 스크립트가 없다: {target}"
+    elif not script.is_file():
+        payload["error"] = f"lint_deck.js가 없다: {script}"
+    else:
+        try:
+            done = subprocess.run(["node", str(script), str(target), "--json"],
+                                  capture_output=True, text=True, check=False)
+            payload = json.loads(done.stdout)
+        except FileNotFoundError:
+            payload["error"] = "node를 찾을 수 없다 (lint_deck.js를 못 돌렸다)"
+        except json.JSONDecodeError:
+            payload["error"] = f"lint_deck.js가 JSON을 내지 않았다: {done.stdout[:200]}"
+    write_json(p["lint"], payload)
+
+    if payload.get("status") == "ERROR":
+        return ([{"rule": "lint.error", "slide": 0, "shape": "-",
+                  "evidence": payload.get("error") or "lint 수행 불가 (2.16-7)"}], "ERROR")
+    out = []
+    for it in payload.get("issues", []):
+        out.append({"rule": it.get("rule", "lint.raw_call"), "slide": 0,
+                    "shape": f"{target.name}:{it.get('line')}",
+                    "evidence": f"{it.get('text','')}  → {it.get('message','')}"})
+    return out, str(payload.get("status", "ERROR"))
+
+
 def cmd_review(root: Path, version: int = 1) -> None:
     p = job_paths(root, version)
     if not p["pptx"].exists():
@@ -271,6 +307,11 @@ def cmd_review(root: Path, version: int = 1) -> None:
             audit_cmd += ["--manifest", str(p["manifest"])]
         audit_cmd.append(str(p["pptx"]))
         subprocess.run(audit_cmd, stdout=out, check=False)
+
+    # LINT — 잡 스크립트가 헬퍼를 우회했나 (계획서 8절). 검사 대상이 pptx가 아니라
+    # deck_v{n}.js라서 audit과 따로 돈다. 2026-09-04에 보류를 풀었다: 게이트 아홉 중
+    # 하나가 "미구현"으로 영구 SKIP이면 게이트 표가 실제보다 넓어 보인다 (2.16-7).
+    lint_issues, lint_status = run_lint(p)
 
     # EDITOR 결과(editor_r1.json)가 있으면 검증해 통과분만 합친다.
     # 계획서 6.3: pydantic 검증, 실패/어휘위반은 원문을 로그에 남기고 그 이슈만
@@ -296,7 +337,7 @@ def cmd_review(root: Path, version: int = 1) -> None:
         audit_issues.append({"rule": "audit.error", "slide": 0, "shape": "-",
                              "evidence": audit_error or "검사 수행 불가 (2.16.7)"})
 
-    issues = audit_issues + editor_issues
+    issues = audit_issues + lint_issues + editor_issues
     register = {
         "job": root.name,
         "round": version,
@@ -305,6 +346,9 @@ def cmd_review(root: Path, version: int = 1) -> None:
         "deck": p["pptx"].name,
         "deck_hash": deck_hash(p["pptx"]),
         "audit_status": audit_status,
+        # LINT를 돌린 적이 있나. 없으면 게이트는 PASS가 아니라 SKIP이다 (2.16-7).
+        # 이 키가 생기기 전에 만들어진 잡은 린트를 받은 적이 없다.
+        "lint_status": lint_status,
         # 막지는 않지만 사용자가 알아야 하는 것. 검증을 끈 claim이 여기 남는다
         "warnings": audit_warnings,
         "audit_error": audit_error,
@@ -336,13 +380,32 @@ def cmd_review(root: Path, version: int = 1) -> None:
         print(f"editor: 통과 {len(editor_issues)}건, 버림 {len(editor_log)}건 → {p['editor'].with_name('editor_log' + str(version) + '.json')}")
 
 
+# 검토자가 낸 파일. 이름이 셋인 것은 역사적 이유다 — 2026-08-30에 EDITOR와
+# CRITIC을 REVIEW 하나로 합쳤는데(prompts/REVIEW.md) 배관은 옛 이름만 봤다.
+# 그래서 2026-09-04 잡 007에서 REVIEW가 CRITICAL 3건을 냈는데 게이트는
+# "차단 없음 (전부 검사함)"을 냈다. review_lens_cover는 세 이름을 다 보고
+# 게이트를 열어 줬는데 정작 지적을 읽는 쪽은 editor_r{N}.json만 봤다 — 최악의 짝이다.
+# **두 곳이 같은 목록을 보게 한다.** 목록은 여기 한 군데만 둔다 (2.14).
+REVIEWER_FILES = ("review", "editor", "critic")
+
+
+def reviewer_file(root: Path, version: int) -> Path | None:
+    """검토 결과 파일. 없으면 None."""
+    for name in REVIEWER_FILES:
+        path = root / "review" / f"{name}_r{version}.json"
+        if path.exists():
+            return path
+    return None
+
+
 def validate_editor(p: dict, version: int) -> tuple[list[dict], list[dict]]:
     """EDITOR 응답을 house-rules 어휘로 검증한다. (통과, 버림)을 반환.
 
     버림 원문은 review/editor_log{n}.json에 기록한다 (6.3: "원문을 로그에
     남기고 그 이슈만 버린다"). 이슈가 아예 없으면 빈 결과를 돌려준다.
     """
-    if not p["editor"].exists():
+    source = reviewer_file(p["root"], version)
+    if source is None:
         return [], []
     try:
         from schemas.editor import validate
@@ -357,9 +420,9 @@ def validate_editor(p: dict, version: int) -> tuple[list[dict], list[dict]]:
     rules = _yaml.safe_load(Path(__file__).resolve().parent.joinpath("house-rules.yaml")
                             .read_text(encoding="utf-8"))
     try:
-        payload = json.loads(p["editor"].read_text(encoding="utf-8"))
+        payload = json.loads(source.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
-        log = [{ "raw": {}, "errors": [f"editor JSON 파싱 실패: {error}"] }]
+        log = [{ "raw": {}, "errors": [f"{source.name} JSON 파싱 실패: {error}"] }]
         write_json(p["editor"].with_name(f"editor_log{version}.json"),
                    {"job": p["root"].name, "dropped": log})
         return [], log
@@ -404,9 +467,11 @@ def issue_action(issue: dict) -> str:
 
 
 def cmd_render(root: Path, version: int = 1) -> None:
-    """GATE 2: PowerPoint COM 실측 렌더 검사 (render_check.py).
+    """GATE 2: 실측 렌더 검사 (render_check.py).
 
-    집 Windows PC에서만 실행한다. macOS에서는 SKIP이므로 게이트를 막지 않는다.
+    Windows는 PowerPoint COM, 그 밖은 LibreOffice headless SVG로 잰다
+    (CODEX, 2026-09-04). 폰트가 없거나 대체가 감지된 도형은 PASS가 아니라
+    SKIP으로 빠진다 — 잰 도형이 하나도 없으면 결과 자체가 SKIP이다 (2.16-7).
     결과.issues는 register의 render_issues로 따로 기록해 게이트가 audit 이슈와
     합쳐 판정한다. render_check.py 실행 파일은 리포 루트에 있다 (담당: Codex).
     """
@@ -417,11 +482,13 @@ def cmd_render(root: Path, version: int = 1) -> None:
 
     render_exe = Path(__file__).with_name("render_check.py")
     render_file = root / "review" / f"render_r{version}.json"
+    # 스타일을 안 넘기면 render_check가 "style is unknown"으로 ERROR를 낸다.
+    # audit과 같이 manifest 경로를 명시한다 — 잡의 스타일은 거기 적혀 있다.
+    render_cmd = [sys.executable, str(render_exe), str(p["pptx"]), "--json"]
+    if p["manifest"].exists():
+        render_cmd += ["--manifest", str(p["manifest"])]
     with render_file.open("w", encoding="utf-8") as out:
-        subprocess.run(
-            [sys.executable, str(render_exe), str(p["pptx"]), "--json"],
-            stdout=out, check=False,
-        )
+        subprocess.run(render_cmd, stdout=out, check=False)
 
     payload = read_json(render_file)
     probe = payload if isinstance(payload, dict) and "status" in payload else None
@@ -434,6 +501,9 @@ def cmd_render(root: Path, version: int = 1) -> None:
 
     register = read_json(p["register"])
     register["render_status"] = render_status
+    # 무엇을 못 쟀는지 남긴다. 사유가 없으면 게이트가 "환경 탓"으로 뭉뚱그린다.
+    render_skips = probe.get("skips", []) if isinstance(probe, dict) else []
+    register["render_skips"] = [str(item.get("reason", "")) for item in render_skips][:20]
     register["render_error"] = render_error
     if render_status == "ERROR" and not render_issues:
         # 이슈가 없는 ERROR는 게이트에서 ALL PASS처럼 보이므로 블로킹용 이슈를 만든다.
@@ -590,7 +660,6 @@ GATES = ("SOURCE", "CALC", "XREF", "TOKEN", "LAYOUT", "HOUSE", "LINT", "ISSUE", 
 # QA_REPORT가 하지도 않은 검사를 통과했다고 말하게 된다. 사유는 여기만 둔다.
 # CALC는 CODEX e5eb0c9(`calc.source_manifest`)가 실제 배선해서 정적 SKIP이 아니다.
 SKIP_REASONS = {
-    "LINT": "lint_deck.js 미구현 (계획서 9절 보류)",
     # STRUCT: 파일이 없으면(아직 안 돌면) SKIP. 돌았으면 cmd_gates가 struct 건수로 결정한다.
     "STRUCT": "preflight가 아직 안 돌았다 (orchestrator.py <잡> preflight)",
 }
@@ -598,7 +667,7 @@ SKIP_REASONS = {
 
 def skip_reason(gate: str) -> str:
     """게이트가 SKIP일 이유. SKIP_REASONS에 없으면 환경(render SKIP) 쪽이다."""
-    return SKIP_REASONS.get(gate, "render_check가 이 환경에서 SKIP (PowerPoint COM — 집 Windows)")
+    return SKIP_REASONS.get(gate, "render_check가 SKIP을 냈다 (orchestrator.py <잡> render 로 사유를 본다)")
 
 
 def gate_headline(gates: dict) -> str:
@@ -636,7 +705,7 @@ def review_lens_cover(root: Path, version: int) -> tuple[bool, str]:
     지적이 0건인 것과 그 렌즈로 안 본 것은 다르다. 전자는 lenses_covered에
     이름을 적어 "봤고 없다"를 밝히면 된다 (2.16-7).
     """
-    for name in ("review", "editor", "critic"):
+    for name in REVIEWER_FILES:
         path = root / "review" / f"{name}_r{version}.json"
         if path.exists():
             break
@@ -760,7 +829,17 @@ def cmd_gates(root: Path) -> None:
             status[gate] = "SKIP"
         elif gate in SKIP_REASONS:
             status[gate] = "SKIP"
+        elif gate == "LINT" and not register.get("lint_status"):
+            # 이 잡은 린트를 받은 적이 없다 (lint 배선 2026-09-04 이전에 만들어진
+            # register다). 돌린 적 없는 것을 통과로 적지 않는다 — LAYOUT에서
+            # 고친 것과 같은 자리다 (2.16-7).
+            SKIP_REASONS["LINT"] = "린트를 안 돌렸다 (orchestrator.py <잡> review 를 다시 돌린다)"
+            status[gate] = "SKIP"
         elif gate == "LAYOUT" and render_status in ("", "SKIP"):
+            skips = register.get("render_skips") or []
+            SKIP_REASONS["LAYOUT"] = (
+                "render를 아직 안 돌렸다 (orchestrator.py <잡> render)" if not render_status
+                else "render가 SKIP — " + (skips[0] if skips else "잰 도형이 없다"))
             # 빈 값 = render를 아예 안 돌렸다. 돌려서 SKIP이 나오면 SKIP인데
             # 안 돌리면 PASS가 되던 구멍이 있었다 — 거꾸로다 (2026-08-30, 실전 잡 003).
             # 넘침 판정의 정본은 render_check.py다. 그것을 안 돌린 채로 LAYOUT을

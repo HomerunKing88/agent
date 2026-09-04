@@ -379,6 +379,10 @@ styles:
       fixture/red_runs_per_line: body_min_pt
       _claim_shape: chart_axis_label_pt
       _default: body_min_pt
+      # 네이티브 차트가 원칙이 된 뒤(2026-09-03) 등재. shin 쪽과 맞춘다
+      chartBar/chart: table_min_pt
+      chartLine/chart: table_min_pt
+      footer/rule: card_body_pt
     palette:
       navy: 0D4D79
       amber: FFC000
@@ -631,6 +635,7 @@ styles:
       also_use: [size, bold]
 
     role_min_pt:
+      footer/rule: card_body_pt
       header/text: title_pt
       summary/text: summary_pt
       box/shape: card_body_pt
@@ -660,6 +665,42 @@ styles:
       chartWaterfall/chart: table_min_pt
       _claim_shape: value_pt
       _default: card_body_pt
+      # 아래 32개는 2026-09-04에 한꺼번에 등재했다. 템플릿이 내는 역할 51개 중
+      # 19개만 적혀 있어 도식 헬퍼를 쓰는 잡은 전부 audit이 ERROR로 끊겼다 (L12).
+      # 값은 각 역할이 템플릿에서 실제로 쓰는 폰트 중 **가장 작은 것**이다 —
+      # 하한을 그보다 높이면 헬퍼가 자기 규칙을 어긴다.
+      bars/shape: value_pt
+      barsGroup/shape: value_pt
+      branch/shape: layer_pt
+      branch/text: axis_pt
+      chevron/shape: layer_pt
+      chevron/text: axis_pt
+      compare/shape: card_title_pt
+      compare/text: card_body_pt
+      eyebrow/text: legend_pt
+      flow/shape: axis_pt
+      flow/text: axis_pt
+      funnel/text: axis_pt
+      gantt/shape: grid_cell_pt
+      gantt/text: axis_pt
+      heat/table: grid_head_pt
+      icon/shape: card_body_pt
+      lineTrend/shape: value_pt
+      lineTrend/text: legend_pt
+      matrix/shape: axis_pt
+      matrix/text: axis_pt
+      openTable/shape: card_body_pt
+      stack/text: card_body_pt
+      stackedBar/shape: legend_pt
+      stackedBar/text: legend_pt
+      swimlane/shape: card_body_pt
+      swimlane/text: grid_cell_pt
+      timeline/shape: card_body_pt
+      timeline/text: axis_pt
+      tree/shape: layer_pt
+      tree/text: card_body_pt
+      waterfall/shape: value_pt
+      waterfall/text: value_pt
     zones:
       footnote_bottom_y: 8.14
       footnote_line_step: 0.15
@@ -676,6 +717,10 @@ styles:
       red_scope: []
       red_max_per_line: 0
     components:
+      # 본문과 각주를 가르는 선. ruleThin(표 행 구분선)과 따로 둔다 —
+      # 0.008in·D5D9DE로 그렸더니 96dpi에서 한 픽셀 밝기 227이라 안 보였다
+      # (2026-09-04 사용자 지적, 픽셀로 확인). 경전 양식의 divider_thickness와 같은 자리다.
+      footnote_rule_thickness: 0.014
       page_title:
         x: 0.65
         y: 0.46
@@ -802,3 +847,69 @@ styles:
         - 8A9AA8
         - A8813C
         - 8C3B3B
+
+lint:
+  # 계획서 8절 LINT — 잡 스크립트가 헬퍼를 우회해 pptxgenjs를 직접 부르는 것을 막는다.
+  # 우회하면 도형에 역할 이름이 안 붙어 audit이 그 도형을 아예 못 센다.
+  # 규칙 값이므로 여기에만 둔다. lint_deck.js가 읽는다 (2.14).
+  raw_calls:
+    - pattern: '\.addText\s*\('
+      why: 'tpl.text() · tpl.bullets() 를 써라 — 역할 이름이 안 붙는다'
+    - pattern: '\.addTable\s*\('
+      why: 'tpl.table() 을 써라 — 열 너비와 정렬이 규칙을 안 탄다'
+    - pattern: '\.addShape\s*\('
+      why: 'tpl.shape() · tpl.panel() 을 써라'
+    - pattern: '\.addImage\s*\('
+      why: 'tpl 헬퍼를 거쳐라'
+    - pattern: '\.addChart\s*\('
+      why: 'tpl.chartBar() · tpl.chartLine() 을 써라 — chartSeries 등록을 건너뛴다'
+  # addSlide는 목록에 없다 — deckkit.newPres가 가로채 장 번호를 세므로 우회가
+  # 아니고, template.js의 문서화된 사용법이기도 하다 (`const s = pres.addSlide()`).
+  # pptxgenjs의 require도 위반이 아니다 — 잡이 모듈을 tpl.newPres(pptxgen, ...)에
+  # 넘기는 것이 계약이다.
+  #
+  # 도형을 만드는 호출에 objectName이 붙어 있으면 통과시킨다. audit은 이름으로
+  # 도형을 찾으므로 이름이 있으면 그 도형은 검사를 받는다 (`stat/label`이 실제로
+  # role_min_pt를 타고 있다). **이름 없는 도형이 게이트를 우회하는 것**이 이 규칙이
+  # 막으려는 것이지, 호출 형태 자체가 아니다.
+  names_shape_ok: true
+
+  # 사유를 적으면 통과시킨다. 사유 없는 예외는 없다 (계획서 8절 "사유 명시 예외 제외").
+  exception_marker: 'lint-allow:'
+
+text_style:
+  # 스킬의 references/anti-slop.md 문안 지문을 스크립트가 재는 형태로 옮긴 것.
+  # 규칙은 2026-08월부터 SKILL.md:290에 적혀 있었는데 검사기가 없어
+  # 2026-09-04 잡 007이 서술형 어미와 붙임표 삽입구로 가득 찬 채 아홉 게이트를
+  # 전부 통과했다. 사용자가 눈으로 잡았다. 판단에 맡길 것이 아니었다.
+  #
+  # 원천은 skill/shin-ppt1/references/anti-slop.md 한 곳이고, 값은 여기 한 번만 적는다.
+  forbidden:
+    # 한글 + '다'로 끝나면 서술형이다. 어간을 열거하면 '난다·아낀다·자리다'를 놓친다
+    # (2026-09-04에 실제로 넷을 놓쳤다. 열거는 언제나 빠진다)
+    - pattern: '[가-힣]다[.!?]?\s*$'
+      why: '서술형 어미. 개조식으로 명사형(~함·~임·~됨) 또는 체언 종결'
+      id: narrative_ending
+    - pattern: '\S\s+[—–]\s+\S'
+      why: '붙임표 삽입구. 문장을 나누거나 쉼표·마침표로 끊는다'
+      id: em_dash_aside
+    - pattern: '단순 .+ 아니라|.+를 넘어 '
+      why: '대구식 수사. 결론을 단정형으로 바로 쓴다'
+      id: antithesis
+  # 검사 대상에서 뺄 것. 각주 출처 표기와 화살표 표기는 문안이 아니다
+  # 예외는 좁게 둔다. '※ 원천'으로 줄 전체를 빼면 그 줄의 문장까지 같이 빠진다
+  # (2026-09-04에 각주 첫 줄의 '확정 사항이 아니다'가 그렇게 빠져나갔다)
+  exempt_contains:
+    - '→'
+  # 한글이 든 문자열만 본다. 변수명·CSS·색상값은 문안이 아니다
+  requires_hangul: true
+  # 장표에 안 찍히는 자리. manifest의 label·화이트리스트 reason 등은 문안이 아니다
+  exempt_after_key:
+    - reason
+    - label
+    - note
+    - id
+    - src
+    - sheet
+    - unit
+    - objectName

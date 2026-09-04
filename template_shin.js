@@ -366,15 +366,25 @@ function footer(s, notes, y, opts = {}) {
   if (y != null && typeof y === "object") { opts = y; y = null; }   // footer(s, notes, {page})
   if (y == null) {
     y = FOOT_BASE - SR.zones.footnote_line_step * notes.length;
-    if (opts.rule !== false) ruleThin(s, y - 0.12);
+    // 각주 구분선은 표 행 구분선(ruleThin)과 다른 것이다. 같은 굵기·색으로
+    // 그렸더니 96dpi에서 안 보였다. 굵기는 house-rules에서 읽는다 (2.14)
+    if (opts.rule !== false) {
+      s.addShape("rect", { objectName: "footer/rule", x: MX, y: y - 0.12, w: CW,
+        h: SR.components.footnote_rule_thickness, fill: { color: C.mute } });
+    }
   }
-  // 텍스트 상자 높이를 줄수에 맞춘다. 고정 0.42로 두면 상자 하단이 지면 밖으로 나간다
+  // 텍스트 상자 높이를 줄수에 맞춘다. 고정 0.42로 두면 상자 하단이 지면 밖으로 나간다.
+  // 그것만으로는 부족했다 — 2줄 각주에서 상자 바닥이 8.26in가 되어 검사기의
+  // 하한선(qa.text_max_ymax_pt = 593pt = 8.236in)을 넘었다. 렌더 검사가 실제로
+  // 돌기 시작한 2026-09-04에 잡 003·004·005에서 한꺼번에 드러났다.
+  // 새 규칙을 만들지 않고 **검사기가 이미 아는 값**을 생성기가 지키게 한다 (2.14).
+  const footFloor = SR.qa.text_max_ymax_pt / R.units.pt_per_inch;
   const pw = opts.page ? 1.10 : 0;
   s.addText(notes.map((t, i) => ({ text: t, options: { breakLine: i < notes.length - 1 } })),
-    { objectName: "footer/text", x: MX, y, w: CW - pw, h: 0.15 * notes.length + 0.12, fontFace: F, fontSize: TS.foot, color: C.mute, margin: 0, valign: "top", lineSpacingMultiple: 1.14 });
+    { objectName: "footer/text", x: MX, y, w: CW - pw, h: Math.min(0.15 * notes.length + 0.12, footFloor - y), fontFace: F, fontSize: TS.foot, color: C.mute, margin: 0, valign: "top", lineSpacingMultiple: 1.14 });
   // 페이지 표기는 각주 줄 오른쪽 끝. 제목 옆이 아니라 여기다
   if (opts.page) {
-    s.addText(String(opts.page), { objectName: "footer/text", x: MX + CW - pw, y, w: pw, h: 0.20, fontFace: F, fontSize: TS.foot,
+    s.addText(String(opts.page), { objectName: "footer/text", x: MX + CW - pw, y, w: pw, h: Math.min(0.20, footFloor - y), fontFace: F, fontSize: TS.foot,
       color: C.mute, align: "right", margin: 0, valign: "top" });
   }
 }

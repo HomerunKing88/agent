@@ -24,6 +24,15 @@
   통과한다 (2026-09-03 실측, `LESSONS.md` L38).
 - 안 적어도 막지는 않는다. 다만 **경고가 남는다.** 조용히 지나가지 않는다.
 
+## 스킬로 장표를 만들 때 (2026-09-04 추가)
+
+- **`skill/<이름>/references/` 를 먼저 읽는다.** `SKILL.md`만 보고 시작하지 않는다.
+  `anti-slop.md`에 문안 어투(개조식·명사형 종결)와 붙임표 금지가 2026-08월부터
+  적혀 있었는데 읽지 않아 잡 007을 통째로 다시 썼다.
+- **장표 문안은 개조식이다.** 서술형 어미(~했다·~이다) 금지, 붙임표(—) 삽입구 금지.
+  `lint_deck.js`가 `lint.text_style`로 막는다. 규칙 값은 `house-rules.yaml`의 `text_style`.
+- accent는 페이지당 한 지점. 균일한 카드 격자 금지. 나머지 지문은 `anti-slop.md` 표에 있다.
+
 ## 규칙 값
 - 폰트, 각주 y좌표, 최소 pt, 표 정렬, 금지 영역 등 모든 규칙 값은 `house-rules.yaml`에서만 읽는다. 코드에 하드코딩하지 않는다.
 - `template.js`와 `audit.py`가 같은 값을 각자 들고 있으면 생성기와 검사기가 갈라진다.
@@ -35,7 +44,7 @@
 
 - 이 세션은 **BUILDER**이자 **감독**이다 (계획서 3.0).
   담당: `template.js`, `template_shin.js`, `deck.js`, `deckkit.js`, `schemas/`, `prompts/`, `guard.sh`,
-  `orchestrator.py`, `slack_bot.py`, `preview.py`, `e2e_check.py`, `make_brief.py`, `guard.sh`, `relay.sh`, `ask.sh`, `opencode.json`
+  `orchestrator.py`, `slack_bot.py`, `preview.py`, `e2e_check.py`, `lint_deck.js`, `make_brief.py`, `guard.sh`, `relay.sh`, `ask.sh`, `opencode.json`
   (뒤 셋은 PIPE에게서 넘겨받았다)
 - **CODEX = 검사기.** 담당: `audit.py`, `render_check.py`, `fixtures/` — 건드리지 않는다.
   **스크립트가 결정적으로 재는 것**만 맡는다.
