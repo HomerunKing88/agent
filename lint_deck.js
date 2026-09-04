@@ -25,7 +25,8 @@ function loadRules() {
   // 의존성을 늘리지 않으려고 필요한 절만 읽는다. js-yaml이 있으면 그것을 쓴다.
   try {
     const yaml = require("js-yaml");
-    return yaml.load(text).lint;
+    const doc = yaml.load(text);
+    return { ...doc.lint, text_style: doc.text_style };
   } catch (e) {
     if (e.code !== "MODULE_NOT_FOUND") throw e;
   }
@@ -118,6 +119,43 @@ function lint(file, rules) {
   return issues;
 }
 
+// 문안 지문 검사. skill/shin-ppt1/references/anti-slop.md의 "문안 지문" 표를
+// 스크립트가 재는 형태로 옮긴 것이고, 값은 house-rules.yaml의 text_style에만 있다.
+// 규칙은 SKILL.md:290에 적혀 있었는데 재는 사람이 없어 2026-09-04 잡 007이
+// 서술형 어미로 가득 찬 채 아홉 게이트를 다 통과했다.
+function lintText(file, ts) {
+  if (!ts || !Array.isArray(ts.forbidden)) return [];
+  const raw = fs.readFileSync(file, "utf8");
+  const lines = raw.split(/\r?\n/);
+  const issues = [];
+  // 문자열 리터럴만 본다. 코드·변수명은 문안이 아니다
+  const strRe = /(["'`])((?:\\.|(?!\1)[^\\])*)\1/g;
+  lines.forEach((line, i) => {
+    if (/^\s*(\/\/|\*)/.test(line)) return;             // 주석은 장표에 안 나간다
+    let m;
+    strRe.lastIndex = 0;
+    while ((m = strRe.exec(line)) !== null) {
+      const text = m[2];
+      if (ts.requires_hangul && !/[가-힣]/.test(text)) continue;
+      if ((ts.exempt_contains || []).some(x => text.includes(x))) continue;
+      // 장표에 안 찍히는 자리는 문안이 아니다 (reason: "…", label: "…")
+      const key = line.slice(0, m.index).match(/([A-Za-z_$][\w$]*)\s*:\s*$/);
+      if (key && (ts.exempt_after_key || []).includes(key[1])) continue;
+      for (const rule of ts.forbidden) {
+        if (!new RegExp(rule.pattern, "u").test(text)) continue;
+        issues.push({
+          rule: "lint.text_style",
+          line: i + 1,
+          text: text.slice(0, 90),
+          pattern: rule.id || rule.pattern,
+          message: rule.why,
+        });
+      }
+    }
+  });
+  return issues;
+}
+
 function main(argv) {
   const args = argv.filter((a) => a !== "--json");
   const asJson = argv.includes("--json");
@@ -140,7 +178,8 @@ function main(argv) {
   if (!fs.existsSync(file)) return out({ ...base, error: `파일이 없다: ${file}` }, 2);
   const rules = loadRules();
   if (!rules) return out({ ...base, error: "house-rules.yaml에 lint 절이 없다" }, 2);
-  const issues = lint(file, rules);
+  const issues = lint(file, rules).concat(lintText(file, rules.text_style));
+  issues.sort((a, b) => a.line - b.line);
   return out({ ...base, status: issues.length ? "FAIL" : "PASS", issues },
              issues.length ? 1 : 0);
 }
