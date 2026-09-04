@@ -399,9 +399,12 @@ with zipfile.ZipFile(src) as z:
             # ruleThin(각주 위 구분선)을 안 빼면 그것이 가장 깊은 요소로 잡힌다
             if role in ("header", "footer", "summary", "ruleThin", "ruleThick"):
                 if role == "footer":
-                    # 각주는 한 도형에 여러 줄이 들어간다. 도형이 아니라 문단을 센다
-                    foot += max(1, len([t for t in sp.iter(f"{A}p")
-                                        if "".join(x.text or "" for x in t.iter(f"{A}t")).strip()]))
+                    # 각주는 한 도형에 여러 줄이 들어간다. 도형이 아니라 문단을 센다.
+                    # max(1, ...)을 안쪽에 두면 글자 없는 footer 도형(구분선 footer/rule)이
+                    # 각주 한 줄로 잡힌다 — 2026-09-04에 그렇게 하한이 0.15in 올라갔다.
+                    # 바깥 max(1, foot)가 "각주가 아예 없는 장"을 이미 받는다
+                    foot += len([t for t in sp.iter(f"{A}p")
+                                 if "".join(x.text or "" for x in t.iter(f"{A}t")).strip()])
                 continue
             if y >= foot_base - 0.02:
                 continue

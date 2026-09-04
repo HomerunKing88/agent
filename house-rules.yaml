@@ -635,6 +635,7 @@ styles:
       also_use: [size, bold]
 
     role_min_pt:
+      footer/rule: card_body_pt
       header/text: title_pt
       summary/text: summary_pt
       box/shape: card_body_pt
@@ -716,6 +717,10 @@ styles:
       red_scope: []
       red_max_per_line: 0
     components:
+      # 본문과 각주를 가르는 선. ruleThin(표 행 구분선)과 따로 둔다 —
+      # 0.008in·D5D9DE로 그렸더니 96dpi에서 한 픽셀 밝기 227이라 안 보였다
+      # (2026-09-04 사용자 지적, 픽셀로 확인). 경전 양식의 divider_thickness와 같은 자리다.
+      footnote_rule_thickness: 0.014
       page_title:
         x: 0.65
         y: 0.46
