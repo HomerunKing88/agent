@@ -98,11 +98,23 @@ def check_preflight_alignment(rules):
                 if isinstance(target, ast.Name) and target.id in {"FONTS_OK"}:
                     constants[target.id] = ast.literal_eval(node.value)
     issues = []
-    expected_fonts = {rules["fonts"]["body"], rules["fonts"]["heading"]}
-    if constants.get("FONTS_OK") is not None and set(constants["FONTS_OK"]) != expected_fonts:
+    font_rules = rules["fonts"]
+    allowed_count = int(font_rules["allowed_count"])
+    expected_fonts = {font_rules["body"], font_rules["heading"]}
+    preflight_fonts = set(constants.get("FONTS_OK", ()))
+    if allowed_count < 1:
+        raise ValueError("fonts.allowed_count must be at least 1")
+    if len(expected_fonts) > allowed_count:
         issues.append(Issue(
             "contract.preflight_fonts", 0, "-",
-            f"preflight={sorted(constants['FONTS_OK'])}, house-rules={sorted(expected_fonts)}",
+            f"configured fonts={sorted(expected_fonts)} exceed allowed_count={allowed_count}",
+        ))
+    elif preflight_fonts and (not expected_fonts.issubset(preflight_fonts)
+                              or len(preflight_fonts) > allowed_count):
+        issues.append(Issue(
+            "contract.preflight_fonts", 0, "-",
+            f"preflight={sorted(preflight_fonts)}, required={sorted(expected_fonts)}, "
+            f"allowed_count={allowed_count}",
         ))
     tolerance = rules["qa"].get("colw_tolerance_emu")
     match = re.search(r"abs\(total\s*-\s*cx\)\s*>\s*(\d+)", source_path.read_text(encoding="utf-8"))
@@ -132,8 +144,11 @@ def fonts(text_frame):
 
 
 def check_fonts(prs, rules):
-    allowed = {rules["fonts"]["heading"], rules["fonts"]["body"]}
-    issues = []
+    font_rules = rules["fonts"]
+    allowed_count = int(font_rules["allowed_count"])
+    if allowed_count < 1:
+        raise ValueError("fonts.allowed_count must be at least 1")
+    usages = []
     for page, slide in enumerate(prs.slides, 1):
         for shape in slide.shapes:
             frames = []
@@ -141,10 +156,27 @@ def check_fonts(prs, rules):
                 frames.append(shape.text_frame)
             if getattr(shape, "has_table", False):
                 frames.extend(cell.text_frame for row in shape.table.rows for cell in row.cells)
-            extra = sorted(set().union(*(fonts(frame) for frame in frames)) - allowed) if frames else []
-            if extra:
-                issues.append(Issue("forbidden.third_font", page, shape.name,
-                                    f"허용되지 않은 글꼴: {', '.join(extra)}"))
+            used = set().union(*(fonts(frame) for frame in frames)) if frames else set()
+            if used:
+                usages.append((page, shape.name, used))
+    all_fonts = set().union(*(used for _, _, used in usages)) if usages else set()
+    if len(all_fonts) <= allowed_count:
+        return []
+    preferred = [font_rules["heading"], font_rules["body"]]
+    retained = []
+    for font in preferred + sorted(all_fonts):
+        if font in all_fonts and font not in retained and len(retained) < allowed_count:
+            retained.append(font)
+    excess = all_fonts - set(retained)
+    issues = []
+    for page, shape_name, used in usages:
+        extra = sorted(used & excess)
+        if extra:
+            issues.append(Issue(
+                "forbidden.third_font", page, shape_name,
+                f"폰트 종류 {len(all_fonts)}개 > 허용 {allowed_count}개; "
+                f"초과 글꼴: {', '.join(extra)}",
+            ))
     return issues
 
 
@@ -595,7 +627,7 @@ def check_canvas_and_content(prs, rules):
     tolerance = rules["qa"]["canvas_overflow_tolerance_in"]
     page_width, page_height = rules["layout"]["width"], rules["layout"]["height"]
     content_max = rules["zones"]["content_max_y"]
-    content_exempt = {"header/draft_tag"}
+    content_exempt = set(rules["zones"].get("content_max_y_exempt", ()))
     issues = []
     for page, slide in enumerate(prs.slides, 1):
         for shape in slide.shapes:
@@ -604,7 +636,10 @@ def check_canvas_and_content(prs, rules):
             if x < -tolerance or y < -tolerance or right > page_width + tolerance or bottom > page_height + tolerance:
                 issues.append(Issue("layout.canvas_overflow", page, shape.name,
                                     f"bounds=({x:.2f},{y:.2f},{right:.2f},{bottom:.2f})in"))
-            exempt = shape.name in content_exempt or shape.name.startswith("footer/")
+            role = shape_role(shape)
+            role_leaf = role.rsplit("/", 1)[-1]
+            exempt = (role in content_exempt or role_leaf in content_exempt
+                      or shape.name.startswith("footer/"))
             if not exempt and bottom > content_max + tolerance:
                 issues.append(Issue("zones.content_max_y", page, shape.name,
                                     f"본문 하단={bottom:.2f}in > {content_max:.2f}in"))
