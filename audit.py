@@ -19,6 +19,7 @@ from xml.etree import ElementTree as ET
 
 import yaml
 from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import PP_ALIGN
 from openpyxl import load_workbook
 
@@ -444,13 +445,18 @@ def check_table_alignments(prs, rules):
 
 def check_footnotes(prs, rules):
     zones = rules["zones"]
-    markers = tuple(rules["components"]["footnote_markers"])
+    components = rules["components"]
+    markers = tuple(components["footnote_markers"])
     tolerance = 10 ** -int(rules["units"]["bounds_round_in"])
+    unit = rules["units"]["emu_per_inch"]
     max_lines = int(zones["footnote_max_lines"])
     bottom_y = float(zones["footnote_bottom_y"])
     line_step = float(zones["footnote_line_step"])
+    required_rule_thickness = components.get("footnote_rule_thickness")
+    fallback_rule_thickness = components.get("divider_thickness")
     issues = []
     for page, slide in enumerate(prs.slides, 1):
+        note_shapes = []
         for shape in text_shapes(slide):
             if not shape.name.startswith("footer/"):
                 continue
@@ -459,6 +465,7 @@ def check_footnotes(prs, rules):
             # the actual note block without treating those boxes as footnotes.
             if not paragraphs or not paragraphs[0].startswith(markers):
                 continue
+            note_shapes.append(shape)
             line_count = len(paragraphs)
             if line_count > max_lines:
                 issues.append(Issue(
@@ -472,6 +479,34 @@ def check_footnotes(prs, rules):
                     "zones.footnote_bottom_y", page, shape.name,
                     f"각주 y={actual:.4f}in, 기대값={expected:.4f}in "
                     f"(bottom={bottom_y:.4f}, step={line_step:.4f}, lines={line_count})",
+                ))
+        if not note_shapes:
+            continue
+        rule_shapes = [
+            shape for shape in slide.shapes
+            if shape.name == "footer/rule"
+            and getattr(shape, "auto_shape_type", None) == MSO_SHAPE.RECTANGLE
+        ]
+        # A dedicated footnote thickness makes the divider mandatory. Styles
+        # that only expose the older generic divider thickness keep their
+        # existing optional-divider contract, but an existing divider is still
+        # checked against that style value.
+        if required_rule_thickness is not None and not rule_shapes:
+            issues.append(Issue(
+                "components.footnote_rule_thickness", page, "footer/rule",
+                "각주가 있으나 footer/rule 도형이 없음",
+            ))
+            continue
+        expected_thickness = (required_rule_thickness if required_rule_thickness is not None
+                              else fallback_rule_thickness)
+        if expected_thickness is None:
+            continue
+        for rule_shape in rule_shapes:
+            actual_thickness = rule_shape.height / unit
+            if abs(actual_thickness - float(expected_thickness)) > tolerance:
+                issues.append(Issue(
+                    "components.footnote_rule_thickness", page, rule_shape.name,
+                    f"thickness={actual_thickness:.4f}in, expected={float(expected_thickness):.4f}in",
                 ))
     return issues
 
