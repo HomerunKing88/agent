@@ -379,6 +379,10 @@ styles:
       fixture/red_runs_per_line: body_min_pt
       _claim_shape: chart_axis_label_pt
       _default: body_min_pt
+      # 네이티브 차트가 원칙이 된 뒤(2026-09-03) 등재. shin 쪽과 맞춘다
+      chartBar/chart: table_min_pt
+      chartLine/chart: table_min_pt
+      footer/rule: card_body_pt
     palette:
       navy: 0D4D79
       amber: FFC000
@@ -660,6 +664,42 @@ styles:
       chartWaterfall/chart: table_min_pt
       _claim_shape: value_pt
       _default: card_body_pt
+      # 아래 32개는 2026-09-04에 한꺼번에 등재했다. 템플릿이 내는 역할 51개 중
+      # 19개만 적혀 있어 도식 헬퍼를 쓰는 잡은 전부 audit이 ERROR로 끊겼다 (L12).
+      # 값은 각 역할이 템플릿에서 실제로 쓰는 폰트 중 **가장 작은 것**이다 —
+      # 하한을 그보다 높이면 헬퍼가 자기 규칙을 어긴다.
+      bars/shape: value_pt
+      barsGroup/shape: value_pt
+      branch/shape: layer_pt
+      branch/text: axis_pt
+      chevron/shape: layer_pt
+      chevron/text: axis_pt
+      compare/shape: card_title_pt
+      compare/text: card_body_pt
+      eyebrow/text: legend_pt
+      flow/shape: axis_pt
+      flow/text: axis_pt
+      funnel/text: axis_pt
+      gantt/shape: grid_cell_pt
+      gantt/text: axis_pt
+      heat/table: grid_head_pt
+      icon/shape: card_body_pt
+      lineTrend/shape: value_pt
+      lineTrend/text: legend_pt
+      matrix/shape: axis_pt
+      matrix/text: axis_pt
+      openTable/shape: card_body_pt
+      stack/text: card_body_pt
+      stackedBar/shape: legend_pt
+      stackedBar/text: legend_pt
+      swimlane/shape: card_body_pt
+      swimlane/text: grid_cell_pt
+      timeline/shape: card_body_pt
+      timeline/text: axis_pt
+      tree/shape: layer_pt
+      tree/text: card_body_pt
+      waterfall/shape: value_pt
+      waterfall/text: value_pt
     zones:
       footnote_bottom_y: 8.14
       footnote_line_step: 0.15
