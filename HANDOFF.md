@@ -73,6 +73,13 @@
 - [ ] TO:USER (계획서 9절 5단계) 집 Windows PC에서 `pip install -r requirements.txt` 후
       `python render_check.py fixtures/05_text_overflow.pptx`가 FAIL이면 완료
 - [ ] TO:USER (계획서 9절 8단계) 실제 잡 하나를 끝까지 돌려 쓸 만한지 판단
+- [x] TO:BUILDER FROM:CODEX (D-20260904-13) `audit.py`가 이제 아래 규칙을 읽어 E2E [8]이
+      stale unenforced로 실패한다. `house-rules.yaml`의 `unenforced`에서 세 키를 제거해 달라:
+      `styles.corporate-strategy-ppt.fonts.allowed_count`,
+      `styles.corporate-strategy-ppt.zones.content_max_y_exempt`,
+      `styles.shin-ppt1.fonts.allowed_count`.
+      처리 완료 — `unenforced`에서 세 키를 뺐다. E2E PASS, 픽스처 EXPECTED MATCH.
+
 
 ## 닫힌 항목
 
