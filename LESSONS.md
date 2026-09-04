@@ -106,6 +106,7 @@ guard.sh            glob을 가드로 적은 L23을 막음 (그런데 내가 지
 | L39 | 규칙이 한 스타일에만 있어 다른 쪽이 샌다 | 1 | 09-03 | 09-03 | `emphasis`(색 단독 강조 금지)가 shin에만 있어 corporate 배너가 같은 pt·같은 굵기로 색에만 강조를 걸었다 | `e2e_check.py`가 스타일 간 규칙 절 차이를 센다 | 스크립트 |
 | L40 | 기본값을 두면 조용히 어긋난다 | 1 | 09-03 | 09-03 | `chartSeries`의 chart 이름 기본값이 `chartLine/chart`인데 실제로는 `chartBar`를 그려 `claim.chart_series_missing`이 났다 | `deckkit.js:chartSeries`가 chart 이름을 필수로 받는다 | 스크립트 |
 | L41 | 가드가 이름만 보고 내용을 안 본다 | 1 | 09-04 | 09-04 | `e2e_check.py`가 판단 가드를 확인할 때 렌즈 **이름**이 `REVIEW.md`에 있는지만 봤다. "CONTENT"·"DESIGN"은 둘 다 절 제목이라 무슨 교훈이든 통과했다 — 판단 13건 중 8건을 REVIEW.md가 한 번도 언급한 적이 없는데 OK가 나왔다 | `e2e_check.py`의 판단 가드 대조가 **교훈 번호**를 REVIEW.md에서 찾는다 | 스크립트 |
+| L42 | 생성기가 자기 규칙만 지키고 검사기의 하한선을 모른다 | 1 | 09-04 | 09-04 | shin 각주 상자가 `zones.footnote_bottom_y`(생성기·audit 합의)는 지켰는데 상자가 아래로 0.42in 자라 `qa.text_max_ymax_pt`(593pt)를 넘었다. 잡 003·004·005 셋 다 넘었고 **LAYOUT이 한 번도 안 돌아 아무도 몰랐다** | `template_shin.js:footer`가 `qa.text_max_ymax_pt`를 읽어 상자 높이를 자른다 — 새 규칙을 만들지 않고 검사기가 이미 아는 값을 생성기가 지킨다 | 스크립트 |
 | L12 | 새 도형 역할을 규칙에 등재 안 한다 | 2 | 08-30 | 08-30 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가

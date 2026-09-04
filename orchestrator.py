@@ -448,9 +448,11 @@ def issue_action(issue: dict) -> str:
 
 
 def cmd_render(root: Path, version: int = 1) -> None:
-    """GATE 2: PowerPoint COM 실측 렌더 검사 (render_check.py).
+    """GATE 2: 실측 렌더 검사 (render_check.py).
 
-    집 Windows PC에서만 실행한다. macOS에서는 SKIP이므로 게이트를 막지 않는다.
+    Windows는 PowerPoint COM, 그 밖은 LibreOffice headless SVG로 잰다
+    (CODEX, 2026-09-04). 폰트가 없거나 대체가 감지된 도형은 PASS가 아니라
+    SKIP으로 빠진다 — 잰 도형이 하나도 없으면 결과 자체가 SKIP이다 (2.16-7).
     결과.issues는 register의 render_issues로 따로 기록해 게이트가 audit 이슈와
     합쳐 판정한다. render_check.py 실행 파일은 리포 루트에 있다 (담당: Codex).
     """
@@ -461,11 +463,13 @@ def cmd_render(root: Path, version: int = 1) -> None:
 
     render_exe = Path(__file__).with_name("render_check.py")
     render_file = root / "review" / f"render_r{version}.json"
+    # 스타일을 안 넘기면 render_check가 "style is unknown"으로 ERROR를 낸다.
+    # audit과 같이 manifest 경로를 명시한다 — 잡의 스타일은 거기 적혀 있다.
+    render_cmd = [sys.executable, str(render_exe), str(p["pptx"]), "--json"]
+    if p["manifest"].exists():
+        render_cmd += ["--manifest", str(p["manifest"])]
     with render_file.open("w", encoding="utf-8") as out:
-        subprocess.run(
-            [sys.executable, str(render_exe), str(p["pptx"]), "--json"],
-            stdout=out, check=False,
-        )
+        subprocess.run(render_cmd, stdout=out, check=False)
 
     payload = read_json(render_file)
     probe = payload if isinstance(payload, dict) and "status" in payload else None
@@ -478,6 +482,9 @@ def cmd_render(root: Path, version: int = 1) -> None:
 
     register = read_json(p["register"])
     register["render_status"] = render_status
+    # 무엇을 못 쟀는지 남긴다. 사유가 없으면 게이트가 "환경 탓"으로 뭉뚱그린다.
+    render_skips = probe.get("skips", []) if isinstance(probe, dict) else []
+    register["render_skips"] = [str(item.get("reason", "")) for item in render_skips][:20]
     register["render_error"] = render_error
     if render_status == "ERROR" and not render_issues:
         # 이슈가 없는 ERROR는 게이트에서 ALL PASS처럼 보이므로 블로킹용 이슈를 만든다.
@@ -641,7 +648,7 @@ SKIP_REASONS = {
 
 def skip_reason(gate: str) -> str:
     """게이트가 SKIP일 이유. SKIP_REASONS에 없으면 환경(render SKIP) 쪽이다."""
-    return SKIP_REASONS.get(gate, "render_check가 이 환경에서 SKIP (PowerPoint COM — 집 Windows)")
+    return SKIP_REASONS.get(gate, "render_check가 SKIP을 냈다 (orchestrator.py <잡> render 로 사유를 본다)")
 
 
 def gate_headline(gates: dict) -> str:
@@ -810,6 +817,10 @@ def cmd_gates(root: Path) -> None:
             SKIP_REASONS["LINT"] = "린트를 안 돌렸다 (orchestrator.py <잡> review 를 다시 돌린다)"
             status[gate] = "SKIP"
         elif gate == "LAYOUT" and render_status in ("", "SKIP"):
+            skips = register.get("render_skips") or []
+            SKIP_REASONS["LAYOUT"] = (
+                "render를 아직 안 돌렸다 (orchestrator.py <잡> render)" if not render_status
+                else "render가 SKIP — " + (skips[0] if skips else "잰 도형이 없다"))
             # 빈 값 = render를 아예 안 돌렸다. 돌려서 SKIP이 나오면 SKIP인데
             # 안 돌리면 PASS가 되던 구멍이 있었다 — 거꾸로다 (2026-08-30, 실전 잡 003).
             # 넘침 판정의 정본은 render_check.py다. 그것을 안 돌린 채로 LAYOUT을
