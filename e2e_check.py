@@ -307,7 +307,12 @@ def lessons_guarded() -> list[str]:
             continue
         num, guard, kind = cols[0], cols[6], cols[7]
         if kind == "판단":
-            # 판단 가드는 REVIEW.md가 실제로 그 얘기를 해야 한다. 렌즈 이름으로 확인한다.
+            # 판단 가드는 REVIEW.md가 실제로 그 얘기를 해야 한다.
+            # 렌즈 **이름**만 보면 안 된다 — "CONTENT"와 "DESIGN"은 둘 다 절 제목에
+            # 있어서 어떤 교훈이든 무조건 통과했다. 2026-09-04에 드러났다: 판단 13건
+            # 중 8건을 REVIEW.md가 한 번도 언급한 적이 없는데 e2e는 OK를 냈다 (L37).
+            # 교훈 번호를 REVIEW.md가 이름으로 들어야 통과시킨다 — 그래야 체크리스트가
+            # 교훈이 늘 때 같이 늘고, 08-30에 얼어붙은 채로 남지 않는다.
             lens = "DESIGN" if "DESIGN" in guard else ("CONTENT" if "CONTENT" in guard else None)
             if guard.startswith("**없다**"):
                 continue                                  # 가드 없음을 명시한 줄은 통과시킨다
@@ -315,6 +320,8 @@ def lessons_guarded() -> list[str]:
                 bad.append(f"{num}: REVIEW.md에 {lens} 렌즈가 없다")
             elif not lens and "prompts/REVIEW.md" not in guard and "house-rules" not in guard:
                 bad.append(f"{num}: 판단 가드인데 REVIEW.md도 house-rules도 안 가리킨다")
+            elif "prompts/REVIEW.md" in guard and not re.search(rf"\b{num}\b", review):
+                bad.append(f"{num}: REVIEW.md가 이 교훈을 이름으로 들지 않는다 — 체크리스트가 얼었다")
             continue
         # 스크립트 가드 — 백틱 안을 파일과 심볼로 나눈다.
         # 확장자가 있으면 파일, 없으면 심볼이다. 심볼은 같은 칸에 적힌 파일 중

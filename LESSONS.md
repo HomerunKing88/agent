@@ -101,10 +101,11 @@ guard.sh            glob을 가드로 적은 L23을 막음 (그런데 내가 지
 | L34 | 라벨과 값의 짝이 어긋나도 통과한다 | 1 | 09-03 | 08-30 | 표 1열 라벨 둘을 맞바꾸니 뜻이 정반대인데 audit PASS. 숫자는 전부 원천과 맞다 | `audit.py` `claim.source_label_mismatch` (표) · `prompts/REVIEW.md` CONTENT 렌즈 (그림) | 스크립트 |
 | L35 | 배관이 끝까지 안 나른다 | 2 | 09-03 | 09-03 | audit 경고가 게이트 화면에는 나오는데 사용자가 받는 QA_REPORT에는 없었다. L27과 같은 뿌리 | `e2e_check.py` [7]이 register 경고가 보고서에 실렸는지 본다 | 스크립트 |
 | L36 | 가드의 스위치를 검사받는 쪽이 쥔다 | 2 | 09-03 | 09-03 | manifest의 `label_ref`를 지우면 라벨 대조가 통째로 꺼진다. `token_whitelist` 자기발급과 같은 모양 | 건너뛸 때 반드시 경고를 남긴다 — `audit.py` `token.whitelist_used` · `claim.source_label_unverified` | 스크립트 |
-| L37 | 오탐을 피하려다 구멍을 낸다 | 1 | 09-03 | 09-03 | "완전 일치는 오탐이 나니 포함 관계로 보라"고 지시했더니 접두어를 공유하는 네 행이 전부 통과했다 | `prompts/REVIEW.md` CONTENT 렌즈 · 새 검사는 반드시 깨 보고 확인 | 판단 |
+| L37 | 오탐을 피하려다 구멍을 낸다 | 2 | 09-03 | 09-04 | "완전 일치는 오탐이 나니 포함 관계로 보라"고 지시했더니 접두어를 공유하는 네 행이 전부 통과했다. 09-04에 또 났다 — `guard.sh`의 `grep "^## 결과"`가 `## 결과보류`도 통과시켰다. **깨 보기가 잡았다** | `prompts/REVIEW.md` CONTENT 렌즈 · 새 검사는 반드시 깨 보고 확인 | 판단 |
 | L38 | 검사 범위가 지표가 아니라 시트다 | 1 | 09-03 | 09-03 | 차트 계열 값이 원천 **시트 어딘가**에 있기만 하면 통과했다. 거래대금 자리에 신용잔고 값을 넣어도 PASS | `audit.py:check_chart_series` · `deckkit.js:chartSeries` — 계열별 범위와 순서까지 대조 | 스크립트 |
 | L39 | 규칙이 한 스타일에만 있어 다른 쪽이 샌다 | 1 | 09-03 | 09-03 | `emphasis`(색 단독 강조 금지)가 shin에만 있어 corporate 배너가 같은 pt·같은 굵기로 색에만 강조를 걸었다 | `e2e_check.py`가 스타일 간 규칙 절 차이를 센다 | 스크립트 |
 | L40 | 기본값을 두면 조용히 어긋난다 | 1 | 09-03 | 09-03 | `chartSeries`의 chart 이름 기본값이 `chartLine/chart`인데 실제로는 `chartBar`를 그려 `claim.chart_series_missing`이 났다 | `deckkit.js:chartSeries`가 chart 이름을 필수로 받는다 | 스크립트 |
+| L41 | 가드가 이름만 보고 내용을 안 본다 | 1 | 09-04 | 09-04 | `e2e_check.py`가 판단 가드를 확인할 때 렌즈 **이름**이 `REVIEW.md`에 있는지만 봤다. "CONTENT"·"DESIGN"은 둘 다 절 제목이라 무슨 교훈이든 통과했다 — 판단 13건 중 8건을 REVIEW.md가 한 번도 언급한 적이 없는데 OK가 나왔다 | `e2e_check.py`의 판단 가드 대조가 **교훈 번호**를 REVIEW.md에서 찾는다 | 스크립트 |
 | L12 | 새 도형 역할을 규칙에 등재 안 한다 | 2 | 08-30 | 08-30 | `stat/label` · `lag/text`가 `role_min_pt`에 없어 audit ERROR | `audit.py` `role_min_pt` 미정의 시 ERROR | 스크립트 |
 
 ## L1이 왜 아홉 번인가

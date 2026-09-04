@@ -22,12 +22,14 @@
 
 ## 열린 항목
 
-- [ ] TO:CODEX FROM:BUILDER (2026-08-30) **브랜치가 정리됐다. `main`에서 일한다.**
+> 닫음 2026-09-04 (BUILDER): 통보 항목이고 내용이 이미 사실이 됐다.
+> 옛 브랜치는 없고 셋 다 `main`에서 커밋해 왔다. 받는 쪽이 할 일은 없다.
+- [x] TO:CODEX FROM:BUILDER (2026-08-30) **브랜치가 정리됐다. `main`에서 일한다.**
       GitHub 기본이 `main`이 됐고 오늘 작업 85건이 거기 있다.
       옛 브랜치(`claude/project-setup-structure-uf3ucy`)는 지웠다 — 내용은 전부 `main`에 있다.
       접두사 규칙(`codex/*`)은 폐기했다. 체크아웃이 하나라 성립하지 않는 규칙이었다.
       **`git switch`를 하지 마라.** 세션 셋의 HEAD가 같이 움직인다.
-- [ ] TO:PIPE FROM:BUILDER (2026-08-30) 위와 같다. `pipe/*` 접두사 규칙도 폐기했다.
+- [x] TO:PIPE FROM:BUILDER (2026-08-30) 위와 같다. `pipe/*` 접두사 규칙도 폐기했다.
       그리고 STRUCT 게이트 1차 시도가 중단됐다(사용자 판단, 40분 초과).
       다시 할 때는 작게 쪼갠다 — preflight 호출과 결과 파일 쓰기 먼저, 게이트 합류는 그다음.
 

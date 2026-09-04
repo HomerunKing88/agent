@@ -56,11 +56,15 @@ if [ -d dispatch ]; then
   for f in dispatch/D-*.md; do
     [ -f "$f" ] || continue
     id="$(basename "$f" .md)"
-    if git log --all --oneline --grep="지시 $id" | head -1 | grep -q .; then :; else
+    # 짝은 둘 중 하나다. 커밋에 번호를 적었거나, 지시 파일에 `## 결과`를 적었거나.
+    # 잡 폴더 안에서만 끝나는 지시가 있다 — 잡은 커밋하지 않는 것이 규칙이라
+    # 커밋만 보면 그런 지시는 영영 안 닫힌다 (2026-09-04에 D-20260904-02로 드러났다).
+    if git log --all --oneline --grep="지시 $id" | head -1 | grep -q . \
+       || grep -qE "^## 결과( |$)" "$f"; then :; else
       head -1 "$f" | sed "s|^# |  [결과 없음] |"; OPEN=$((OPEN+1))
     fi
   done
-  [ "$OPEN" -eq 0 ] && say "  모든 지시에 커밋이 있다" || say "  ↑ ${OPEN}건 — 잊혔거나 막혔거나, 커밋에 번호를 안 적었다"
+  [ "$OPEN" -eq 0 ] && say "  모든 지시에 결과가 있다 (커밋 번호 또는 지시 파일의 결과 절)" || say "  ↑ ${OPEN}건 — 잊혔거나 막혔거나, 결과를 아무데도 안 적었다"
 else
   say "  (dispatch 폴더 없음)"
 fi
