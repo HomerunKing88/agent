@@ -163,10 +163,12 @@ def slack_run(job: Path) -> tuple[str, str]:
 # 어떤 검사 규칙도 도달하지 못하는 게이트. QA_REPORT에는 PASS로 찍힌다.
 # "검사했고 통과"와 "검사한 적 없음"이 구분되지 않는 자리다 (2.16-7).
 # 사용자가 받는 문서라 조용히 늘어나면 안 된다. 아래 목록과 실제가 어긋나면 FAIL.
-GATES_NOT_WIRED = {
+GATES_NOT_WIRED: dict[str, str] = {
     # CALC는 2026-08-29에 살아났다. Codex가 계산 불일치를 calc.* 규칙으로 분리했다(e5eb0c9).
     # 이 감시가 "목록이 낡았다"로 잡아서 알았다. 합성 테스트가 아니라 실제로 발동한 첫 사례다.
-    "LINT": "lint_deck.js가 계획서 9절 보류 항목이다. 아예 존재하지 않는다",
+    # LINT는 2026-09-04에 살아났다. `lint_deck.js`를 만들고 cmd_review에 배선했다 —
+    # 보류를 유지하면 게이트 아홉 중 하나가 영구 SKIP이라 표가 실제보다 넓어 보인다.
+    # **이제 비어 있다.** 여기에 뭔가 다시 들어가면 그 게이트는 죽은 것이다.
 }
 
 
@@ -367,8 +369,13 @@ def unwired_gates() -> tuple[list[str], list[str]]:
         # 걸친 호출 다섯 개가 감시견에 안 보였다 — contract.* 둘, render.* 셋.
         # 게이트 배선을 증명하는 장치 자신이 눈이 멀어 있었다 (2026-08-30).
         emitted |= set(re.findall(r'Issue\(\s*"([a-z][a-z_.]+)"', (REPO / name).read_text(encoding="utf-8")))
-    # orchestrator가 스스로 붙이는 규칙 (EDITOR 지적, 스키마 위반)
-    emitted |= {"editor.MESSAGE", "pipeline.schema_violation"}
+    # lint_deck.js는 파이썬이 아니라 `rule: "lint.raw_call"` 꼴로 낸다.
+    # orchestrator의 run_lint가 못 돌린 경우 붙이는 lint.error도 같이 센다.
+    lint_js = REPO / "lint_deck.js"
+    if lint_js.is_file():
+        emitted |= set(re.findall(r'rule:\s*"([a-z][a-z_.]+)"', lint_js.read_text(encoding="utf-8")))
+    # orchestrator가 스스로 붙이는 규칙 (EDITOR 지적, 스키마 위반, lint 수행 불가)
+    emitted |= {"editor.MESSAGE", "pipeline.schema_violation", "lint.error"}
 
     reachable = {orchestrator.gate_of(rule) for rule in emitted}
     dark = [g for g in orchestrator.GATES if g not in reachable and g not in GATES_NOT_WIRED]
@@ -557,6 +564,37 @@ def run(job: Path, rules: dict) -> None:
     dead, stale = unenforced_drift(rules)
     check("검사 없는 새 규칙 없음", not dead, ", ".join(dead))
     check("unenforced 목록이 최신", not stale, ", ".join(stale))
+
+    print("\n[8.5] LINT가 실제로 잡나 — 헬퍼 우회를 심어 본다")
+    # 도달 가능한 게이트와 실제로 발동하는 게이트는 다르다. [9]는 규칙 이름이
+    # 게이트로 이어지는지만 본다 — 검사가 아무것도 못 잡아도 통과한다.
+    # 그래서 여기서 진짜 우회를 심어 FAIL이 나는지 본다 (2.16-7, L37).
+    lint_js = REPO / "lint_deck.js"
+    probe = job / "builder" / "lint_probe.js"
+    probe.parent.mkdir(parents=True, exist_ok=True)
+    probe.write_text(
+        'const tpl = require("./template.js");\n'
+        'function build(pres) {\n'
+        '  const s = pres.addSlide();\n'
+        '  tpl.text(s, "정상", { x: 1, y: 1 });\n'
+        '  s.addText("이름 없는 도형", { x: 1, y: 2, w: 3, h: 0.4 });\n'
+        '  s.addTable([[1]], { objectName: "t/x", x: 1, y: 3 });\n'
+        '  s.addShape("rect", { x: 1, y: 4 });   // lint-allow: 사유를 적었다\n'
+        '}\n', encoding="utf-8")
+    done = subprocess.run(["node", str(lint_js), str(probe), "--json"],
+                          capture_output=True, text=True, check=False)
+    try:
+        out = json.loads(done.stdout)
+    except json.JSONDecodeError:
+        out = {"status": "ERROR", "issues": []}
+    caught = [i["line"] for i in out.get("issues", [])]
+    check("이름 없는 raw 호출을 잡는다", caught == [5],
+          f"status={out.get('status')} 잡은 줄={caught} (5만 나와야 한다)")
+    # objectName을 붙였거나 사유를 적은 것까지 잡으면 오탐이다. 위 == [5]가 둘 다 본다.
+    check("정상 덱은 통과시킨다",
+          subprocess.run(["node", str(lint_js), str(job / "builder" / "deck_v1.js")],
+                         capture_output=True, check=False).returncode == 0,
+          "e2e의 정상 잡이 LINT에 걸린다")
 
     print("\n[9] 게이트가 실제로 검사되나 — 도달 못 하는 게이트를 센다")
     dark, lit = unwired_gates()

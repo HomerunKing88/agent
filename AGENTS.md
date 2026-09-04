@@ -586,6 +586,25 @@ limits.parallel_items_max / diagrams_per_page_max
 합친 설계면 계획서 8절 게이트 표를 고쳐야 하고, 나눌 거면 rule 이름을 나눠야 한다.
 `LINT`는 `lint_deck.js`가 보류 항목이라 정상이다.
 
+## LINT 게이트가 살아났다 (2026-09-04, BUILDER)
+
+`lint_deck.js`를 만들고 `orchestrator.cmd_review`에 배선했다. 계획서 9절 보류를 풀었다.
+**이제 아홉 게이트에 도달 못 하는 것이 하나도 없다** — `e2e_check.GATES_NOT_WIRED`가 비었다.
+
+- 검사 대상은 pptx가 아니라 `builder/deck_v{n}.js`다. 헬퍼(`tpl.*`)를 우회해
+  pptxgenjs를 직접 부르면 도형에 이름이 안 붙고, audit은 이름으로 도형을 찾으므로
+  그 도형은 아무 검사도 안 받는다. 게이트 아홉을 정문으로 우회하는 길이었다.
+- 규칙 값은 `house-rules.yaml`의 `lint` 절에만 있다 (`raw_calls`·`names_shape_ok`·
+  `exception_marker`). 코드에 박지 않았다.
+- **`objectName`을 붙인 raw 호출은 통과시킨다.** audit이 그 도형을 보기 때문이다.
+  막으려는 것은 호출 형태가 아니라 **이름 없는 도형**이다.
+  `addSlide`와 `require("pptxgenjs")`는 규칙에 없다 — 전자는 deckkit이 가로채고,
+  후자는 잡이 모듈을 `tpl.newPres(pptxgen, ...)`에 넘기는 계약이다.
+- 결과는 `review/lint_r{N}.json`. 못 돌리면(node 없음 등) `lint.error`로 게이트를 막는다.
+- 회귀: `e2e_check.py` [8.5]가 우회를 심어 잡히는지 매번 확인한다.
+
+CODEX 쪽에 요구하는 것은 없다. `audit.py`는 그대로다.
+
 ## house-rules.yaml 변경 알림 (2026-08-29 8차, BUILDER) — `unenforced` 절 신설
 
 죽은 규칙 6건을 어떻게 할지 정했다. **하나만 검사에 넣고 나머지는 "검사 없음"을 명시한다.**

@@ -69,6 +69,7 @@ def job_paths(root: Path, version: int = 1) -> dict[str, Path]:
         "audit": root / "review" / f"audit_r{version}.json",
         "editor": root / "review" / f"editor_r{version}.json",
         "preflight": root / "review" / f"preflight_r{version}.json",
+        "lint": root / "review" / f"lint_r{version}.json",
         "register": root / "review" / "issue_register.json",
         "decision": root / "review" / "user_decision.json",
         "final": root / "final",
@@ -252,6 +253,41 @@ def cmd_build(root: Path, version: int = 1) -> None:
     meta_update(root, **{k: v for k, v in preview.render_preview(p, version).items() if v})
 
 
+def run_lint(p: dict[str, Path]) -> tuple[list[dict], str]:
+    """lint_deck.js를 돌리고 결과를 파일로 남긴 뒤 이슈를 돌려준다.
+
+    못 돌린 경우(node 없음·스크립트 없음·JSON 아님)를 조용히 넘기지 않는다.
+    `lint.error`로 만들어 LINT 게이트를 막는다 — 모르는 상태는 PASS가 아니다 (2.16-7).
+    """
+    script = Path(__file__).with_name("lint_deck.js")
+    target = p["deck_js"]
+    payload = {"file": target.name, "status": "ERROR", "error": None, "issues": []}
+    if not target.is_file():
+        payload["error"] = f"덱 스크립트가 없다: {target}"
+    elif not script.is_file():
+        payload["error"] = f"lint_deck.js가 없다: {script}"
+    else:
+        try:
+            done = subprocess.run(["node", str(script), str(target), "--json"],
+                                  capture_output=True, text=True, check=False)
+            payload = json.loads(done.stdout)
+        except FileNotFoundError:
+            payload["error"] = "node를 찾을 수 없다 (lint_deck.js를 못 돌렸다)"
+        except json.JSONDecodeError:
+            payload["error"] = f"lint_deck.js가 JSON을 내지 않았다: {done.stdout[:200]}"
+    write_json(p["lint"], payload)
+
+    if payload.get("status") == "ERROR":
+        return ([{"rule": "lint.error", "slide": 0, "shape": "-",
+                  "evidence": payload.get("error") or "lint 수행 불가 (2.16-7)"}], "ERROR")
+    out = []
+    for it in payload.get("issues", []):
+        out.append({"rule": it.get("rule", "lint.raw_call"), "slide": 0,
+                    "shape": f"{target.name}:{it.get('line')}",
+                    "evidence": f"{it.get('text','')}  → {it.get('message','')}"})
+    return out, str(payload.get("status", "ERROR"))
+
+
 def cmd_review(root: Path, version: int = 1) -> None:
     p = job_paths(root, version)
     if not p["pptx"].exists():
@@ -271,6 +307,11 @@ def cmd_review(root: Path, version: int = 1) -> None:
             audit_cmd += ["--manifest", str(p["manifest"])]
         audit_cmd.append(str(p["pptx"]))
         subprocess.run(audit_cmd, stdout=out, check=False)
+
+    # LINT — 잡 스크립트가 헬퍼를 우회했나 (계획서 8절). 검사 대상이 pptx가 아니라
+    # deck_v{n}.js라서 audit과 따로 돈다. 2026-09-04에 보류를 풀었다: 게이트 아홉 중
+    # 하나가 "미구현"으로 영구 SKIP이면 게이트 표가 실제보다 넓어 보인다 (2.16-7).
+    lint_issues, lint_status = run_lint(p)
 
     # EDITOR 결과(editor_r1.json)가 있으면 검증해 통과분만 합친다.
     # 계획서 6.3: pydantic 검증, 실패/어휘위반은 원문을 로그에 남기고 그 이슈만
@@ -296,7 +337,7 @@ def cmd_review(root: Path, version: int = 1) -> None:
         audit_issues.append({"rule": "audit.error", "slide": 0, "shape": "-",
                              "evidence": audit_error or "검사 수행 불가 (2.16.7)"})
 
-    issues = audit_issues + editor_issues
+    issues = audit_issues + lint_issues + editor_issues
     register = {
         "job": root.name,
         "round": version,
@@ -305,6 +346,9 @@ def cmd_review(root: Path, version: int = 1) -> None:
         "deck": p["pptx"].name,
         "deck_hash": deck_hash(p["pptx"]),
         "audit_status": audit_status,
+        # LINT를 돌린 적이 있나. 없으면 게이트는 PASS가 아니라 SKIP이다 (2.16-7).
+        # 이 키가 생기기 전에 만들어진 잡은 린트를 받은 적이 없다.
+        "lint_status": lint_status,
         # 막지는 않지만 사용자가 알아야 하는 것. 검증을 끈 claim이 여기 남는다
         "warnings": audit_warnings,
         "audit_error": audit_error,
@@ -590,7 +634,6 @@ GATES = ("SOURCE", "CALC", "XREF", "TOKEN", "LAYOUT", "HOUSE", "LINT", "ISSUE", 
 # QA_REPORT가 하지도 않은 검사를 통과했다고 말하게 된다. 사유는 여기만 둔다.
 # CALC는 CODEX e5eb0c9(`calc.source_manifest`)가 실제 배선해서 정적 SKIP이 아니다.
 SKIP_REASONS = {
-    "LINT": "lint_deck.js 미구현 (계획서 9절 보류)",
     # STRUCT: 파일이 없으면(아직 안 돌면) SKIP. 돌았으면 cmd_gates가 struct 건수로 결정한다.
     "STRUCT": "preflight가 아직 안 돌았다 (orchestrator.py <잡> preflight)",
 }
@@ -759,6 +802,12 @@ def cmd_gates(root: Path) -> None:
             SKIP_REASONS["ISSUE"] = judge_gap
             status[gate] = "SKIP"
         elif gate in SKIP_REASONS:
+            status[gate] = "SKIP"
+        elif gate == "LINT" and not register.get("lint_status"):
+            # 이 잡은 린트를 받은 적이 없다 (lint 배선 2026-09-04 이전에 만들어진
+            # register다). 돌린 적 없는 것을 통과로 적지 않는다 — LAYOUT에서
+            # 고친 것과 같은 자리다 (2.16-7).
+            SKIP_REASONS["LINT"] = "린트를 안 돌렸다 (orchestrator.py <잡> review 를 다시 돌린다)"
             status[gate] = "SKIP"
         elif gate == "LAYOUT" and render_status in ("", "SKIP"):
             # 빈 값 = render를 아예 안 돌렸다. 돌려서 SKIP이 나오면 SKIP인데
