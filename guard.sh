@@ -70,6 +70,26 @@ else
 fi
 
 say ""
+say "── 인계함에 안 처리한 것이 있나 ──────────"
+# HANDOFF는 유일한 인계 지점인데 **세션 시작에만 보라**고 되어 있었다.
+# 2026-09-05에 REVIEW가 세션 중간에 남긴 항목을 브리핑을 만들다가 발견했다.
+# 그 사이 게이트 버그(L49)가 그대로 있었다. 여기서 매번 낸다.
+if [ -f HANDOFF.md ]; then
+  HOPEN=$(grep -c "^- \[ \]" HANDOFF.md 2>/dev/null || echo 0)
+  if [ "$HOPEN" -eq 0 ]; then
+    say "  열린 항목 없음"
+  else
+    grep "^- \[ \]" HANDOFF.md | sed 's/^- \[ \] /  /' | cut -c1-96
+    # TO:USER는 사용자가 판단할 것이라 내가 막을 일이 아니다.
+    # 나(BUILDER) 앞으로 온 것만 처리 대상으로 센다
+    MINE=$(grep "^- \[ \]" HANDOFF.md | grep -c "TO:BUILDER" || true)
+    [ "${MINE:-0}" -gt 0 ] && say "  ↑ 이 중 ${MINE}건이 BUILDER 앞이다 — 처리하고 [x]로 바꾼다"
+  fi
+else
+  say "  (HANDOFF.md 없음)"
+fi
+
+say ""
 say "── 검토 산출물 (에이전트가 낸 것) ─────────"
 # 시켜 놓고 안 읽으면 소용없다. 2026-08-30 VERIFY가 파이프라인 구멍 8건을
 # 파일로 냈는데 네 시간 묵혔다. 그중 하나는 게이트 전체를 무효로 만드는 것이었다.

@@ -70,8 +70,23 @@
 
 - [x] TO:USER (계획서 9절 7단계) 배관 한도 → (b) 검사기 전체로 확정. 계획서 7절과 e2e [11]단계 반영
 - [x] TO:BUILDER (2026-09-03) 경전실 양식 네이티브 차트 헬퍼 → 아래 커밋 (chartBar·chartLine 신설)
-- [ ] TO:USER (계획서 9절 5단계) 집 Windows PC에서 `pip install -r requirements.txt` 후
-      `python render_check.py fixtures/05_text_overflow.pptx`가 FAIL이면 완료
+- [x] TO:USER (계획서 9절 5단계) 렌더 검사가 넘침을 실제로 잡는지 확인 — **완료 2026-09-05**
+      원래 조건은 "집 Windows PC에서 `python render_check.py fixtures/05_text_overflow.pptx`가
+      FAIL이면 완료"였다. 항목의 뜻은 **넘침 판정이 실제로 작동하는가**였고,
+      CODEX가 2026-09-04에 LibreOffice headless 경로를 붙여(271471a) 맥에서 확인됐다.
+
+      ```
+      $ python3 render_check.py fixtures/05_text_overflow.pptx --style shin-ppt1
+      status FAIL  ·  종료코드 1
+        render.text_overflow | Text 7 |
+          bounds=(435.6, 91.0, 475.2, 280.8)pt  ← 렌더된 글자
+          shape =(435.6,178.6, 475.2,193.0)pt  ← 도형 상자 (높이 14.4pt)
+      ```
+
+      상자 14.4pt에 글자가 189.8pt로 그려졌다. 실측이다. 정상 덱 넷은 PASS다.
+      Windows COM 경로는 그대로 남아 있고, 집 PC에서 돌리면 그쪽으로 간다.
+      사용자 지시로 닫는다.
+
 - [ ] TO:USER (계획서 9절 8단계) 실제 잡 하나를 끝까지 돌려 쓸 만한지 판단
 - [x] TO:BUILDER FROM:CODEX (D-20260904-13) `audit.py`가 이제 아래 규칙을 읽어 E2E [8]이
       stale unenforced로 실패한다. `house-rules.yaml`의 `unenforced`에서 세 키를 제거해 달라:
