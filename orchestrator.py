@@ -684,9 +684,15 @@ SKIP_REASONS = {
 }
 
 
-def skip_reason(gate: str) -> str:
-    """게이트가 SKIP일 이유. SKIP_REASONS에 없으면 환경(render SKIP) 쪽이다."""
-    return SKIP_REASONS.get(gate, "render_check가 SKIP을 냈다 (orchestrator.py <잡> render 로 사유를 본다)")
+def skip_reason(gate: str, reasons: dict[str, str] | None = None) -> str:
+    """게이트가 SKIP일 이유. 목록에 없으면 환경(render SKIP) 쪽이다.
+
+    **모듈 전역을 읽지 않는다.** cmd_gates가 잡마다 만든 사본을 넘긴다 —
+    전역에 써 넣으면 같은 프로세스의 다음 잡까지 그 사유가 따라간다
+    (2026-09-05 REVIEW 지적, 지시 D-20260905-07).
+    """
+    table = SKIP_REASONS if reasons is None else reasons
+    return table.get(gate, "render_check가 SKIP을 냈다 (orchestrator.py <잡> render 로 사유를 본다)")
 
 
 def gate_headline(gates: dict) -> str:
@@ -824,6 +830,11 @@ def cmd_gates(root: Path) -> None:
     # 그 PASS는 "봤더니 좋다"가 아니라 "아무도 안 봤다"였다.
     # 사용자가 눈으로 보고 결함 넷을 바로 짚었는데 게이트는 전부 열려 있었다.
     # LAYOUT에서 고친 것과 같은 버그가 제일 중요한 게이트에 있었다 (2.16-7).
+    # SKIP 사유는 **잡마다 새로 만든다.** 전역에 써 넣으면 같은 프로세스의 다음 잡이
+    # 그 사유를 물려받아, 실제로 통과한 게이트가 SKIP으로 굳는다.
+    # e2e_check가 한 프로세스에서 여러 잡을 돌리므로 실제 위험이다
+    # (2026-09-05 REVIEW 지적, 지시 D-20260905-07. 재현해 확인했다)
+    reasons = dict(SKIP_REASONS)
     judged, judge_gap = review_lens_cover(root, register.get("round", 1))
     if stale:
         # 낡은 판정으로는 어느 게이트도 열지 않는다. 하나만 막으면 나머지가
@@ -840,26 +851,26 @@ def cmd_gates(root: Path) -> None:
         elif gate == "STRUCT":
             status[gate] = "PASS" if pf_status in ("PASS", "FAIL") else "SKIP"
         elif gate == "ISSUE" and register.get("review_stale"):
-            SKIP_REASONS["ISSUE"] = "검토 이후 덱이 바뀌었다 — 지금 덱으로 다시 검토받아야 한다"
+            reasons["ISSUE"] = "검토 이후 덱이 바뀌었다 — 지금 덱으로 다시 검토받아야 한다"
             status[gate] = "SKIP"
         elif gate == "ISSUE" and not judged:
             # 검토가 안 돌았거나 렌즈 하나를 안 봤다. 규칙 검사만으로 통과라고
             # 적을 수 없다. house-rules는 바닥이지 기준이 아니다 —
             # 팔레트 안의 색인지는 보지만 두 선이 구분되는지는 못 본다.
             # 사유는 어느 렌즈가 빠졌는지까지 적는다 (review_lens_cover).
-            SKIP_REASONS["ISSUE"] = judge_gap
+            reasons["ISSUE"] = judge_gap
             status[gate] = "SKIP"
-        elif gate in SKIP_REASONS:
+        elif gate in reasons:
             status[gate] = "SKIP"
         elif gate == "LINT" and not register.get("lint_status"):
             # 이 잡은 린트를 받은 적이 없다 (lint 배선 2026-09-04 이전에 만들어진
             # register다). 돌린 적 없는 것을 통과로 적지 않는다 — LAYOUT에서
             # 고친 것과 같은 자리다 (2.16-7).
-            SKIP_REASONS["LINT"] = "린트를 안 돌렸다 (orchestrator.py <잡> review 를 다시 돌린다)"
+            reasons["LINT"] = "린트를 안 돌렸다 (orchestrator.py <잡> review 를 다시 돌린다)"
             status[gate] = "SKIP"
         elif gate == "LAYOUT" and render_status in ("", "SKIP"):
             skips = register.get("render_skips") or []
-            SKIP_REASONS["LAYOUT"] = (
+            reasons["LAYOUT"] = (
                 "render를 아직 안 돌렸다 (orchestrator.py <잡> render)" if not render_status
                 else "render가 SKIP — " + (skips[0] if skips else "잰 도형이 없다"))
             # 빈 값 = render를 아예 안 돌렸다. 돌려서 SKIP이 나오면 SKIP인데
@@ -877,6 +888,8 @@ def cmd_gates(root: Path) -> None:
         "skipped": skipped,
         "status": status,
         "violations": violations,
+        # 사유를 여기 실어 둔다. 보고서가 전역을 다시 읽으면 같은 오염에 걸린다
+        "skip_reasons": {g: skip_reason(g, reasons) for g in skipped},
     }
     write_json(root / "review" / "gates.json", gates)
     print("GATE      " + gate_headline(gates))
@@ -887,7 +900,7 @@ def cmd_gates(root: Path) -> None:
     if blocked:
         print("차단      : " + ", ".join(blocked))
     if skipped:
-        print("건너뜀    : " + ", ".join(f"{g} ({skip_reason(g)})" for g in skipped))
+        print("건너뜀    : " + ", ".join(f"{g} ({skip_reason(g, reasons)})" for g in skipped))
     if violations["UNMAPPED"]:
         print("미매핑    : " + ", ".join(violations["UNMAPPED"]) +
               "  ← gate_of에 정확히 매핑할 새 검사 규칙")
@@ -908,7 +921,8 @@ def cmd_report(root: Path) -> None:
         passed = gates.get("pass") or []
         skipped = gates.get("skipped") or []
         lines.append("PASS    : " + (", ".join(passed) if passed else "없음"))
-        lines.append("SKIP    : " + (", ".join(f"{g} ({skip_reason(g)})" for g in skipped) if skipped else "없음"))
+        sr = gates.get("skip_reasons") or {}
+        lines.append("SKIP    : " + (", ".join(f"{g} ({sr.get(g, skip_reason(g))})" for g in skipped) if skipped else "없음"))
         # 막지는 않지만 사용자가 알아야 하는 것. 게이트 화면에는 나오는데
         # 정작 사용자가 받는 문서에 없었다 (2026-09-03). 검사기가 낸 것을
         # 배관이 끝까지 안 나른 것이라 L27과 같은 부류다.

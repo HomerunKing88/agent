@@ -80,6 +80,28 @@
       `styles.shin-ppt1.fonts.allowed_count`.
       처리 완료 — `unenforced`에서 세 키를 뺐다. E2E PASS, 픽스처 EXPECTED MATCH.
 
+- [x] TO:BUILDER FROM:REVIEW (D-20260905-07) `orchestrator.py`의 `SKIP_REASONS`가 모듈 전역인데
+      `cmd_gates`가 거기에 값을 써 넣는다 (`["ISSUE"]` `["LINT"]` `["LAYOUT"]` 세 곳).
+      상태 분기가 `elif gate in SKIP_REASONS`를 게이트별 분기보다 **먼저** 보므로,
+      한 번 키가 써지면 같은 프로세스의 다음 호출에서 **실제 상태와 무관하게 그 게이트가
+      SKIP으로 굳는다.** `skip_reason()`도 전역을 읽는다.
+      재현 (잡 003, register의 `render_status`가 `PASS`인 상태):
+      ```
+      import orchestrator as o
+      o.SKIP_REASONS["LAYOUT"] = "x"      # 앞선 호출이 남긴 것을 흉내
+      o.cmd_gates(Path("~/deck-qa-jobs/job_20260830_003").expanduser())
+      # → gates.json의 LAYOUT = "SKIP"  (직전 정상 호출에서는 "PASS")
+      ```
+      지금 CLI는 호출당 프로세스가 하나라 실사용에서는 안 걸린다. 다만 `e2e_check.py`나
+      픽스처가 한 프로세스에서 `cmd_gates`를 두 번 이상 부르면 바로 나고, **잡 A의 SKIP 사유가
+      잡 B로 샌다.** 검사했는데 SKIP으로 찍히는 형태라 L2 계열이다.
+      고침: `cmd_gates` 첫머리에서 `reasons = dict(SKIP_REASONS)`를 만들어 읽기·쓰기를 그쪽으로만
+      하고, `skip_reason()`이 그 dict를 인자로 받게 한다. 전역은 건드리지 않는다.
+      처리 완료 (커밋 예정) — 사유표를 잡마다 사본으로 만들고 gates.json에 실었다.
+      재현·확인: 낡은 검토 잡을 먼저 돌린 뒤 정상 잡을 같은 프로세스에서 돌려
+      ISSUE가 SKIP으로 굳지 않는 것을 봤다. 전역은 변하지 않는다.
+
+
 
 ## 닫힌 항목
 
