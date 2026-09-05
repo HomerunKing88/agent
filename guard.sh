@@ -75,14 +75,16 @@ say "── 인계함에 안 처리한 것이 있나 ─────────
 # 2026-09-05에 REVIEW가 세션 중간에 남긴 항목을 브리핑을 만들다가 발견했다.
 # 그 사이 게이트 버그(L49)가 그대로 있었다. 여기서 매번 낸다.
 if [ -f HANDOFF.md ]; then
-  HOPEN=$(grep -c "^- \[ \]" HANDOFF.md 2>/dev/null || echo 0)
+  # grep -c 는 0건일 때 종료코드 1이라 `|| echo 0`을 붙이면 "0\n0"이 된다.
+  # 2026-09-05에 마지막 항목을 닫자마자 그 꼴로 터졌다. 값만 세어 담는다
+  HOPEN=$(grep -c "^- \[ \]" HANDOFF.md 2>/dev/null); HOPEN=${HOPEN:-0}
   if [ "$HOPEN" -eq 0 ]; then
     say "  열린 항목 없음"
   else
     grep "^- \[ \]" HANDOFF.md | sed 's/^- \[ \] /  /' | cut -c1-96
     # TO:USER는 사용자가 판단할 것이라 내가 막을 일이 아니다.
     # 나(BUILDER) 앞으로 온 것만 처리 대상으로 센다
-    MINE=$(grep "^- \[ \]" HANDOFF.md | grep -c "TO:BUILDER" || true)
+    MINE=$(grep "^- \[ \]" HANDOFF.md | grep -c "TO:BUILDER"); MINE=${MINE:-0}
     [ "${MINE:-0}" -gt 0 ] && say "  ↑ 이 중 ${MINE}건이 BUILDER 앞이다 — 처리하고 [x]로 바꾼다"
   fi
 else
