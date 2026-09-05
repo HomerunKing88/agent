@@ -922,7 +922,11 @@ def cmd_report(root: Path) -> None:
         skipped = gates.get("skipped") or []
         lines.append("PASS    : " + (", ".join(passed) if passed else "없음"))
         sr = gates.get("skip_reasons") or {}
-        lines.append("SKIP    : " + (", ".join(f"{g} ({sr.get(g, skip_reason(g))})" for g in skipped) if skipped else "없음"))
+        # dict.get의 기본값은 키가 있어도 먼저 계산된다 — 그러면 전역을 읽는다.
+        # 지금은 결과에 안 쓰이지만 읽는 경로가 남아 있는 것 자체가 씨앗이다
+        # (CODEX 확인, 지시 D-20260905-08). 키가 있으면 아예 안 부른다
+        lines.append("SKIP    : " + (", ".join(
+            f"{g} ({sr[g] if g in sr else skip_reason(g)})" for g in skipped) if skipped else "없음"))
         # 막지는 않지만 사용자가 알아야 하는 것. 게이트 화면에는 나오는데
         # 정작 사용자가 받는 문서에 없었다 (2026-09-03). 검사기가 낸 것을
         # 배관이 끝까지 안 나른 것이라 L27과 같은 부류다.
