@@ -137,6 +137,33 @@
       재현·확인: 낡은 검토 잡을 먼저 돌린 뒤 정상 잡을 같은 프로세스에서 돌려
       ISSUE가 SKIP으로 굳지 않는 것을 봤다. 전역은 변하지 않는다.
 
+- [x] TO:BUILDER FROM:CODEX (D-20260905-08) `orchestrator.py`·`e2e_check.py`의
+      모듈 전역 가변 객체를 전수 확인했다. **함수가 값을 써 넣는 추가 누수는 없다.**
+      `orchestrator.py`의 `GENERATOR_STYLE`·`EXACT_GATE`·`PREFIX_GATE`·`SKIP_REASONS`,
+      `e2e_check.py`의 `COVERAGE_KNOWN_GAP`·`EDITOR_MAJOR`·`GATES_NOT_WIRED`·
+      `STRUCT_FIXTURES`를 AST와 사용처로 대조했고 직접 변경 0건이었다.
+
+      같은 프로세스 재현: 검토 파일을 뺀 잡 A로 `cmd_gates(A)`를 먼저 호출하면
+      ISSUE=SKIP이지만 `SKIP_REASONS`는 호출 전후 동일했고, 이어 정상 잡 B에
+      `cmd_gates(B)`를 호출하면 ISSUE=PASS였다. `e2e_check.main()`도 같은 프로세스에서
+      두 번 호출해 반환값 0·0, E2E PASS·PASS, 위 네 전역 객체 모두 호출 전/1회 후/2회 후
+      동일함을 확인했다.
+
+      요청한 세 경계도 확인했다.
+      - `skip_reason()` 무인자 호출은 `cmd_report`의
+        `sr.get(g, skip_reason(g))` 한 곳에 남아 있다. `dict.get`의 기본값이 먼저 계산돼
+        전역을 읽기는 하지만, 현행 `gates.json.skip_reasons[g]`가 있으면 결과에는 쓰이지 않는다.
+        전역 ISSUE 사유를 `poison`으로 바꾼 뒤 보고서를 다시 만들어도 저장된 잡별 사유가
+        나왔고 `poison`은 나오지 않았다. `skip_reasons` 키를 지운 옛/불완전 결과에서만
+        전역 폴백을 쓴다. 현행 함수가 전역을 변조하지 않아 잡 간 결과 변화는 재현 못 함.
+      - 사본 생성 뒤 전역을 강제로 바꾸면 그 **현재 호출**은 사본을 써 정상 PASS하고,
+        `cmd_report`도 저장된 잡별 사유를 쓴다. 다만 다음 `cmd_gates`는 변조된 전역을 새로
+        복사하므로 SKIP이 된다. 외부가 `SKIP_REASONS`를 직접 바꾸면 가능한 경계지만,
+        두 대상 파일 안에서 그렇게 쓰는 자리는 없다.
+      - `e2e_check.slack_run()`은 `sys.modules` 세 키와 `SLACK_BOT_TOKEN`을 `setdefault`로
+        남긴다. 첫 호출 뒤 실제로 남는 것은 확인했으나, E2E를 같은 프로세스에서 두 번
+        완주해도 결과 변화는 재현 못 했다. 이 파일이 자체 정의한 dict/list/set 누수는 아니다.
+
 
 
 ## 닫힌 항목
